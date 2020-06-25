@@ -91,7 +91,7 @@ public class FormListDownloader {
                 log.error("Parsing OpenRosa reply -- %s", error);
                 formList.put(
                         DL_ERROR_MSG,
-                        new FormDetails(error);
+                        new FormDetails(error));
                 return formList;
             }
             int elements = xformsElement.getChildCount();
