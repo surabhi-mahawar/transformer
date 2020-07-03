@@ -1,4 +1,4 @@
-create table xMessage_state(
+create table xmessage_state(
 	id BIGSERIAL PRIMARY KEY NOT NULL,
 	phone_no VARCHAR(15) NOT NULL,
 	state text,
@@ -8,4 +8,4 @@ create table xMessage_state(
 );
 
 
-CREATE INDEX index_state_phone_no ON xMessage_state(phone_no);
+CREATE INDEX index_state_phone_no ON xmessage_state(phone_no);

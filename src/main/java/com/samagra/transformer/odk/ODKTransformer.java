@@ -2,9 +2,6 @@ package com.samagra.transformer.odk;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.samagra.common.Request.MS3Request;
-import com.samagra.common.Request.UserState;
-import com.samagra.notification.Response.MessageResponse;
 import com.samagra.transformer.TransformerProvider;
 import com.samagra.transformer.odk.entity.GupshupStateEntity;
 import com.samagra.transformer.odk.repository.StateRepository;

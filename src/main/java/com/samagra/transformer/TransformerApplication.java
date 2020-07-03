@@ -13,9 +13,9 @@ import org.springframework.scheduling.annotation.EnableAsync;
 
 @EnableKafka
 @EnableAsync
-@ComponentScan(basePackages = {"com.samagra.*","com.*"})
-@EnableJpaRepositories(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity"})
-@EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity"})
+@ComponentScan(basePackages = {"com.samagra.transformer", "com.samagra"})
+@EnableJpaRepositories(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
+@EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
 @PropertySource("application-messagerosa.properties")
 @PropertySource("application.properties")
 @SpringBootApplication()
