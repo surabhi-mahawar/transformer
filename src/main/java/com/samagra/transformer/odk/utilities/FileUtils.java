@@ -14,6 +14,13 @@ package com.samagra.transformer.odk.utilities;
  * the License.
  */
 
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.Environment;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.javarosa.core.model.Constants;
 import org.javarosa.core.model.FormDef;
@@ -55,6 +62,7 @@ import java.util.Set;
  *
  * @author Carl Hartung (carlhartung@gmail.com)
  */
+@Slf4j
 public class FileUtils {
 
     // Used to validate and display valid form names.
@@ -104,7 +112,7 @@ public class FileUtils {
             is = new FileInputStream(file);
 
         } catch (FileNotFoundException e) {
-            Timber.d(e, "Cache file %s not found", file.getAbsolutePath());
+            //Timber.d(e, "Cache file %s not found", file.getAbsolutePath());
             return null;
 
         }
@@ -134,11 +142,11 @@ public class FileUtils {
             return md5.toString();
 
         } catch (NoSuchAlgorithmException e) {
-            Timber.e(e);
+            log.error(e.getMessage());
             return null;
 
         } catch (IOException e) {
-            Timber.e(e, "Problem reading file.");
+            log.error(e.getMessage(), "Problem reading file.");
             return null;
         }
     }
@@ -197,7 +205,7 @@ public class FileUtils {
         }
 
         if (bitmap != null) {
-            Timber.i("Screen is %dx%d.  Image has been scaled down by %f to %dx%d",
+            log.error("Screen is %dx%d.  Image has been scaled down by %f to %dx%d",
                     screenHeight, screenWidth, scale, bitmap.getHeight(), bitmap.getWidth());
         }
         return bitmap;
@@ -209,17 +217,17 @@ public class FileUtils {
             if (errorMessage != null) {
                 try {
                     Thread.sleep(500);
-                    Timber.e("Retrying to copy the file after 500ms: %s",
+                    log.error("Retrying to copy the file after 500ms: %s",
                             sourceFile.getAbsolutePath());
                     errorMessage = actualCopy(sourceFile, destFile);
                 } catch (InterruptedException e) {
-                    Timber.e(e);
+                    log.error(e.getMessage());
                 }
             }
             return errorMessage;
         } else {
             String msg = "Source file does not exist: " + sourceFile.getAbsolutePath();
-            Timber.e(msg);
+            log.error(msg);
             return msg;
         }
     }
@@ -239,11 +247,11 @@ public class FileUtils {
             return null;
         } catch (Exception e) {
             if (e instanceof FileNotFoundException) {
-                Timber.e(e, "FileNotFoundException while copying file");
+                log.error(e.getMessage(), "FileNotFoundException while copying file");
             } else if (e instanceof IOException) {
-                Timber.e(e, "IOException while copying file");
+                log.error(e.getMessage(), "IOException while copying file");
             } else {
-                Timber.e(e, "Exception while copying file");
+                log.error(e.getMessage(), "Exception while copying file");
             }
             return e.getMessage();
         } finally {
@@ -375,10 +383,10 @@ public class FileUtils {
         if (file != null && file.exists()) {
             // remove garbage
             if (!file.delete()) {
-                Timber.w("%s will be deleted upon exit.", file.getAbsolutePath());
+                log.error("%s will be deleted upon exit.", file.getAbsolutePath());
                 file.deleteOnExit();
             } else {
-                Timber.w("%s has been deleted.", file.getAbsolutePath());
+                log.error("%s has been deleted.", file.getAbsolutePath());
             }
         }
     }
@@ -438,23 +446,23 @@ public class FileUtils {
      */
     public static void checkMediaPath(File mediaDir) {
         if (mediaDir.exists() && mediaDir.isFile()) {
-            Timber.e("The media folder is already there and it is a FILE!! We will need to delete "
+            log.error("The media folder is already there and it is a FILE!! We will need to delete "
                     + "it and create a folder instead");
             boolean deleted = mediaDir.delete();
-            if (!deleted) {
-                throw new RuntimeException(
-                        Collect.getInstance().getString(R.string.fs_delete_media_path_if_file_error,
-                                mediaDir.getAbsolutePath()));
-            }
+//            if (!deleted) {
+//                throw new RuntimeException(
+//                        Collect.getInstance().getString(R.string.fs_delete_media_path_if_file_error,
+//                                mediaDir.getAbsolutePath()));
+//            }
         }
 
         // the directory case
         boolean createdOrExisted = createFolder(mediaDir.getAbsolutePath());
-        if (!createdOrExisted) {
-            throw new RuntimeException(
-                    Collect.getInstance().getString(R.string.fs_create_media_folder_error,
-                            mediaDir.getAbsolutePath()));
-        }
+//        if (!createdOrExisted) {
+//            throw new RuntimeException(
+//                    Collect.getInstance().getString(R.string.fs_create_media_folder_error,
+//                            mediaDir.getAbsolutePath()));
+//        }
     }
 
     public static void purgeMediaPath(String mediaPath) {
@@ -489,7 +497,7 @@ public class FileUtils {
         try (FileOutputStream out = new FileOutputStream(path)) {
             bitmap.compress(compressFormat, 100, out);
         } catch (Exception e) {
-            Timber.e(e);
+            log.error(e.getMessage());
         }
     }
 
@@ -508,7 +516,7 @@ public class FileUtils {
         try {
             bitmap = BitmapFactory.decodeFile(path, originalOptions);
         } catch (OutOfMemoryError e) {
-            Timber.i(e);
+            log.error(e.getMessage());
             newOptions.inSampleSize++;
             return getBitmap(path, newOptions);
         }
@@ -521,7 +529,7 @@ public class FileUtils {
         try (InputStream is = new FileInputStream(file)) {
             is.read(bytes);
         } catch (IOException e) {
-            Timber.e(e);
+            log.error(e.getMessage());
         }
         return bytes;
     }
@@ -534,7 +542,7 @@ public class FileUtils {
             fos.write(data);
             fos.close();
         } catch (IOException e) {
-            Timber.e(e);
+            log.error(e.getMessage());
         }
     }
 
@@ -576,28 +584,29 @@ public class FileUtils {
     /** Uses the /sdcard symlink to shorten a path, if it's valid to do so. */
     @SuppressWarnings("PMD.DoNotHardCodeSDCard")
     public static String simplifyPath(File file) {
-        if (new StorageStateProvider().isScopedStorageUsed()) {
-            return file.getAbsolutePath();
-        } else {
-            // The symlink at /sdcard points to the same location as the storage
-            // path returned by getExternalStorageDirectory() on every Android
-            // device and emulator as far as we know; but, just to be certain
-            // that we don't lie to the user, we'll confirm that's really true.
-            if (!isSdcardSymlinkChecked) {
-                checkIfSdcardSymlinkSameAsExternalStorageDirectory();
-                isSdcardSymlinkChecked = true;  // this check is expensive; only do it once
-            }
-            if (isSdcardSymlinkSameAsExternalStorageDirectory) {
-                // They point to the same place, so it's safe to replace the longer
-                // storage path with the short symlink.
-                String storagePath = Environment.getExternalStorageDirectory().getAbsolutePath();
-                String path = file.getAbsolutePath();
-                if (path.startsWith(storagePath + "/")) {
-                    return "/sdcard" + path.substring(storagePath.length());
-                }
-            }
-            return file.getAbsolutePath();
-        }
+//        if (new StorageStateProvider().isScopedStorageUsed()) {
+//            return file.getAbsolutePath();
+//        } else {
+//            // The symlink at /sdcard points to the same location as the storage
+//            // path returned by getExternalStorageDirectory() on every Android
+//            // device and emulator as far as we know; but, just to be certain
+//            // that we don't lie to the user, we'll confirm that's really true.
+//            if (!isSdcardSymlinkChecked) {
+//                checkIfSdcardSymlinkSameAsExternalStorageDirectory();
+//                isSdcardSymlinkChecked = true;  // this check is expensive; only do it once
+//            }
+//            if (isSdcardSymlinkSameAsExternalStorageDirectory) {
+//                // They point to the same place, so it's safe to replace the longer
+//                // storage path with the short symlink.
+//                String storagePath = Environment.getExternalStorageDirectory().getAbsolutePath();
+//                String path = file.getAbsolutePath();
+//                if (path.startsWith(storagePath + "/")) {
+//                    return "/sdcard" + path.substring(storagePath.length());
+//                }
+//            }
+//            return file.getAbsolutePath();
+//        }
+        return "";
     }
 
     @SuppressWarnings("PMD.DoNotHardCodeSDCard")
@@ -611,10 +620,10 @@ public class FileUtils {
 
     /** Checks whether /sdcard points to the same place as getExternalStorageDirectory(). */
     @SuppressWarnings("PMD.DoNotHardCodeSDCard")
-    @SuppressFBWarnings(
-            value = "DMI_HARDCODED_ABSOLUTE_FILENAME",
-            justification = "The purpose of this function is to test this specific path."
-    )
+//    @SuppressFBWarnings(
+//            value = "DMI_HARDCODED_ABSOLUTE_FILENAME",
+//            justification = "The purpose of this function is to test this specific path."
+//    )
     private static void checkIfSdcardSymlinkSameAsExternalStorageDirectory() {
         try {
             // createTempFile() guarantees a randomly named file that did not previously exist.

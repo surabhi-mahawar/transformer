@@ -1,4 +1,4 @@
-package com.samagra.transformer.odk.Entity;
+package com.samagra.transformer.odk.entity;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -11,25 +11,27 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import javax.persistence.*;
-
 @Getter
 @Setter
 @AllArgsConstructor
 @Entity
 @NoArgsConstructor
-@Table(name = "gupshup_message")
-public class GupshupMessageEntity {
+@Table(name = "gupshup_state")
+public class GupshupStateEntity {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
-  
+
   @Column(nullable = false, name = "phone_no")
   private String phoneNo;
-  
-  @Column(nullable = false, name = "message")
-  private String message;
 
-  @Column(name = "is_last_message")
-  private boolean isLastResponse;
+  @Column(name = "state")
+  private String xmlPrevious;
+  
+  @Column(name = "previous_path")
+  private String previousPath;
+
+  @Column(name = "bot_form_name")
+  private String botFormName;
+  
 }

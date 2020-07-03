@@ -1,7 +1,6 @@
-package com.samagra.transformer.odk.Repository;
+package com.samagra.transformer.odk.repository;
 
-import com.samagra.Entity.GupshupMessageEntity;
-import com.samagra.transformer.odk.Entity.GupshupMessageEntity;
+import com.samagra.transformer.odk.entity.GupshupMessageEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,12 +1,14 @@
 package com.samagra.transformer.odk.openrosa;
 
+import org.springframework.lang.Nullable;
+
 import java.util.List;
 import java.util.Set;
 
-import javax.annotation.Nullable;
 
 public interface CaseInsensitiveHeaders {
-    @Nullable Set<String> getHeaders();
+    @Nullable
+    Set<String> getHeaders();
 
     boolean containsHeader(String header);
 

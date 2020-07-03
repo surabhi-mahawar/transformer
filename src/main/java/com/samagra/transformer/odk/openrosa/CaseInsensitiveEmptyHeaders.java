@@ -1,10 +1,10 @@
 package com.samagra.transformer.odk.openrosa;
 
+import org.springframework.lang.Nullable;
+
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-
-import javax.annotation.Nullable;
 
 public class CaseInsensitiveEmptyHeaders implements CaseInsensitiveHeaders {
     @Nullable

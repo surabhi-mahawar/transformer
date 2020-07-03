@@ -1,6 +1,6 @@
 package com.samagra.transformer.odk.openrosa;
 
-import androidx.annotation.Nullable;
+import org.springframework.lang.Nullable;
 
 public interface OpenRosaServerClientProvider {
 

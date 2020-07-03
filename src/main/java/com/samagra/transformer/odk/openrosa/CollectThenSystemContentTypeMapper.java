@@ -1,10 +1,8 @@
 package com.samagra.transformer.odk.openrosa;
 
 import android.webkit.MimeTypeMap;
-
-import androidx.annotation.NonNull;
-
-import org.odk.collect.android.utilities.FileUtils;
+import com.samagra.transformer.odk.utilities.FileUtils;
+import org.springframework.lang.NonNull;
 
 /**
  * This covers types not included in Android's MimeTypeMap
