@@ -18,7 +18,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity"})
 @PropertySource("application-messagerosa.properties")
 @PropertySource("application.properties")
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class})
+@SpringBootApplication()
 public class TransformerApplication {
     public static void main(String[] args) {
         SpringApplication.run(TransformerApplication.class, args);

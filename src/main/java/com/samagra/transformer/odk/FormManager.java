@@ -32,13 +32,12 @@ public class FormManager {
     String xpath;
     String answer;
     String instanceXML;
-
-    public static final String formPath = System.getProperty("user.dir") + "/RQ.xml";
-    //    public static final String formPath = System.getProperty("user.dir") + "/SamplePoCform.xml";
-    public FormManager(String xpath, String answer, String instanceXML) {
+    public String formPath;
+    public FormManager(String xpath, String answer, String instanceXML, String formPath) {
         this.xpath = xpath;
         this.answer = answer;
         this.instanceXML = instanceXML;
+        this.formPath = formPath;
     }
 
     protected static class FECWrapper {
@@ -74,7 +73,7 @@ public class FormManager {
         return fec.getModel().getEvent();
     }
 
-    public XMessage start() {
+    public ServiceResponse start() {
         new XFormsModule().registerModule();
         FECWrapper fecWrapper = loadForm(); // If instance load from instance (If form is filled load new)
         formController = fecWrapper.controller;
@@ -124,8 +123,7 @@ public class FormManager {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        return new XMessage();
+        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML);
     }
 
     public String addResponseToForm(FormIndex formIndex, String value) throws IOException {

@@ -4,7 +4,6 @@ import lombok.*;
 import messagerosa.core.model.XMessage;
 
 @NoArgsConstructor
-@Builder
 public abstract class TransformerProvider {
     int id;
     String name;
@@ -15,6 +14,6 @@ public abstract class TransformerProvider {
     XMessage finalState;
 
 
-    public abstract void transform();
+    public abstract XMessage transform(XMessage xMessage);
 
 }

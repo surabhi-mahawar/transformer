@@ -105,7 +105,7 @@ public final class Form {
         }
 
         public Builder formFilePath(String formFilePath) {
-            this.formFilePath = new StoragePathProvider().getFormDbPath(formFilePath);
+//            this.formFilePath = new StoragePathProvider().getFormDbPath(formFilePath);
             return this;
         }
 
@@ -130,12 +130,12 @@ public final class Form {
         }
 
         public Builder jrCacheFilePath(String jrCacheFilePath) {
-            this.jrCacheFilePath = new StoragePathProvider().getCacheDbPath(jrCacheFilePath);
+//            this.jrCacheFilePath = new StoragePathProvider().getCacheDbPath(jrCacheFilePath);
             return this;
         }
 
         public Builder formMediaPath(String formMediaPath) {
-            this.formMediaPath = new StoragePathProvider().getFormDbPath(formMediaPath);
+//            this.formMediaPath = new StoragePathProvider().getFormDbPath(formMediaPath);
             return this;
         }
 
@@ -194,7 +194,8 @@ public final class Form {
     }
 
     public String getAbsoluteFormFilePath() {
-        return new StoragePathProvider().getAbsoluteFormFilePath(formFilePath);
+//        return new StoragePathProvider().getAbsoluteFormFilePath(formFilePath);
+        return null;
     }
 
     public String getSubmissionUri() {

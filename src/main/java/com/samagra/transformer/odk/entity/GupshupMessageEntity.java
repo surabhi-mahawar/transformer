@@ -16,7 +16,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Entity
 @NoArgsConstructor
-@Table(name = "gupshup_message")
+@Table(name = "xmessage")
 public class GupshupMessageEntity {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
