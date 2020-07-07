@@ -1,7 +1,5 @@
 package com.samagra.transformer.odk;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.samagra.transformer.TransformerProvider;
 import com.samagra.transformer.odk.entity.GupshupStateEntity;
 import com.samagra.transformer.odk.repository.StateRepository;
@@ -14,7 +12,6 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import com.samagra.transformer.publisher.CommonProducer;
 
-import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 
@@ -22,7 +19,7 @@ import java.util.ArrayList;
 @Component
 public class ODKTransformer extends TransformerProvider {
 
-    ArrayList<Form> forms = new ArrayList<>();
+    ArrayList<FormAttributes> formAttributes = new ArrayList<>();
 
     private static final String SMS_BROADCAST_IDENTIFIER = "Broadcast";
     @Autowired
@@ -42,7 +39,7 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     public void setup(){
-        forms.add(new Form().builder().id("rozgar_portal_survey_1").name("Rozgar Portal Survey").path("/downloads/Rozgar_Portal_Survey.xml").build());
+        formAttributes.add(new FormAttributes().builder().id("rozgar_portal_survey_1").name("Rozgar Portal Survey").path("/downloads/Rozgar_Portal_Survey.xml").build());
     }
 
     // Listen to topic "Forms"
@@ -99,8 +96,8 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private String getFormPath(String formID) {
-        for(Form form: forms){
-            if(form.id.equals(formID)) return form.path;
+        for(FormAttributes formAttributes : this.formAttributes){
+            if(formAttributes.id.equals(formID)) return formAttributes.path;
         }
         return null;
     }

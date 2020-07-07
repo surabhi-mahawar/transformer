@@ -4,14 +4,19 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
 
+import com.samagra.transformer.odk.model.Form;
 import com.samagra.transformer.odk.model.FormDetails;
 import com.samagra.transformer.odk.openrosa.OpenRosaAPIClient;
+import com.samagra.transformer.odk.persistance.FormsDao;
+import com.samagra.transformer.odk.utilities.DocumentFetchResult;
 import com.samagra.transformer.odk.utilities.FileUtils;
+import com.samagra.transformer.odk.utilities.MediaFile;
 import lombok.extern.slf4j.Slf4j;
 import org.javarosa.core.reference.ReferenceManager;
 import org.javarosa.core.reference.RootTranslator;
 import org.javarosa.xform.parse.XFormParser;
 import org.kxml2.kdom.Element;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -24,7 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.samagra.transformer.odk.utilities.FileUtils.LAST_SAVED_FILENAME;
+import static com.samagra.transformer.odk.utilities.FileUtils.*;
 
 @Slf4j
 public class FormDownloader {
@@ -32,26 +37,15 @@ public class FormDownloader {
     private static final String MD5_COLON_PREFIX = "md5:";
     private static final String TEMP_DOWNLOAD_EXTENSION = ".tempDownload";
 
-     private FormDownloaderListener stateListener;
 
-    // private FormsDao formsDao;
+    private FormsDao formsDao;
 
     OpenRosaAPIClient openRosaAPIClient;
 
-    public FormDownloader() {
-        //Collect.getInstance().getComponent().inject(this);
-    }
-
-//    public void setDownloaderListener(FormDownloaderListener sl) {
-//        synchronized (this) {
-//            stateListener = sl;
-//        }
-//    }
-
     private static final String NAMESPACE_OPENROSA_ORG_XFORMS_XFORMS_MANIFEST =
-            "http://openrosa.org/xforms/xformsManifest";
+            "http:openrosa.org/xforms/xformsManifest";
 
-    static boolean isXformsManifestNamespacedElement(Element e) {
+    public static boolean isXformsManifestNamespacedElement(Element e) {
         return e.getNamespace().equalsIgnoreCase(NAMESPACE_OPENROSA_ORG_XFORMS_XFORMS_MANIFEST);
     }
 
@@ -69,23 +63,18 @@ public class FormDownloader {
         }
     }
 
-    public HashMap<FormDetails, String> downloadForms(List<FormDetails> toDownload) {
-        // formsDao = new FormsDao();
+    public void downloadForms(List<FormDetails> toDownload) {
+        formsDao = new FormsDao();
         int total = toDownload.size();
         int count = 1;
-
-        final HashMap<FormDetails, String> result = new HashMap<>();
-
         for (FormDetails fd : toDownload) {
             try {
-                String message = processOneForm(total, count++, fd);
-                // result.put(fd, message.isEmpty() ? Collect.getInstance().getString(R.string.success) : message);
+                processOneForm(total, count++, fd);
             } catch (TaskCancelledException cd) {
                 break;
             }
         }
 
-        return result;
     }
 
     /**
@@ -97,114 +86,94 @@ public class FormDownloader {
      * @return an empty string for success, or a nonblank string with one or more error messages
      * @throws TaskCancelledException to signal that form downloading is to be canceled
      */
-    private String processOneForm(int total, int count, FormDetails fd) throws TaskCancelledException {
-        return "";
-//        if (stateListener != null) {
-//            stateListener.progressUpdate(fd.getFormName(), String.valueOf(count), String.valueOf(total));
-//        }
-//        String message = "";
-//        if (stateListener != null && stateListener.isTaskCanceled()) {
-//            throw new TaskCancelledException();
-//        }
-//
-//        // use a temporary media path until everything is ok.
-//        String tempMediaPath = new File(new StoragePathProvider().getDirPath(StorageSubdirectory.CACHE),
-//                String.valueOf(System.currentTimeMillis())).getAbsolutePath();
-//        final String finalMediaPath;
-//        FileResult fileResult = null;
-//        try {
-//            // get the xml file
-//            // if we've downloaded a duplicate, this gives us the file
-//            fileResult = downloadXform(fd.getFormName(), fd.getDownloadUrl());
-//
-//            if (fd.getManifestUrl() != null) {
-//                finalMediaPath = FileUtils.constructMediaPath(
-//                        fileResult.getFile().getAbsolutePath());
-//                String error = downloadManifestAndMediaFiles(tempMediaPath, finalMediaPath, fd,
-//                        count, total);
-//                if (error != null) {
-//                    message += error;
-//                }
-//            } else {
-//                log.info("No Manifest for: %s", fd.getFormName());
-//            }
-//        } catch (TaskCancelledException e) {
-//            log.info(e);
-//            cleanUp(fileResult, e.file, tempMediaPath);
-//
-//            // do not download additional forms.
-//            throw e;
-//        } catch (Exception e) {
-//            return message + getExceptionMessage(e);
-//        }
-//
+    private void processOneForm(int total, int count, FormDetails fd) throws TaskCancelledException {
+
+
+        String tempMediaPath = new File("src/main/resources/forms/temp").getAbsolutePath();
+        final String finalMediaPath;
+        FileResult fileResult = null;
+        try {
+            fileResult = downloadXform(fd.getFormName(), fd.getDownloadUrl());
+
+            if (fd.getManifestUrl() != null) {
+                finalMediaPath = FileUtils.constructMediaPath(
+                        fileResult.getFile().getAbsolutePath());
+                String error = downloadManifestAndMediaFiles(tempMediaPath, finalMediaPath, fd,
+                        count, total);
+            } else {
+                log.info("No Manifest for: %s", fd.getFormName());
+            }
+        } catch (TaskCancelledException e) {
+            log.info(e.getMessage());
+            cleanUp(fileResult, e.file, tempMediaPath);
+            throw e;
+        } catch (Exception e) {
+            log.debug(getExceptionMessage(e));
+        }
+//Add Clean up logic....
 //        if (stateListener != null && stateListener.isTaskCanceled()) {
 //            cleanUp(fileResult, null, tempMediaPath);
 //            fileResult = null;
 //        }
-//
-//        if (fileResult == null) {
-//            return message + "Downloading Xform failed.";
-//        }
-//
-//        Map<String, String> parsedFields = null;
-//        if (fileResult.isNew) {
-//            try {
-//                final long start = System.currentTimeMillis();
-//                log.error("Parsing document %s", fileResult.file.getAbsolutePath());
-//
-//                // Add a stub last-saved instance to the tmp media directory so it will be resolved
-//                // when parsing a form definition with last-saved reference
-//                File tmpLastSaved = new File(tempMediaPath, LAST_SAVED_FILENAME);
-//                write(tmpLastSaved, STUB_XML.getBytes(Charset.forName("UTF-8")));
-//                ReferenceManager.instance().reset();
+
+        if (fileResult == null) {
+            log.debug("Downloading Xform failed.");
+        }
+
+        Map<String, String> parsedFields = null;
+        if (fileResult.isNew) {
+            try {
+                final long start = System.currentTimeMillis();
+                log.error("Parsing document %s", fileResult.file.getAbsolutePath());
+
+                File tmpLastSaved = new File(tempMediaPath, LAST_SAVED_FILENAME);
+                write(tmpLastSaved, STUB_XML.getBytes(Charset.forName("UTF-8")));
+                ReferenceManager.instance().reset();
 //                ReferenceManager.instance().addReferenceFactory(new FileReferenceFactory(tempMediaPath));
-//                ReferenceManager.instance().addSessionRootTranslator(new RootTranslator("jr://file-csv/", "jr://file/"));
-//
-//                parsedFields = FileUtils.getMetadataFromFormDefinition(fileResult.file);
-//                ReferenceManager.instance().reset();
-//                FileUtils.deleteAndReport(tmpLastSaved);
-//
-//                log.info("Parse finished in %.3f seconds.",
-//                        (System.currentTimeMillis() - start) / 1000F);
-//            } catch (RuntimeException e) {
-//                return message + e.getMessage();
-//            }
-//        }
-//
-//        boolean installed = false;
-//
+                ReferenceManager.instance().addSessionRootTranslator(new RootTranslator("jr:file-csv/", "jr:file/"));
+
+                parsedFields = FileUtils.getMetadataFromFormDefinition(fileResult.file);
+                ReferenceManager.instance().reset();
+                FileUtils.deleteAndReport(tmpLastSaved);
+
+                log.info("Parse finished in %.3f seconds.",
+                        (System.currentTimeMillis() - start) / 1000F);
+            } catch (RuntimeException e) {
+                log.debug(e.getMessage());
+            }
+        }
+
+        boolean installed = false;
+
 //        if ((stateListener == null || !stateListener.isTaskCanceled()) && message.isEmpty()) {
 //            if (!fileResult.isNew || isSubmissionOk(parsedFields)) {
 //                installed = installEverything(tempMediaPath, fileResult, parsedFields);
 //            } else {
-////                message += Collect.getInstance().getString(R.string.xform_parse_error,
-////                        fileResult.file.getName(), "submission url");
+//                message += Collect.getInstance().getString(R.string.xform_parse_error,
+//                        fileResult.file.getName(), "submission url");
 //            }
 //        }
 //        if (!installed) {
-////            message += Collect.getInstance().getString(R.string.copying_media_files_failed);
-////            cleanUp(fileResult, null, tempMediaPath);
+//            message += Collect.getInstance().getString(R.string.copying_media_files_failed);
+//            cleanUp(fileResult, null, tempMediaPath);
 //        }
-//        return message;
     }
 
-    private boolean isSubmissionOk(Map<String, String> parsedFields) {
-        String submission = parsedFields.get(FileUtils.SUBMISSIONURI);
-        return false;
+//    private boolean isSubmissionOk(Map<String, String> parsedFields) {
+//        String submission = parsedFields.get(FileUtils.SUBMISSIONURI);
+//        return false;
 //        return submission == null || Validator.isUrlValid(submission);
-    }
+//    }
 
     boolean installEverything(String tempMediaPath, FileResult fileResult, Map<String, String> parsedFields) {
-        UriResult uriResult = null;
+        Form uriResult = null;
         try {
             uriResult = findExistingOrCreateNewUri(fileResult.file, parsedFields);
             if (uriResult != null) {
-                log.error("Form uri = %s, isNew = %b", uriResult.getUri().toString(), uriResult.isNew());
+//                log.error("Form uri = %s, isNew = %b", uriResult.getUri().toString(), uriResult.isNew());
 
-                // move the media files in the media folder
                 if (tempMediaPath != null) {
-                    File formMediaPath = new File(uriResult.getMediaPath());
+                    File formMediaPath = new File(uriResult.getFormMediaPath());
                     FileUtils.moveMediaFiles(tempMediaPath, formMediaPath);
                 }
                 return true;
@@ -213,15 +182,14 @@ public class FormDownloader {
             }
         } catch (IOException e) {
             log.error(e.getMessage());
-
-            if (uriResult.isNew() && fileResult.isNew()) {
-                // this means we should delete the entire form together with the metadata
-                Uri uri = uriResult.getUri();
-                log.error("The form is new. We should delete the entire form.");
-//                int deletedCount = Collect.getInstance().getContentResolver().delete(uri,
-//                        null, null);
-//                log.error("Deleted %d rows using uri %s", deletedCount, uri.toString());
-            }
+//
+//            if (uriResult.isNew() && fileResult.isNew()) {
+//                Uri uri = uriResult.getUri();
+//                log.error("The form is new. We should delete the entire form.");
+////                int deletedCount = Collect.getInstance().getContentResolver().delete(uri,
+////                        null, null);
+////                log.error("Deleted %d rows using uri %s", deletedCount, uri.toString());
+//            }
         }
         return false;
     }
@@ -233,7 +201,7 @@ public class FormDownloader {
         } else {
             String md5Hash = FileUtils.getMd5Hash(fileResult.file);
             if (md5Hash != null) {
-//                formsDao.deleteFormsFromMd5Hash(md5Hash);
+                formsDao.deleteFormsFromMd5Hash(md5Hash);
             }
             FileUtils.deleteAndReport(fileResult.getFile());
         }
@@ -269,7 +237,7 @@ public class FormDownloader {
      * @param formInfo certain fields extracted from the parsed XML form, such as title and form ID
      * @return a {@link UriResult} object
      */
-    private UriResult findExistingOrCreateNewUri(File formFile, Map<String, String> formInfo) {
+    private Form findExistingOrCreateNewUri(File formFile, Map<String, String> formInfo) {
         final Uri uri;
         final String formFilePath = formFile.getAbsolutePath();
         String mediaPath = FileUtils.constructMediaPath(formFilePath);
@@ -277,42 +245,27 @@ public class FormDownloader {
 
         FileUtils.checkMediaPath(new File(mediaPath));
 
-//        try (Cursor cursor = formsDao.getFormsCursorForFormFilePath(formFile.getAbsolutePath())) {
-//            if (cursor == null) {
-//                return null;
-//            }
-//
-//            isNew = cursor.getCount() <= 0;
-//
-//            if (isNew) {
-//                uri = saveNewForm(formInfo, formFile, mediaPath);
-//            } else {
-//                cursor.moveToFirst();
-//                uri = Uri.withAppendedPath(FormsColumns.CONTENT_URI,
-//                        cursor.getString(cursor.getColumnIndex(FormsColumns._ID)));
+
+        List<Form> forms = formsDao.getFormsCursorForFormFilePath(formFile.getAbsolutePath());
+        isNew = forms.size() <= 0;
+        Form form;
+        if (isNew) {
+            form = saveNewForm(formInfo, formFile, mediaPath);
+        } else {
+            form = forms.get(0);
+            uri = Uri.withAppendedPath(Uri.parse("content://" + "org.odk.collect.android.provider.odk.forms" + "/forms"),
+                    "");
+            mediaPath = "";
+            //TODO: Add Media Path (relevant)
 //                mediaPath = new StoragePathProvider().getAbsoluteFormFilePath(cursor.getString(cursor.getColumnIndex(FormsColumns.FORM_MEDIA_PATH)));
-//            }
-//        }
-
-        return null;
-
-        // return new UriResult(uri, mediaPath, isNew);
+        }
+        return form;
+//        return new UriResult(uri, mediaPath, isNew);
     }
 
-    private Uri saveNewForm(Map<String, String> formInfo, File formFile, String mediaPath) {
-        final ContentValues v = new ContentValues();
-//        v.put(FormsColumns.FORM_FILE_PATH,          new StoragePathProvider().getFormDbPath(formFile.getAbsolutePath()));
-//        v.put(FormsColumns.FORM_MEDIA_PATH,         new StoragePathProvider().getFormDbPath(mediaPath));
-//        v.put(FormsColumns.DISPLAY_NAME,            formInfo.get(FileUtils.TITLE));
-//        v.put(FormsColumns.JR_VERSION,              formInfo.get(FileUtils.VERSION));
-//        v.put(FormsColumns.JR_FORM_ID,              formInfo.get(FileUtils.FORMID));
-//        v.put(FormsColumns.SUBMISSION_URI,          formInfo.get(FileUtils.SUBMISSIONURI));
-//        v.put(FormsColumns.BASE64_RSA_PUBLIC_KEY,   formInfo.get(FileUtils.BASE64_RSA_PUBLIC_KEY));
-//        v.put(FormsColumns.AUTO_DELETE,             formInfo.get(FileUtils.AUTO_DELETE));
-//        v.put(FormsColumns.AUTO_SEND,               formInfo.get(FileUtils.AUTO_SEND));
-//        v.put(FormsColumns.GEOMETRY_XPATH,          formInfo.get(FileUtils.GEOMETRY_XPATH));
-//        return formsDao.saveForm(v);
-        return null;
+    private Form saveNewForm(Map<String, String> formInfo, File formFile, String mediaPath) {
+
+        return formsDao.saveForm(formInfo, formFile, mediaPath);
     }
 
     /**
@@ -320,52 +273,31 @@ public class FormDownloader {
      * object representing the downloaded file.
      */
     FileResult downloadXform(String formName, String url) throws Exception {
-        // clean up friendly form name...
-//        String rootName = FormNameUtils.formatFilenameFromFormName(formName);
-//
-//        // proposed name of xml file...
-//        StoragePathProvider storagePathProvider = new StoragePathProvider();
-//        String path = storagePathProvider.getDirPath(StorageSubdirectory.FORMS) + File.separator + rootName + ".xml";
-//        int i = 2;
-//        File f = new File(path);
-//        while (f.exists()) {
-//            path = storagePathProvider.getDirPath(StorageSubdirectory.FORMS) + File.separator + rootName + "_" + i + ".xml";
-//            f = new File(path);
-//            i++;
-//        }
-//
-//        downloadFile(f, url);
-//
-//        boolean isNew = true;
-//
-//        // we've downloaded the file, and we may have renamed it
-//        // make sure it's not the same as a file we already have
-//        Cursor c = null;
-//        try {
-//            c = formsDao.getFormsCursorForMd5Hash(FileUtils.getMd5Hash(f));
-//            if (c.getCount() > 0) {
-//                // Should be at most, 1
-//                c.moveToFirst();
-//
-//                isNew = false;
-//
-//                // delete the file we just downloaded, because it's a duplicate
-//                log.error("A duplicate file has been found, we need to remove the downloaded file "
-//                        + "and return the other one.");
-//                FileUtils.deleteAndReport(f);
-//
-//                // set the file returned to the file we already had
-//                String existingPath = storagePathProvider.getAbsoluteFormFilePath(c.getString(c.getColumnIndex(FormsColumns.FORM_FILE_PATH)));
-//                f = new File(existingPath);
-//                log.error("Will use %s", existingPath);
-//            }
-//        } finally {
-//            if (c != null) {
-//                c.close();
-//            }
-//        }
-        return new FileResult(new File("test"), false);
-//        return new FileResult(f, isNew);
+        String rootName = FormNameUtils.formatFilenameFromFormName(formName);
+
+        String path = "src/main/resources/forms" + File.separator + rootName + ".xml";
+        int i = 2;
+        File f = new File(path);
+        while (f.exists()) {
+            path = "src/main/resources/forms" + File.separator + rootName + "_" + i + ".xml";
+            f = new File(path);
+            i++;
+        }
+
+        downloadFile(f, url);
+        boolean isNew = true;
+        List<Form> form = formsDao.getFormsCursorForMd5Hash(FileUtils.getMd5Hash(f));
+        if (form.size() > 0) {
+            Form form1 = form.get(0);
+            isNew = false;
+            log.error("A duplicate file has been found, we need to remove the downloaded file "
+                    + "and return the other one.");
+            FileUtils.deleteAndReport(f);
+            f = new File(form1.getFormFilePath());
+            log.error("Will use %s", form1.getFormFilePath());
+            return new FileResult(f, isNew);
+        }
+        return null;
     }
 
     /**
@@ -378,98 +310,78 @@ public class FormDownloader {
      * @param file        the final file
      * @param downloadUrl the url to get the contents from.
      */
-    private void downloadFile(File file, String downloadUrl)
-            throws IOException, TaskCancelledException, URISyntaxException, Exception {
+    private void downloadFile(File file, String downloadUrl) throws IOException, TaskCancelledException, URISyntaxException, Exception {
 
-//        File tempFile = File.createTempFile(file.getName(), TEMP_DOWNLOAD_EXTENSION,
-//                new File(new StoragePathProvider().getDirPath(StorageSubdirectory.CACHE)));
-//
-//        // WiFi network connections can be renegotiated during a large form download sequence.
-//        // This will cause intermittent download failures.  Silently retry once after each
-//        // failure.  Only if there are two consecutive failures do we abort.
-//        boolean success = false;
-//        int attemptCount = 0;
-//        final int MAX_ATTEMPT_COUNT = 2;
-//        while (!success && ++attemptCount <= MAX_ATTEMPT_COUNT) {
-//            if (stateListener != null && stateListener.isTaskCanceled()) {
-//                throw new TaskCancelledException(tempFile);
-//            }
-//            log.info("Started downloading to %s from %s", tempFile.getAbsolutePath(), downloadUrl);
-//
-//            // write connection to file
-//            InputStream is = null;
-//            OutputStream os = null;
-//
-//            try {
-//                is = openRosaAPIClient.getFile(downloadUrl, null);
-//                os = new FileOutputStream(tempFile);
-//
-//                byte[] buf = new byte[4096];
-//                int len;
-//                while ((len = is.read(buf)) > 0 && (stateListener == null || !stateListener.isTaskCanceled())) {
-//                    os.write(buf, 0, len);
-//                }
-//                os.flush();
-//                success = true;
-//
-//            } catch (Exception e) {
-//                log.error(e.toString());
-//                // silently retry unless this is the last attempt,
-//                // in which case we rethrow the exception.
-//
-//                FileUtils.deleteAndReport(tempFile);
-//
-//                if (attemptCount == MAX_ATTEMPT_COUNT) {
-//                    throw e;
-//                }
-//            } finally {
-//                if (os != null) {
-//                    try {
-//                        os.close();
-//                    } catch (Exception e) {
-//                        log.error(e);
-//                    }
-//                }
-//                if (is != null) {
-//                    try {
-//                        // ensure stream is consumed...
-//                        final long count = 1024L;
-//                        while (is.skip(count) == count) {
-//                            // skipping to the end of the http entity
-//                        }
-//                    } catch (Exception e) {
-//                        // no-op
-//                    }
-//                    try {
-//                        is.close();
-//                    } catch (Exception e) {
-//                        log.error(e);
-//                    }
-//                }
-//            }
-//
-//            if (stateListener != null && stateListener.isTaskCanceled()) {
-//                FileUtils.deleteAndReport(tempFile);
-//                throw new TaskCancelledException(tempFile);
-//            }
-//        }
-//
-//        Timber.d("Completed downloading of %s. It will be moved to the proper path...",
-//                tempFile.getAbsolutePath());
-//
-//        FileUtils.deleteAndReport(file);
-//
-//        String errorMessage = FileUtils.copyFile(tempFile, file);
-//
-//        if (file.exists()) {
-//            log.error("Copied %s over %s", tempFile.getAbsolutePath(), file.getAbsolutePath());
-//            FileUtils.deleteAndReport(tempFile);
-//        } else {
-//            String msg = Collect.getInstance().getString(R.string.fs_file_copy_error,
-//                    tempFile.getAbsolutePath(), file.getAbsolutePath(), errorMessage);
-//            log.error(msg);
-//            throw new RuntimeException(msg);
-//        }
+        File tempFile = File.createTempFile(file.getName(), TEMP_DOWNLOAD_EXTENSION,
+                new File("src/main/resources/forms/cache"));
+        boolean success = false;
+        int attemptCount = 0;
+        final int MAX_ATTEMPT_COUNT = 2;
+        while (!success && ++attemptCount <= MAX_ATTEMPT_COUNT) {
+            log.info("Started downloading to %s from %s", tempFile.getAbsolutePath(), downloadUrl);
+
+            InputStream is = null;
+            OutputStream os = null;
+
+            try {
+                is = openRosaAPIClient.getFile(downloadUrl, null);
+                os = new FileOutputStream(tempFile);
+
+                byte[] buf = new byte[4096];
+                int len;
+                while ((len = is.read(buf)) > 0) {
+                    os.write(buf, 0, len);
+                }
+                os.flush();
+                success = true;
+
+            } catch (Exception e) {
+                log.error(e.toString());
+                FileUtils.deleteAndReport(tempFile);
+                if (attemptCount == MAX_ATTEMPT_COUNT) {
+                    throw e;
+                }
+            } finally {
+                if (os != null) {
+                    try {
+                        os.close();
+                    } catch (Exception e) {
+                        log.error(e.getMessage());
+                    }
+                }
+                if (is != null) {
+                    try {
+                        final long count = 1024L;
+                        while (is.skip(count) == count) {
+                        }
+                    } catch (Exception e) {
+                    }
+                    try {
+                        is.close();
+                    } catch (Exception e) {
+                        log.error(e.getMessage());
+                    }
+                }
+            }
+
+        }
+
+        log.debug("Completed downloading of %s. It will be moved to the proper path...",
+                tempFile.getAbsolutePath());
+
+        FileUtils.deleteAndReport(file);
+
+        String errorMessage = FileUtils.copyFile(tempFile, file);
+
+        if (file.exists()) {
+            log.error("Copied %s over %s", tempFile.getAbsolutePath(), file.getAbsolutePath());
+            FileUtils.deleteAndReport(tempFile);
+        } else {
+            String msg = String.format("Could not copy \\'%1$s\\' over \\'%2$s\\'. Reason: %3$s",
+                    tempFile.getAbsolutePath(), file.getAbsolutePath(), errorMessage);
+            log.error(msg);
+            throw new RuntimeException(msg);
+        }
     }
 
     private static class UriResult {
@@ -523,150 +435,129 @@ public class FormDownloader {
             return null;
         }
 
-//        if (stateListener != null) {
-//            stateListener.progressUpdate(Collect.getInstance().getString(R.string.fetching_manifest, fd.getFormName()),
-//                    String.valueOf(count), String.valueOf(total));
-//        }
+        List<MediaFile> files = new ArrayList<>();
 
-//        List<MediaFile> files = new ArrayList<>();
-//
-//        DocumentFetchResult result = openRosaAPIClient.getXML(fd.getManifestUrl());
-//
-//        if (result.errorMessage != null) {
-//            return result.errorMessage;
-//        }
-//
-//        String errMessage = Collect.getInstance().getString(R.string.access_error, fd.getManifestUrl());
-//
-//        if (!result.isOpenRosaResponse) {
-//            errMessage += Collect.getInstance().getString(R.string.manifest_server_error);
-//            log.error(errMessage);
-//            return errMessage;
-//        }
-//
-//        // Attempt OpenRosa 1.0 parsing
-//        Element manifestElement = result.doc.getRootElement();
-//        if (!manifestElement.getName().equals("manifest")) {
-//            errMessage +=
-//                    Collect.getInstance().getString(R.string.root_element_error,
-//                            manifestElement.getName());
-//            log.error(errMessage);
-//            return errMessage;
-//        }
-//        String namespace = manifestElement.getNamespace();
-//        if (!isXformsManifestNamespacedElement(manifestElement)) {
-//            errMessage += Collect.getInstance().getString(R.string.root_namespace_error, namespace);
-//            log.error(errMessage);
-//            return errMessage;
-//        }
-//        int elements = manifestElement.getChildCount();
-//        for (int i = 0; i < elements; ++i) {
-//            if (manifestElement.getType(i) != Element.ELEMENT) {
-//                // e.g., whitespace (text)
-//                continue;
-//            }
-//            Element mediaFileElement = manifestElement.getElement(i);
-//            if (!isXformsManifestNamespacedElement(mediaFileElement)) {
-//                // someone else's extension?
-//                continue;
-//            }
-//            String name = mediaFileElement.getName();
-//            if (name.equalsIgnoreCase("mediaFile")) {
-//                String filename = null;
-//                String hash = null;
-//                String downloadUrl = null;
-//                // don't process descriptionUrl
-//                int childCount = mediaFileElement.getChildCount();
-//                for (int j = 0; j < childCount; ++j) {
-//                    if (mediaFileElement.getType(j) != Element.ELEMENT) {
-//                        // e.g., whitespace (text)
-//                        continue;
-//                    }
-//                    Element child = mediaFileElement.getElement(j);
-//                    if (!isXformsManifestNamespacedElement(child)) {
-//                        // someone else's extension?
-//                        continue;
-//                    }
-//                    String tag = child.getName();
-//                    switch (tag) {
-//                        case "filename":
-//                            filename = XFormParser.getXMLText(child, true);
-//                            if (filename != null && filename.length() == 0) {
-//                                filename = null;
-//                            }
-//                            break;
-//                        case "hash":
-//                            hash = XFormParser.getXMLText(child, true);
-//                            if (hash != null && hash.length() == 0) {
-//                                hash = null;
-//                            }
-//                            break;
-//                        case "downloadUrl":
-//                            downloadUrl = XFormParser.getXMLText(child, true);
-//                            if (downloadUrl != null && downloadUrl.length() == 0) {
-//                                downloadUrl = null;
-//                            }
-//                            break;
-//                    }
-//                }
-//                if (filename == null || downloadUrl == null || hash == null) {
-//                    errMessage +=
-//                            Collect.getInstance().getString(R.string.manifest_tag_error,
-//                                    Integer.toString(i));
-//                    log.error(errMessage);
-//                    return errMessage;
-//                }
-//                files.add(new MediaFile(filename, hash, downloadUrl));
-//            }
-//        }
-//
-//        // OK we now have the full set of files to download...
-//        log.info("Downloading %d media files.", files.size());
-//        int mediaCount = 0;
-//        if (!files.isEmpty()) {
-//            File tempMediaDir = new File(tempMediaPath);
-//            File finalMediaDir = new File(finalMediaPath);
-//
-//            FileUtils.checkMediaPath(tempMediaDir);
-//            FileUtils.checkMediaPath(finalMediaDir);
-//
-//            for (MediaFile toDownload : files) {
-//                ++mediaCount;
-//                if (stateListener != null) {
-//                    stateListener.progressUpdate(
-//                            Collect.getInstance().getString(R.string.form_download_progress,
-//                                    fd.getFormName(),
-//                                    String.valueOf(mediaCount), String.valueOf(files.size())),
-//                            String.valueOf(count), String.valueOf(total));
-//                }
-//
-//                //try {
-//                File finalMediaFile = new File(finalMediaDir, toDownload.getFilename());
-//                File tempMediaFile = new File(tempMediaDir, toDownload.getFilename());
-//
-//                if (!finalMediaFile.exists()) {
-//                    downloadFile(tempMediaFile, toDownload.getDownloadUrl());
-//                } else {
-//                    String currentFileHash = FileUtils.getMd5Hash(finalMediaFile);
-//                    String downloadFileHash = getMd5Hash(toDownload.getHash());
-//
-//                    if (currentFileHash != null && downloadFileHash != null && !currentFileHash.contentEquals(downloadFileHash)) {
-//                        // if the hashes match, it's the same file
-//                        // otherwise delete our current one and replace it with the new one
-//                        FileUtils.deleteAndReport(finalMediaFile);
-//                        downloadFile(tempMediaFile, toDownload.getDownloadUrl());
-//                    } else {
-//                        // exists, and the hash is the same
-//                        // no need to download it again
-//                        log.info("Skipping media file fetch -- file hashes identical: %s",
-//                                finalMediaFile.getAbsolutePath());
-//                    }
-//                }
-//                //  } catch (Exception e) {
-//                //  return e.getLocalizedMessage();
-//                //}
-//            }
-//        }
+        DocumentFetchResult result = openRosaAPIClient.getXML(fd.getManifestUrl());
+
+        if (result.errorMessage != null) {
+            return result.errorMessage;
+        }
+
+        String errMessage = String.format("Error while accessing %s: ", fd.getManifestUrl());
+
+        if (!result.isOpenRosaResponse) {
+            errMessage += "Manifest reply does not report an OpenRosa version — bad server?";
+            log.error(errMessage);
+            return errMessage;
+        }
+
+        Element manifestElement = result.doc.getRootElement();
+        if (!manifestElement.getName().equals("manifest")) {
+            errMessage +=
+                   String.format("Root element is not &lt;manifest\\&gt; — was %s",
+                            manifestElement.getName());
+            log.error(errMessage);
+            return errMessage;
+        }
+        String namespace = manifestElement.getNamespace();
+        if (!isXformsManifestNamespacedElement(manifestElement)) {
+            errMessage += String.format("Root element Namespace is incorrect: %s", namespace);
+            log.error(errMessage);
+            return errMessage;
+        }
+        int elements = manifestElement.getChildCount();
+        for (int i = 0; i < elements; ++i) {
+            if (manifestElement.getType(i) != Element.ELEMENT) {
+                continue;
+            }
+            Element mediaFileElement = manifestElement.getElement(i);
+            if (!isXformsManifestNamespacedElement(mediaFileElement)) {
+                continue;
+            }
+            String name = mediaFileElement.getName();
+            if (name.equalsIgnoreCase("mediaFile")) {
+                String filename = null;
+                String hash = null;
+                String downloadUrl = null;
+                int childCount = mediaFileElement.getChildCount();
+                for (int j = 0; j < childCount; ++j) {
+                    if (mediaFileElement.getType(j) != Element.ELEMENT) {
+                        continue;
+                    }
+                    Element child = mediaFileElement.getElement(j);
+                    if (!isXformsManifestNamespacedElement(child)) {
+                        continue;
+                    }
+                    String tag = child.getName();
+                    switch (tag) {
+                        case "filename":
+                            filename = XFormParser.getXMLText(child, true);
+                            if (filename != null && filename.length() == 0) {
+                                filename = null;
+                            }
+                            break;
+                        case "hash":
+                            hash = XFormParser.getXMLText(child, true);
+                            if (hash != null && hash.length() == 0) {
+                                hash = null;
+                            }
+                            break;
+                        case "downloadUrl":
+                            downloadUrl = XFormParser.getXMLText(child, true);
+                            if (downloadUrl != null && downloadUrl.length() == 0) {
+                                downloadUrl = null;
+                            }
+                            break;
+                    }
+                }
+                if (filename == null || downloadUrl == null || hash == null) {
+                    errMessage +=
+                           String.format("Manifest entry %s is missing one or more tags: filename, hash, or downloadUrl",
+                                    Integer.toString(i));
+                    log.error(errMessage);
+                    return errMessage;
+                }
+                files.add(new MediaFile(filename, hash, downloadUrl));
+            }
+        }
+
+        log.info("Downloading %d media files.", files.size());
+        int mediaCount = 0;
+        if (!files.isEmpty()) {
+            File tempMediaDir = new File(tempMediaPath);
+            File finalMediaDir = new File(finalMediaPath);
+
+            FileUtils.checkMediaPath(tempMediaDir);
+            FileUtils.checkMediaPath(finalMediaDir);
+
+            for (MediaFile toDownload : files) {
+                ++mediaCount;
+
+
+                try {
+                    File finalMediaFile = new File(finalMediaDir, toDownload.getFilename());
+                    File tempMediaFile = new File(tempMediaDir, toDownload.getFilename());
+
+                    if (!finalMediaFile.exists()) {
+                        downloadFile(tempMediaFile, toDownload.getDownloadUrl());
+                    } else {
+                        String currentFileHash = FileUtils.getMd5Hash(finalMediaFile);
+                        String downloadFileHash = getMd5Hash(toDownload.getHash());
+
+                        if (currentFileHash != null && downloadFileHash != null && !currentFileHash.contentEquals(downloadFileHash)) {
+                                 FileUtils.deleteAndReport(finalMediaFile);
+                            downloadFile(tempMediaFile, toDownload.getDownloadUrl());
+                        } else {
+
+                            log.info("Skipping media file fetch -- file hashes identical: %s",
+                                    finalMediaFile.getAbsolutePath());
+                        }
+                    }
+                } catch (Exception e) {
+                    return e.getLocalizedMessage();
+                }
+            }
+        }
         return null;
     }
 
@@ -674,4 +565,5 @@ public class FormDownloader {
         return hash == null || hash.isEmpty() ? null : hash.substring(MD5_COLON_PREFIX.length());
     }
 }
+
 

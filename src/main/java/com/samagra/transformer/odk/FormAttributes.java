@@ -10,7 +10,7 @@ import javax.print.DocFlavor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Form {
+public class FormAttributes {
 
     String id;
     String name;
