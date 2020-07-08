@@ -33,9 +33,6 @@ public class FormListDownloader {
     }
 
     private boolean isThisFormAlreadyDownloaded(String formId) {
-//        try (Cursor cursor = formsDao.getFormsCursorForFormId(formId)) {
-//            return cursor == null || cursor.getCount() > 0;
-//        }
         return false;
     }
 
@@ -50,7 +47,6 @@ public class FormListDownloader {
     private final OpenRosaAPIClient openRosaAPIClient;
 
     public FormListDownloader(
-            Application application,
             OpenRosaAPIClient openRosaAPIClient,
             WebCredentialsUtils webCredentialsUtils
     ) {
