@@ -6,7 +6,6 @@ import android.database.Cursor;
 import com.samagra.transformer.odk.model.Form;
 import com.samagra.transformer.odk.utilities.FileUtils;
 import io.jsondb.JsonDBTemplate;
-import jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;

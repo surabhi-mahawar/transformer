@@ -1,9 +1,16 @@
 package com.samagra.transformer.application;
 
+import android.webkit.MimeTypeMap;
 import com.samagra.transformer.odk.FormDownloader;
+import com.samagra.transformer.odk.model.Form;
+import com.samagra.transformer.odk.openrosa.CollectThenSystemContentTypeMapper;
 import com.samagra.transformer.odk.openrosa.OpenRosaAPIClient;
+import com.samagra.transformer.odk.openrosa.OpenRosaHttpInterface;
 import com.samagra.transformer.odk.openrosa.okhttp.OkHttpConnection;
+import com.samagra.transformer.odk.openrosa.okhttp.OkHttpOpenRosaServerClientProvider;
 import com.samagra.transformer.odk.utilities.FormListDownloader;
+import com.samagra.transformer.odk.utilities.WebCredentialsUtils;
+import okhttp3.OkHttpClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -24,6 +31,17 @@ import org.springframework.scheduling.annotation.EnableAsync;
 public class TransformerApplication {
     public static void main(String[] args) {
         SpringApplication.run(TransformerApplication.class, args);
+        OpenRosaHttpInterface openRosaHttpInterface = new OkHttpConnection(
+                new OkHttpOpenRosaServerClientProvider(new OkHttpClient()),
+                new CollectThenSystemContentTypeMapper(MimeTypeMap.getSingleton()),
+                "userAgent"
+        );
+        WebCredentialsUtils webCredentialsUtils = new WebCredentialsUtils();
+        OpenRosaAPIClient openRosaAPIClient = new OpenRosaAPIClient(openRosaHttpInterface, webCredentialsUtils);
+        FormListDownloader formListDownloader = new FormListDownloader(
+                openRosaAPIClient,
+                webCredentialsUtils);
+        formListDownloader.downloadFormList(false);
     }
 }
 

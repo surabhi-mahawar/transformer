@@ -55,7 +55,9 @@ public class FormListDownloader {
     }
 
     public HashMap<String, FormDetails> downloadFormList(boolean alwaysCheckMediaFiles) {
-        return downloadFormList(null, null, null, alwaysCheckMediaFiles);
+        HashMap<String, FormDetails> dd = downloadFormList(null, null, null, alwaysCheckMediaFiles);
+        log.debug(dd.toString());
+        return dd;
     }
 
     public HashMap<String, FormDetails> downloadFormList(@Nullable String url, @Nullable String username,
