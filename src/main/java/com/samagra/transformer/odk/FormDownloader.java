@@ -42,6 +42,9 @@ public class FormDownloader {
 
     OpenRosaAPIClient openRosaAPIClient;
 
+    public FormDownloader(OpenRosaAPIClient openRosaAPIClient) {
+        this.openRosaAPIClient = openRosaAPIClient;
+    }
     private static final String NAMESPACE_OPENROSA_ORG_XFORMS_XFORMS_MANIFEST =
             "http:openrosa.org/xforms/xformsManifest";
 

@@ -1,6 +1,7 @@
 package com.samagra.transformer.odk.utilities;
 
 import android.webkit.MimeTypeMap;
+import com.samagra.transformer.odk.FormDownloader;
 import com.samagra.transformer.odk.model.FormDetails;
 import com.samagra.transformer.odk.openrosa.CollectThenSystemContentTypeMapper;
 import com.samagra.transformer.odk.openrosa.OpenRosaAPIClient;
@@ -15,7 +16,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -38,7 +41,19 @@ public class FormListDownloaderTest {
                 webCredentialsUtils);
         HashMap<String, FormDetails> formList = formListDownloader.downloadFormList(false);
         System.out.println(formList);
+        int count = 0;
+        if(formList.size() > 0) {
+            ArrayList<FormDetails> forms = new ArrayList<>();
+            for (Map.Entry<String, FormDetails> form : formList.entrySet()) {
+                if(count ==2) {
+                    forms.add(form.getValue());
+                }
+                count+=1;
+            }
+            FormDownloader formDownloader = new FormDownloader(openRosaAPIClient);
+            formDownloader.downloadForms(forms);
 
+        }
     }
 
 }

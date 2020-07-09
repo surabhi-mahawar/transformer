@@ -3,6 +3,7 @@ package com.samagra.transformer.application;
 import android.webkit.MimeTypeMap;
 import com.samagra.transformer.odk.FormDownloader;
 import com.samagra.transformer.odk.model.Form;
+import com.samagra.transformer.odk.model.FormDetails;
 import com.samagra.transformer.odk.openrosa.CollectThenSystemContentTypeMapper;
 import com.samagra.transformer.odk.openrosa.OpenRosaAPIClient;
 import com.samagra.transformer.odk.openrosa.OpenRosaHttpInterface;
@@ -19,6 +20,10 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.scheduling.annotation.EnableAsync;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 @EnableKafka
 @EnableAsync
@@ -41,7 +46,15 @@ public class TransformerApplication {
         FormListDownloader formListDownloader = new FormListDownloader(
                 openRosaAPIClient,
                 webCredentialsUtils);
-        formListDownloader.downloadFormList(false);
+        HashMap<String, FormDetails> formList = formListDownloader.downloadFormList(false);
+        if(formList.size() > 0) {
+            ArrayList<FormDetails> forms = new ArrayList<>();
+            for(Map.Entry<String, FormDetails> form: formList.entrySet()) {
+                forms.add(form.getValue());
+            }
+//            FormDownloader formDownloader = new FormDownloader();
+//            formDownloader.downloadForms(forms);
+        }
     }
 }
 
