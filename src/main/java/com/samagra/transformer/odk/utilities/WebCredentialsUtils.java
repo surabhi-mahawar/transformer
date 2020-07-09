@@ -7,7 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,8 +57,11 @@ public class WebCredentialsUtils {
         HOST_CREDENTIALS.clear();
     }
 
-    public String getServerUrlFromPreferences() {
-        return "cttsamagra";
+    public URI getServerUrlFromPreferences() throws MalformedURLException, URISyntaxException {
+        String downloadUrl = "http://aggregate.cttsamagra.xyz:8080";
+        URL url = new URL(downloadUrl);
+        URI uri = url.toURI();
+        return uri;
     }
 
     public String getPasswordFromPreferences() {
@@ -63,7 +69,7 @@ public class WebCredentialsUtils {
     }
 
     public String getUserNameFromPreferences() {
-        return "cttsamagra";
+        return "samagra";
     }
 
     /**
@@ -75,8 +81,15 @@ public class WebCredentialsUtils {
     public @Nullable
     HttpCredentialsInterface getCredentials(@NonNull URI url) {
         String host = url.getHost();
-        String serverPrefsUrl = getServerUrlFromPreferences();
-        String prefsServerHost = (serverPrefsUrl == null) ? null : Uri.parse(serverPrefsUrl).getHost();
+        URI serverPrefsUrl = null;
+        try {
+            serverPrefsUrl = getServerUrlFromPreferences();
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+        String prefsServerHost = (serverPrefsUrl == null) ? null : serverPrefsUrl.getHost();
 
         // URL host is the same as the host in preferences
         if (prefsServerHost != null && prefsServerHost.equalsIgnoreCase(host)) {

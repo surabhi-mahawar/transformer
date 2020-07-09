@@ -27,7 +27,7 @@ import java.io.Serializable;
  * <p>
  * Objects of this class are created using the builder pattern: https://en.wikipedia.org/wiki/Builder_pattern
  */
-@Document(collection = "instances", schemaVersion = "1.0")
+@Document(collection = "forms", schemaVersion = "2.0")
 @Getter
 @Setter
 @Builder

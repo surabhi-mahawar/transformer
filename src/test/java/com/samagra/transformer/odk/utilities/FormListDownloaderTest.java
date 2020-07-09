@@ -1,6 +1,7 @@
 package com.samagra.transformer.odk.utilities;
 
 import android.webkit.MimeTypeMap;
+import com.samagra.transformer.odk.model.FormDetails;
 import com.samagra.transformer.odk.openrosa.CollectThenSystemContentTypeMapper;
 import com.samagra.transformer.odk.openrosa.OpenRosaAPIClient;
 import com.samagra.transformer.odk.openrosa.OpenRosaHttpInterface;
@@ -14,6 +15,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.HashMap;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @RunWith(SpringRunner.class)
@@ -25,7 +28,7 @@ public class FormListDownloaderTest {
     public void formListDownloadTest() {
         OpenRosaHttpInterface openRosaHttpInterface = new OkHttpConnection(
                 new OkHttpOpenRosaServerClientProvider(new OkHttpClient()),
-                new CollectThenSystemContentTypeMapper(MimeTypeMap.getSingleton()),
+                null,
                 "userAgent"
         );
         WebCredentialsUtils webCredentialsUtils = new WebCredentialsUtils();
@@ -33,7 +36,9 @@ public class FormListDownloaderTest {
         FormListDownloader formListDownloader = new FormListDownloader(
                 openRosaAPIClient,
                 webCredentialsUtils);
-        formListDownloader.downloadFormList(false);
+        HashMap<String, FormDetails> formList = formListDownloader.downloadFormList(false);
+        System.out.println(formList);
+
     }
 
 }

@@ -18,7 +18,7 @@ public class AppConfiguration {
     @Bean
     public JsonDBTemplate setupDatabase() throws GeneralSecurityException {
         String dbFilesLocation = "src/main/resources";
-        String baseScanPackage = "com.samagra.transformer.odk.model";
+        String baseScanPackage = "com.samagra.transformer.odk.model.Form";
         ICipher cipher = new Default1Cipher("1r8+24pibarAWgS85/Heeg==");
         JsonDBTemplate jsonDBTemplate = new JsonDBTemplate(dbFilesLocation, baseScanPackage, cipher);
         jsonDBTemplate.createCollection(Form.class);
