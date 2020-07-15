@@ -7,6 +7,7 @@ import com.samagra.transformer.odk.model.Form;
 import com.samagra.transformer.odk.model.FormDetails;
 import com.samagra.transformer.odk.openrosa.OpenRosaAPIClient;
 import com.samagra.transformer.odk.persistance.FormsDao;
+import com.samagra.transformer.odk.persistance.JsonDB;
 import lombok.extern.slf4j.Slf4j;
 import org.javarosa.xform.parse.XFormParser;
 import org.kxml2.kdom.Element;
@@ -14,6 +15,7 @@ import org.springframework.lang.Nullable;
 
 import java.io.File;
 import java.net.HttpURLConnection;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -386,12 +388,22 @@ public class FormListDownloader {
         if (md5Hash == null) {
             return false;
         }
-        List<Form> formList = new FormsDao().getFormsCursorForMd5Hash(md5Hash);
+        List<Form> formList = null;
+        try {
+            formList = new FormsDao(JsonDB.setupDatabase()).getFormsCursorForMd5Hash(md5Hash);
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        }
         return formList != null && formList.size() == 0;
     }
 
     private boolean areNewerMediaFilesAvailable(String formId, String formVersion, List<MediaFile> newMediaFiles) {
-        String mediaDirPath = new FormsDao().getFormMediaPath(formId, formVersion);
+        String mediaDirPath = null;
+        try {
+            mediaDirPath = new FormsDao(JsonDB.setupDatabase()).getFormMediaPath(formId, formVersion);
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        }
         if (mediaDirPath != null) {
             File[] localMediaFiles = new File(mediaDirPath).listFiles();
             if (localMediaFiles != null) {

@@ -1,5 +1,6 @@
 package com.samagra.transformer.odk.persistance;
 
+import io.jsondb.JsonDBTemplate;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -19,7 +20,7 @@ public class JsonDBTest {
 
     @Test
     public void testJSONDBSetup() throws GeneralSecurityException, IOException {
-        JsonDB.setup();
-        System.out.println("cfcfv " + JsonDB.dbFilesLocation);
+        JsonDBTemplate jsonDBTemplate = JsonDB.setupDatabase();
+        System.out.println("cfcfv " + jsonDBTemplate);
     }
 }

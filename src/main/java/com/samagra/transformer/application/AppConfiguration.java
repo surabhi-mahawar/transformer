@@ -1,6 +1,8 @@
 package com.samagra.transformer.application;
 
 import com.samagra.transformer.odk.model.Form;
+import com.samagra.transformer.odk.persistance.FormsDao;
+import io.jsondb.InvalidJsonDbApiUsageException;
 import io.jsondb.JsonDBTemplate;
 import io.jsondb.crypto.Default1Cipher;
 import io.jsondb.crypto.ICipher;
@@ -15,13 +17,8 @@ import java.security.GeneralSecurityException;
 @EnableAutoConfiguration
 public class AppConfiguration {
 
-    @Bean
-    public JsonDBTemplate setupDatabase() throws GeneralSecurityException {
-        String dbFilesLocation = "src/main/resources";
-        String baseScanPackage = "com.samagra.transformer.odk.model.Form";
-        ICipher cipher = new Default1Cipher("1r8+24pibarAWgS85/Heeg==");
-        JsonDBTemplate jsonDBTemplate = new JsonDBTemplate(dbFilesLocation, baseScanPackage, cipher);
-        jsonDBTemplate.createCollection(Form.class);
-        return jsonDBTemplate;
-    }
+//    @Bean
+//    public FormsDao getFormsDao(){
+//        return new FormsDao();
+//    }
 }

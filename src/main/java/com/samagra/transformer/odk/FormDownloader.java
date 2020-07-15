@@ -11,11 +11,15 @@ import com.samagra.transformer.odk.persistance.FormsDao;
 import com.samagra.transformer.odk.utilities.DocumentFetchResult;
 import com.samagra.transformer.odk.utilities.FileUtils;
 import com.samagra.transformer.odk.utilities.MediaFile;
+import liquibase.pro.packaged.R;
 import lombok.extern.slf4j.Slf4j;
 import org.javarosa.core.reference.ReferenceManager;
 import org.javarosa.core.reference.RootTranslator;
 import org.javarosa.xform.parse.XFormParser;
 import org.kxml2.kdom.Element;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -37,7 +41,6 @@ public class FormDownloader {
     private static final String MD5_COLON_PREFIX = "md5:";
     private static final String TEMP_DOWNLOAD_EXTENSION = ".tempDownload";
 
-
     private FormsDao formsDao;
 
     OpenRosaAPIClient openRosaAPIClient;
@@ -47,6 +50,11 @@ public class FormDownloader {
     }
     private static final String NAMESPACE_OPENROSA_ORG_XFORMS_XFORMS_MANIFEST =
             "http:openrosa.org/xforms/xformsManifest";
+
+    public FormDownloader(FormsDao formsDao, OpenRosaAPIClient openRosaAPIClient) {
+        this.formsDao = formsDao;
+        this.openRosaAPIClient = openRosaAPIClient;
+    }
 
     public static boolean isXformsManifestNamespacedElement(Element e) {
         return e.getNamespace().equalsIgnoreCase(NAMESPACE_OPENROSA_ORG_XFORMS_XFORMS_MANIFEST);
@@ -67,7 +75,6 @@ public class FormDownloader {
     }
 
     public void downloadForms(List<FormDetails> toDownload) {
-        formsDao = new FormsDao();
         int total = toDownload.size();
         int count = 1;
         for (FormDetails fd : toDownload) {
@@ -92,7 +99,7 @@ public class FormDownloader {
     private void processOneForm(int total, int count, FormDetails fd) throws TaskCancelledException {
 
 
-        String tempMediaPath = new File("src/main/resources/forms/temp").getAbsolutePath();
+        String tempMediaPath = new File("/tmp").getAbsolutePath();
         final String finalMediaPath;
         FileResult fileResult = null;
         try {
@@ -113,11 +120,6 @@ public class FormDownloader {
         } catch (Exception e) {
             log.debug(getExceptionMessage(e));
         }
-//Add Clean up logic....
-//        if (stateListener != null && stateListener.isTaskCanceled()) {
-//            cleanUp(fileResult, null, tempMediaPath);
-//            fileResult = null;
-//        }
 
         if (fileResult == null) {
             log.debug("Downloading Xform failed.");
@@ -141,32 +143,12 @@ public class FormDownloader {
 
                 log.info("Parse finished in %.3f seconds.",
                         (System.currentTimeMillis() - start) / 1000F);
+                installEverything(tempMediaPath, fileResult, parsedFields);
             } catch (RuntimeException e) {
                 log.debug(e.getMessage());
             }
         }
-
-        boolean installed = false;
-
-//        if ((stateListener == null || !stateListener.isTaskCanceled()) && message.isEmpty()) {
-//            if (!fileResult.isNew || isSubmissionOk(parsedFields)) {
-//                installed = installEverything(tempMediaPath, fileResult, parsedFields);
-//            } else {
-//                message += Collect.getInstance().getString(R.string.xform_parse_error,
-//                        fileResult.file.getName(), "submission url");
-//            }
-//        }
-//        if (!installed) {
-//            message += Collect.getInstance().getString(R.string.copying_media_files_failed);
-//            cleanUp(fileResult, null, tempMediaPath);
-//        }
     }
-
-//    private boolean isSubmissionOk(Map<String, String> parsedFields) {
-//        String submission = parsedFields.get(FileUtils.SUBMISSIONURI);
-//        return false;
-//        return submission == null || Validator.isUrlValid(submission);
-//    }
 
     boolean installEverything(String tempMediaPath, FileResult fileResult, Map<String, String> parsedFields) {
         Form uriResult = null;
@@ -256,14 +238,13 @@ public class FormDownloader {
             form = saveNewForm(formInfo, formFile, mediaPath);
         } else {
             form = forms.get(0);
-            uri = Uri.withAppendedPath(Uri.parse("content://" + "org.odk.collect.android.provider.odk.forms" + "/forms"),
-                    "");
-            mediaPath = "";
+
             //TODO: Add Media Path (relevant)
-//                mediaPath = new StoragePathProvider().getAbsoluteFormFilePath(cursor.getString(cursor.getColumnIndex(FormsColumns.FORM_MEDIA_PATH)));
+            //uri = Uri.withAppendedPath(Uri.parse("content://" + "org.odk.collect.android.provider.odk.forms" + "/forms"),"");
+            //mediaPath = "";
+            //mediaPath = new StoragePathProvider().getAbsoluteFormFilePath(cursor.getString(cursor.getColumnIndex(FormsColumns.FORM_MEDIA_PATH)));
         }
         return form;
-//        return new UriResult(uri, mediaPath, isNew);
     }
 
     private Form saveNewForm(Map<String, String> formInfo, File formFile, String mediaPath) {
@@ -278,11 +259,11 @@ public class FormDownloader {
     FileResult downloadXform(String formName, String url) throws Exception {
         String rootName = FormNameUtils.formatFilenameFromFormName(formName);
 
-        String path = "src/main/resources/forms" + File.separator + rootName + ".xml";
+        String path = "/tmp" + File.separator + rootName + ".xml";
         int i = 2;
         File f = new File(path);
         while (f.exists()) {
-            path = "src/main/resources/forms" + File.separator + rootName + "_" + i + ".xml";
+            path = "/tmp" + File.separator + rootName + "_" + i + ".xml";
             f = new File(path);
             i++;
         }
@@ -298,9 +279,8 @@ public class FormDownloader {
             FileUtils.deleteAndReport(f);
             f = new File(form1.getFormFilePath());
             log.error("Will use %s", form1.getFormFilePath());
-            return new FileResult(f, isNew);
         }
-        return null;
+        return new FileResult(f, isNew);
     }
 
     /**
@@ -315,8 +295,7 @@ public class FormDownloader {
      */
     private void downloadFile(File file, String downloadUrl) throws IOException, TaskCancelledException, URISyntaxException, Exception {
 
-        File tempFile = File.createTempFile(file.getName(), TEMP_DOWNLOAD_EXTENSION,
-                new File("src/main/resources/forms/cache"));
+        File tempFile = File.createTempFile(file.getName(), TEMP_DOWNLOAD_EXTENSION, new File("/tmp"));
         boolean success = false;
         int attemptCount = 0;
         final int MAX_ATTEMPT_COUNT = 2;
@@ -369,7 +348,7 @@ public class FormDownloader {
 
         }
 
-        log.debug("Completed downloading of %s. It will be moved to the proper path...",
+        log.error("Completed downloading of %s. It will be moved to the proper path...",
                 tempFile.getAbsolutePath());
 
         FileUtils.deleteAndReport(file);
@@ -377,8 +356,8 @@ public class FormDownloader {
         String errorMessage = FileUtils.copyFile(tempFile, file);
 
         if (file.exists()) {
-            log.error("Copied %s over %s", tempFile.getAbsolutePath(), file.getAbsolutePath());
-            FileUtils.deleteAndReport(tempFile);
+            log.error(String.format("Copied %s over %s", tempFile.getAbsolutePath(), file.getAbsolutePath()));
+            // FileUtils.deleteAndReport(tempFile);
         } else {
             String msg = String.format("Could not copy \\'%1$s\\' over \\'%2$s\\'. Reason: %3$s",
                     tempFile.getAbsolutePath(), file.getAbsolutePath(), errorMessage);

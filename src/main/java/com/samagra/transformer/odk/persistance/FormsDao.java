@@ -7,6 +7,7 @@ import com.samagra.transformer.odk.model.Form;
 import com.samagra.transformer.odk.utilities.FileUtils;
 import io.jsondb.JsonDBTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -16,11 +17,18 @@ import java.util.UUID;
 
 public class FormsDao {
 
-    @Autowired
     JsonDBTemplate jsonDBTemplate;
+
+    public FormsDao(JsonDBTemplate jsonDBTemplate) {
+        this.jsonDBTemplate = jsonDBTemplate;
+    }
 
     public List<Form> getFormsCursor() {
         return getFormsCursor(null, null, null, null);
+    }
+
+    public List<Form> getForms() {
+        return jsonDBTemplate.getCollection(Form.class);
     }
 
     public List<Form> getFormsCursor(String selection, String[] selectionArgs) {
