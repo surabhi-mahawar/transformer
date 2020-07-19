@@ -14,6 +14,7 @@ import com.samagra.transformer.publisher.CommonProducer;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -33,6 +34,7 @@ public class ODKTransformer extends TransformerProvider {
 
     @KafkaListener(id = "transformer", topics = "Form")
     public void consumeMessage(String message) throws Exception {
+        log.info("Form Transormer Message: " + message);
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         XMessage transformedMessage = this.transform(xMessage);
         kafkaProducer.send("outbound", transformedMessage.toXML());
@@ -89,6 +91,11 @@ public class ODKTransformer extends TransformerProvider {
 
         // Update database with new fields.
         return nextMessage;
+    }
+
+    @Override
+    public List<XMessage> transformToMany(XMessage xMessage) {
+        return null;
     }
 
     private XMessage getMessageFromResponse(ServiceResponse response, XMessage xMessage) {

@@ -3,6 +3,8 @@ package com.samagra.transformer;
 import lombok.*;
 import messagerosa.core.model.XMessage;
 
+import java.util.List;
+
 @NoArgsConstructor
 public abstract class TransformerProvider {
     int id;
@@ -15,5 +17,7 @@ public abstract class TransformerProvider {
 
 
     public abstract XMessage transform(XMessage xMessage);
+
+    public abstract List<XMessage> transformToMany(XMessage xMessage);
 
 }
