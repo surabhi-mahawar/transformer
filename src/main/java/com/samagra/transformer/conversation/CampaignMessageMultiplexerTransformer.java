@@ -37,45 +37,47 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
         Application campaign;
         List<XMessage> startingMessagesForUsers = new ArrayList<>();
         try {
-            campaign = CampaignService.getCampaignFromID(parentXMessage.getApp());
+            campaign = CampaignService.getCampaignFromName(parentXMessage.getApp());
             List<User> users = UserService.findUsersForCampaign(parentXMessage.getApp());
             for (User user : users) {
-                SenderReceiverInfo from = SenderReceiverInfo
-                        .builder()
-                        .userID("admin")
-                        .build(); //Admin for the campaign
+                if (!user.getRoleNamesForApplication(campaign.id).contains("Admin")) {
+                    SenderReceiverInfo from = SenderReceiverInfo
+                            .builder()
+                            .userID("admin")
+                            .build(); //Admin for the campaign
 
-                SenderReceiverInfo to = SenderReceiverInfo
-                        .builder()
-                        .userID(user.mobilePhone)
-                        .formID(parentXMessage.getTransformers().get(0).getMetaData().get("Form"))
-                        .build(); //User of the campaign
+                    SenderReceiverInfo to = SenderReceiverInfo
+                            .builder()
+                            .userID(user.mobilePhone)
+                            .formID(parentXMessage.getTransformers().get(0).getMetaData().get("Form"))
+                            .build(); //User of the campaign
 
-                ConversationStage conversationStage = ConversationStage
-                        .builder()
-                        .state(ConversationStage.State.STARTING)
-                        .build();
+                    ConversationStage conversationStage = ConversationStage
+                            .builder()
+                            .state(ConversationStage.State.STARTING)
+                            .build();
 
-                XMessageThread thread = XMessageThread.builder()
-                        .offset(0)
-                        .startDate(new Date().toString())
-                        .lastMessageId("0")
-                        .build();
+                    XMessageThread thread = XMessageThread.builder()
+                            .offset(0)
+                            .startDate(new Date().toString())
+                            .lastMessageId("0")
+                            .build();
 
-                XMessage userMessage = XMessage.builder()
-                        .transformers(parentXMessage.getTransformers())
-                        .from(from)
-                        .to(to)
-                        .messageState(XMessage.MessageState.NOT_SENT)
-                        .channelURI(parentXMessage.getChannelURI())
-                        .providerURI(parentXMessage.getProviderURI())
-                        .timestamp(System.currentTimeMillis())
-                        .app(campaign.name)
-                        .thread(thread)
-                        .conversationStage(conversationStage)
-                        .build();
+                    XMessage userMessage = XMessage.builder()
+                            .transformers(parentXMessage.getTransformers())
+                            .from(from)
+                            .to(to)
+                            .messageState(XMessage.MessageState.NOT_SENT)
+                            .channelURI(parentXMessage.getChannelURI())
+                            .providerURI(parentXMessage.getProviderURI())
+                            .timestamp(System.currentTimeMillis())
+                            .app(campaign.name)
+                            .thread(thread)
+                            .conversationStage(conversationStage)
+                            .build();
 
-                startingMessagesForUsers.add(userMessage);
+                    startingMessagesForUsers.add(userMessage);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -90,7 +92,7 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         List<XMessage> transformedMessages = this.transformToMany(xMessage);
         for (XMessage msg : transformedMessages) {
-            kafkaProducer.send(TransformerRegistry.getName(msg.getTransformers().get(0).getId()), msg.toXML());
+            kafkaProducer.send("Form", msg.toXML());
         }
     }
 

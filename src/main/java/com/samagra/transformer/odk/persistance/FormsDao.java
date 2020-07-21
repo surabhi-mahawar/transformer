@@ -43,12 +43,9 @@ public class FormsDao {
         return null;
     }
 
-    public Cursor getFormsCursorForFormId(String formId) {
-        return null;
-//        String selection = FormsProviderAPI.FormsColumns.JR_FORM_ID + "=?";
-//        String[] selectionArgs = {formId};
-//
-//        return getFormsCursor(null, selection, selectionArgs, null);
+    public Form getFormsCursorForFormId(String formId) {
+        String jxQuery = String.format("/.[jrFormId='%s']", formId);
+        return jsonDBTemplate.findOne(jxQuery, Form.class);
     }
 
     public String getFormTitleForFormIdAndFormVersion(String formId, String formVersion) {

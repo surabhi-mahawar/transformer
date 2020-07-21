@@ -36,9 +36,9 @@ import java.util.Map;
 
 @EnableKafka
 @EnableAsync
-@ComponentScan(basePackages = {"com.samagra.transformer", "com.samagra"})
+@ComponentScan(basePackages = {"com.samagra.transformer"})
 @EnableJpaRepositories(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
-@EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer", "com.samagra.orchestrator"})
+@EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
 @PropertySource("application-messagerosa.properties")
 @PropertySource("application.properties")
 @SpringBootApplication()
@@ -49,7 +49,7 @@ public class TransformerApplication {
                 TransformerApplication.class, args);
     }
 
-    @PostConstruct
+    // @PostConstruct
     private void downloadForms() {
         OpenRosaHttpInterface openRosaHttpInterface = new OkHttpConnection(
                 new OkHttpOpenRosaServerClientProvider(new OkHttpClient()),
