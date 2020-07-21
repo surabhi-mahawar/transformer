@@ -40,7 +40,7 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
             campaign = CampaignService.getCampaignFromName(parentXMessage.getApp());
             List<User> users = UserService.findUsersForCampaign(parentXMessage.getApp());
             for (User user : users) {
-                if (!user.getRoleNamesForApplication(campaign.id).contains("Admin")) {
+                if (user.getRoleNamesForApplication(campaign.id) != null && !user.getRoleNamesForApplication(campaign.id).contains("Admin")) {
                     SenderReceiverInfo from = SenderReceiverInfo
                             .builder()
                             .userID("admin")
@@ -95,6 +95,5 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
             kafkaProducer.send("Form", msg.toXML());
         }
     }
-
 
 }

@@ -1,7 +1,8 @@
 package com.samagra.transformer.application;
 
 import android.webkit.MimeTypeMap;
-import com.samagra.transformer.odk.FormDownloader;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.samagra.transformer.odk.*;
 import com.samagra.transformer.odk.model.Form;
 import com.samagra.transformer.odk.model.FormDetails;
 import com.samagra.transformer.odk.openrosa.CollectThenSystemContentTypeMapper;
@@ -14,6 +15,8 @@ import com.samagra.transformer.odk.persistance.JsonDB;
 import com.samagra.transformer.odk.utilities.FormListDownloader;
 import com.samagra.transformer.odk.utilities.WebCredentialsUtils;
 import io.jsondb.JsonDBTemplate;
+import lombok.extern.slf4j.Slf4j;
+import messagerosa.core.model.XMessage;
 import okhttp3.OkHttpClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -25,9 +28,12 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.util.FileSystemUtils;
 
 import javax.annotation.PostConstruct;
 import javax.swing.*;
+import javax.xml.bind.JAXBException;
+import java.io.File;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,6 +48,7 @@ import java.util.Map;
 @PropertySource("application-messagerosa.properties")
 @PropertySource("application.properties")
 @SpringBootApplication()
+@Slf4j
 public class TransformerApplication {
 
     public static void main(String[] args) {
@@ -49,8 +56,33 @@ public class TransformerApplication {
                 TransformerApplication.class, args);
     }
 
-    // @PostConstruct
+    @PostConstruct
+    private void postConstruct() {
+        // downloadForms();
+        // testFormManager();
+    }
+
+    private void testFormManager() {
+        String formPath = ODKTransformer.getFormPath("practice_form");
+        ServiceResponse response1 = new FormManager(null, null, null, formPath).start();
+        log.debug("First response");
+        log.debug(response1.getCurrentIndex(), response1.getNextMessage());
+    }
+
     private void downloadForms() {
+        //Empty the database and folder
+        FormsDao dao;
+        try{
+            File directoryToDelete = new File("/tmp/forms");
+            FileSystemUtils.deleteRecursively(directoryToDelete);
+            dao = new FormsDao(JsonDB.setupDatabase());
+            dao.deleteFormsDatabase();
+        }catch (Exception e){}
+
+        //Create a folder /tmp/forms
+        new File("/tmp/forms").mkdirs();
+
+        //Download fresh
         OpenRosaHttpInterface openRosaHttpInterface = new OkHttpConnection(
                 new OkHttpOpenRosaServerClientProvider(new OkHttpClient()),
                 null,
@@ -71,18 +103,15 @@ public class TransformerApplication {
             }
             FormDownloader formDownloader = null;
             try {
-                FormsDao dao = new FormsDao(JsonDB.setupDatabase());
+                dao = new FormsDao(JsonDB.setupDatabase());
                 formDownloader = new FormDownloader(dao, openRosaAPIClient);
                 formDownloader.downloadForms(forms);
                 List<Form> downloadedForms =  dao.getForms();
-                System.out.println(downloadedForms);
+                log.info("Total downloaded forms: " + downloadedForms.size());
 
             } catch (GeneralSecurityException e) {
                 e.printStackTrace();
             }
-
-
-
         }
     }
 }

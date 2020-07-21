@@ -32,7 +32,7 @@ import java.util.List;
 @AllArgsConstructor
 @Getter
 @Setter
-class SaveStatus{
+class SaveStatus {
     String instanceXML;
     int saveStatus;
 }
@@ -99,28 +99,28 @@ public class MenuManager {
 
             // Skip to previous question
             formController.stepToPreviousEvent();
-            try{
+            try {
                 // Skip if it is a note
-                if(getXPath(formController, formController.getModel().getFormIndex()).indexOf("intro") >= 0)
+                if (isIntro())
                     formController.stepToPreviousEvent();
                 formController.getModel().getQuestionPrompt();
-            }catch (Exception e){
+            } catch (Exception e) {
                 formController.stepToPreviousEvent();
             }
 
             // If question if part of a group of just one question, skip that too to the the start of the group.
             formController.stepToPreviousEvent();
-            try{
+            try {
                 // Skip if it is a note
-                if(getXPath(formController, formController.getModel().getFormIndex()).indexOf("intro") >= 0)
+                if (isIntro())
                     formController.stepToPreviousEvent();
 
                 // Skip a non question TODO: Should remove all non questions. Right now doing only for one.
-                if(formController.getModel().getEvent() != FormEntryController.EVENT_GROUP){
+                if (formController.getModel().getEvent() != FormEntryController.EVENT_GROUP) {
                     formController.getModel().getQuestionPrompt();
                     formController.stepToNextEvent();
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 formController.stepToPreviousEvent();
             }
 
@@ -128,19 +128,18 @@ public class MenuManager {
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
-        } else if(answer.equals("100")){
+        } else if (answer.equals("100")) {
             FormIndex idx = getIndexFromXPath("beginningOfForm", formController);
             formController.jumpToIndex(idx);
             udpatedInstanceXML = instanceXML;
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
-        }
-        else {
+        } else {
             SaveStatus saveStatus = new SaveStatus();
             try {
                 if (xpath != null && !xpath.equals("endOfForm")) {
                     saveStatus = addResponseToForm(getIndexFromXPath(xpath, formController), answer);
-                    udpatedInstanceXML  = saveStatus.getInstanceXML();
+                    udpatedInstanceXML = saveStatus.getInstanceXML();
                 } else {
                     FormInstance formInstance = formController.getModel().getForm().getInstance();
                     XFormSerializingVisitor serializer = new XFormSerializingVisitor();
@@ -384,18 +383,43 @@ public class MenuManager {
      */
     private String createViewForFormBeginning(FormEntryController formController) {
         formController.stepToNextEvent(); // To start the form
-        if(formController.getModel().getEvent() == FormEntryController.EVENT_GROUP) formController.stepToPreviousEvent();
+        if (formController.getModel().getEvent() == FormEntryController.EVENT_GROUP)
+            formController.stepToPreviousEvent();
         String prompt = renderQuestion(formController);
         return createView(formController.stepToNextEvent(), prompt); //To render the first question.
+    }
+
+    private String cleanText(String s){
+        if(s.equals("")) return "";
+        return s;
+        //return s.replace("\r", "*/\n*").replaceAll("\\s+", " ");
     }
 
     private String renderQuestion(FormEntryController formController) {
         try {
             System.out.println("test");
-            return "*" + formController.getModel().getQuestionPrompt().getQuestionText().replace("\r", "").replaceAll("\\s+", " ") + "*" + " \n" +
-                    "_" + formController.getModel().getQuestionPrompt().getHelpText().replace("\r", "").replaceAll("\\s+", " ") + "_" + " \n\n";
+            return "*" + cleanText(getQuestionText(formController)) + "*" + " \n" +
+                    "_" + cleanText(getHelpText(formController))+ "_" + " \n\n";
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    private String getHelpText(FormEntryController formController) {
+        String helpText = formController.getModel().getQuestionPrompt().getHelpText();
+        if (helpText == null) return "";
+        return helpText;
+    }
+
+    private String getQuestionText(FormEntryController formController) {
+        return formController.getModel().getQuestionPrompt().getQuestionText();
+    }
+
+    private boolean isQuestionChoiceType(FormEntryController formController){
+        try{
+            return formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_SELECT_ONE;
+        }catch (Exception e){
+            return false;
         }
     }
 
@@ -420,29 +444,17 @@ public class MenuManager {
                 // Check for rendered Types
                 String choices = "";
                 try {
-                    if(formController.getModel().getEvent() == FormEntryController.EVENT_GROUP) {
+                    if (formController.getModel().getEvent() == FormEntryController.EVENT_GROUP) {
                         formController.stepToNextEvent();
-
                     }
                     // Check for note and add
-                    if(getXPath(formController, formController.getModel().getFormIndex()).indexOf("intro") >= 0){
+                    if (isIntro() && !isQuestionChoiceType(formController)) {
                         previousPrompt = renderQuestion(formController);
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
 
                     log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
-                    try {
-                        switch (formController.getModel().getQuestionPrompt().getControlType()) {
-                            case Constants.CONTROL_SELECT_ONE:
-                                List<SelectChoice> items = formController.getModel().getQuestionPrompt().getSelectChoices();
-                                if (items != null) {
-                                    for (int i = 0; i < items.size(); i++) {
-                                        choices += items.get(i).getLabelInnerText() + "\n";
-                                    }
-                                }
-                        }
-                    } catch (Exception e) {
-                    }
+                    choices = getChoices(choices);
                     return previousPrompt + renderQuestion(formController) + choices;
                 } catch (Exception e) {
                     log.info("Non Question data type");
@@ -458,6 +470,26 @@ public class MenuManager {
             default:
                 return createView(event, "");
         }
+    }
+
+    private boolean isIntro() {
+        return getXPath(formController, formController.getModel().getFormIndex()).indexOf("intro") >= 0;
+    }
+
+    private String getChoices(String choices) {
+        try {
+            switch (formController.getModel().getQuestionPrompt().getControlType()) {
+                case Constants.CONTROL_SELECT_ONE:
+                    List<SelectChoice> items = formController.getModel().getQuestionPrompt().getSelectChoices();
+                    if (items != null) {
+                        for (int i = 0; i < items.size(); i++) {
+                            choices += items.get(i).getLabelInnerText() + "\n";
+                        }
+                    }
+            }
+        } catch (Exception e) {
+        }
+        return choices;
     }
 
     private String createViewForFormEnd(FormEntryController formController) {

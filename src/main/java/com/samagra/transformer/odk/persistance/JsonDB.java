@@ -15,7 +15,7 @@ import java.security.GeneralSecurityException;
 public class JsonDB {
 
     public static JsonDBTemplate setupDatabase() throws GeneralSecurityException {
-        String dbFilesLocation = "/tmp";
+        String dbFilesLocation = "/tmp/db";
         String baseScanPackage = "com.samagra.transformer.odk.model.Form";
         ICipher cipher = new Default1Cipher("1r8+24pibarAWgS85/Heeg==");
         JsonDBTemplate jsonDBTemplate = new JsonDBTemplate(dbFilesLocation, baseScanPackage, cipher);

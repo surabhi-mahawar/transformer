@@ -99,7 +99,7 @@ public class FormDownloader {
     private void processOneForm(int total, int count, FormDetails fd) throws TaskCancelledException {
 
 
-        String tempMediaPath = new File("/tmp").getAbsolutePath();
+        String tempMediaPath = new File("/tmp/forms").getAbsolutePath();
         final String finalMediaPath;
         FileResult fileResult = null;
         try {
@@ -259,11 +259,11 @@ public class FormDownloader {
     FileResult downloadXform(String formName, String url) throws Exception {
         String rootName = FormNameUtils.formatFilenameFromFormName(formName);
 
-        String path = "/tmp" + File.separator + rootName + ".xml";
+        String path = "/tmp/forms" + File.separator + rootName + ".xml";
         int i = 2;
         File f = new File(path);
         while (f.exists()) {
-            path = "/tmp" + File.separator + rootName + "_" + i + ".xml";
+            path = "/tmp/forms" + File.separator + rootName + "_" + i + ".xml";
             f = new File(path);
             i++;
         }
@@ -295,7 +295,7 @@ public class FormDownloader {
      */
     private void downloadFile(File file, String downloadUrl) throws IOException, TaskCancelledException, URISyntaxException, Exception {
 
-        File tempFile = File.createTempFile(file.getName(), TEMP_DOWNLOAD_EXTENSION, new File("/tmp"));
+        File tempFile = File.createTempFile(file.getName(), TEMP_DOWNLOAD_EXTENSION, new File("/tmp/forms"));
         boolean success = false;
         int attemptCount = 0;
         final int MAX_ATTEMPT_COUNT = 2;

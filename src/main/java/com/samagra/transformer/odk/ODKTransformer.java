@@ -58,7 +58,7 @@ public class ODKTransformer extends TransformerProvider {
         String prevPath = null;
         String prevXMl = null;
 
-        GupshupStateEntity stateEntity = stateRepo.findByPhoneNo(message.getFrom().getUserID());
+        GupshupStateEntity stateEntity = stateRepo.findByPhoneNo(message.getTo().getUserID());
         if (stateEntity != null) {
             prevXMl = stateEntity.getXmlPrevious();
             prevPath = stateEntity.getPreviousPath();
@@ -72,7 +72,7 @@ public class ODKTransformer extends TransformerProvider {
                 formManagerParams.setCurrentAnswer(message.getPayload().getMedia().getUrl());
             } else formManagerParams.setCurrentAnswer(message.getPayload().getText());
         } else {
-            formManagerParams.setCurrentAnswer(null);
+            formManagerParams.setCurrentAnswer("");
         }
 
         formManagerParams.setPreviousPath(prevPath);
@@ -85,14 +85,13 @@ public class ODKTransformer extends TransformerProvider {
     @Override
     public XMessage transform(XMessage xMessage) {
         String formID = xMessage.getTransformers().get(0).getMetaData().get("Form");
-        formID = "resume_questionnaire_v3";
+        formID = "practice_form";
         String formPath = getFormPath(formID);
 
         // Get details of User from database
 
         FormManagerParams previousMeta = getPreviousMetadata(xMessage);
-        ServiceResponse response = new FormManager(previousMeta.previousPath, previousMeta.currentAnswer,
-                previousMeta.instanceXMlPrevious, formPath).start();
+        ServiceResponse response = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath).start();
 
         // Create new xMessage from response
         XMessage nextMessage = getMessageFromResponse(xMessage, response);
@@ -125,7 +124,7 @@ public class ODKTransformer extends TransformerProvider {
         return xMessage;
     }
 
-    private String getFormPath(String formID) {
+    public static String getFormPath(String formID) {
         try {
             FormsDao dao = new FormsDao(JsonDB.setupDatabase());
             return dao.getFormsCursorForFormId(formID).getFormFilePath();
