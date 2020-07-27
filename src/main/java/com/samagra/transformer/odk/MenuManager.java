@@ -94,7 +94,7 @@ public class MenuManager {
         String udpatedInstanceXML = "";
         String nextQuestion = "";
 
-        if (answer.equals("101")) {
+        if (answer.equals("100")) {
             // Get to the note of the previous group
 
             // Skip to previous question
@@ -128,12 +128,29 @@ public class MenuManager {
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
-        } else if (answer.equals("100")) {
-            FormIndex idx = getIndexFromXPath("beginningOfForm", formController);
-            formController.jumpToIndex(idx);
-            udpatedInstanceXML = instanceXML;
-            nextQuestion = createView(formController.getModel().getEvent(), "");
-            currentPath = getXPath(formController, formController.getModel().getFormIndex());
+        } else if (answer.equals("1001")) {
+                /*
+                FormIndex idx = getIndexFromXPath("beginningOfForm", formController);
+                formController.jumpToIndex(idx);
+                final File formXml = new File(formPath);
+                FormDef formDef = createFormDefFromCacheOrXml(formPath, formXml);
+                final FormEntryModel fem = new FormEntryModel(formDef);
+                FormEntryController fec = new FormEntryController(fem);
+                FormInstance formInstance = fec.getModel().getForm().getInstance();
+                XFormSerializingVisitor serializer = new XFormSerializingVisitor();
+                ByteArrayPayload payload = null;
+                payload = (ByteArrayPayload) serializer.createSerializedPayload(formInstance);
+                udpatedInstanceXML = payload.toString();
+                nextQuestion = createView(fec.getModel().getEvent(), "");
+                currentPath = getXPath(fec, fec.getModel().getFormIndex());
+                */
+                FormIndex idx = getIndexFromXPath("beginningOfForm", formController);
+                formController.jumpToIndex(idx);
+                udpatedInstanceXML = instanceXML;
+                nextQuestion = createView(formController.getModel().getEvent(), "");
+                currentPath = getXPath(formController, formController.getModel().getFormIndex());
+
+
         } else {
             SaveStatus saveStatus = new SaveStatus();
             try {
@@ -181,7 +198,7 @@ public class MenuManager {
                 e.printStackTrace();
             }
         }
-        if (answer.equals("101")) {
+        if (answer.equals("1001")) {
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
         }
         return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML);
@@ -197,8 +214,8 @@ public class MenuManager {
                     if (items != null) {
                         for (int i = 0; i < items.size(); i++) {
                             if (value.equals(items.get(i).getLabelInnerText()) ||
-                                    value.equals(items.get(i).getLabelInnerText().split(" ")[0]) ||
-                                    value.equals(items.get(i).getLabelInnerText().split(" ")[0].split(".")[0])) {
+                                    checkForSpaceInOptions(value, items, i) ||
+                                    checkForDotInOptions(value, items, i)) {
                                 IAnswerData answerData = new StringData(items.get(i).getValue());
                                 saveStatus = formController.answerQuestion(formIndex, answerData, true);
                                 break;
@@ -229,6 +246,24 @@ public class MenuManager {
             }
         }
         return new SaveStatus(instanceXML, saveStatus);
+    }
+
+    private boolean checkForSpaceInOptions(String value, List<SelectChoice> items, int i) {
+        // Example 1 Option1
+        try {
+            return value.equals(items.get(i).getLabelInnerText().split(" ")[0]);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean checkForDotInOptions(String value, List<SelectChoice> items, int i) {
+        // Example 1.
+        try {
+            return value.equals(items.get(i).getLabelInnerText().split(" ")[0].split(".")[0]);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
 
@@ -389,8 +424,8 @@ public class MenuManager {
         return createView(formController.stepToNextEvent(), prompt); //To render the first question.
     }
 
-    private String cleanText(String s){
-        if(s.equals("")) return "";
+    private String cleanText(String s) {
+        if (s.equals("")) return "";
         return s;
         //return s.replace("\r", "*/\n*").replaceAll("\\s+", " ");
     }
@@ -398,8 +433,9 @@ public class MenuManager {
     private String renderQuestion(FormEntryController formController) {
         try {
             System.out.println("test");
-            return "*" + cleanText(getQuestionText(formController)) + "*" + " \n" +
-                    "_" + cleanText(getHelpText(formController))+ "_" + " \n\n";
+            return "" + cleanText(getQuestionText(formController)) + "" + " \n" +
+                    "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
+            //return "*" + cleanText(getQuestionText(formController)) + "*" + " \n" + "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
         } catch (Exception e) {
             return "";
         }
@@ -415,10 +451,10 @@ public class MenuManager {
         return formController.getModel().getQuestionPrompt().getQuestionText();
     }
 
-    private boolean isQuestionChoiceType(FormEntryController formController){
-        try{
+    private boolean isQuestionChoiceType(FormEntryController formController) {
+        try {
             return formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_SELECT_ONE;
-        }catch (Exception e){
+        } catch (Exception e) {
             return false;
         }
     }

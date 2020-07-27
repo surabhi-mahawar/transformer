@@ -7,4 +7,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface StateRepository extends JpaRepository<GupshupStateEntity, Long> {
   GupshupStateEntity findByPhoneNo(String phoneNo);
+  GupshupStateEntity findByPhoneNoAndBotFormName(String phoneNo, String botFormName);
 }

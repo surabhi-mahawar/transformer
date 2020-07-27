@@ -41,12 +41,12 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
             List<User> users = UserService.findUsersForCampaign(parentXMessage.getApp());
             for (User user : users) {
                 if (user.getRoleNamesForApplication(campaign.id) != null && !user.getRoleNamesForApplication(campaign.id).contains("Admin")) {
-                    SenderReceiverInfo from = SenderReceiverInfo
+                    SenderReceiverInfo to = SenderReceiverInfo
                             .builder()
                             .userID("admin")
                             .build(); //Admin for the campaign
 
-                    SenderReceiverInfo to = SenderReceiverInfo
+                    SenderReceiverInfo from = SenderReceiverInfo
                             .builder()
                             .userID(user.mobilePhone)
                             .formID(parentXMessage.getTransformers().get(0).getMetaData().get("Form"))

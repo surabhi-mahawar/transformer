@@ -9,12 +9,14 @@ import com.samagra.transformer.odk.persistance.JsonDB;
 import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
 import lombok.extern.slf4j.Slf4j;
+import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
 import messagerosa.dao.XMessageRepo;
 import messagerosa.xml.XMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 import com.samagra.transformer.publisher.CommonProducer;
 
@@ -41,7 +43,7 @@ public class ODKTransformer extends TransformerProvider {
     @Autowired
     private MessageRepository msgRepo;
 
-    @KafkaListener(id = "transformer", topics = "Form")
+    @KafkaListener(id = "transformer", topics = "Form1")
     public void consumeMessage(String message) throws Exception {
         log.info("Form Transormer Message: " + message);
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
@@ -54,24 +56,28 @@ public class ODKTransformer extends TransformerProvider {
     // Gets the message => Calls transform() =>  Calls xMessage.completeTransform() =>  send it to inbound-unprocessed
 
 
-    private FormManagerParams getPreviousMetadata(XMessage message) {
+    private FormManagerParams getPreviousMetadata(XMessage message, String formID) {
         String prevPath = null;
         String prevXMl = null;
-
-        GupshupStateEntity stateEntity = stateRepo.findByPhoneNo(message.getTo().getUserID());
-        if (stateEntity != null) {
-            prevXMl = stateEntity.getXmlPrevious();
-            prevPath = stateEntity.getPreviousPath();
-        }
-
         FormManagerParams formManagerParams = new FormManagerParams();
 
-        // Handle image responses to a question
-        if (message.getPayload() != null) {
-            if (message.getPayload().getText() == null) {
-                formManagerParams.setCurrentAnswer(message.getPayload().getMedia().getUrl());
-            } else formManagerParams.setCurrentAnswer(message.getPayload().getText());
-        } else {
+        if (!message.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
+            GupshupStateEntity stateEntity = stateRepo.findByPhoneNoAndBotFormName(message.getTo().getUserID(), formID);
+            if (stateEntity != null) {
+                prevXMl = stateEntity.getXmlPrevious();
+                prevPath = stateEntity.getPreviousPath();
+            }
+
+
+            // Handle image responses to a question
+            if (message.getPayload() != null) {
+                if (message.getPayload().getText() == null) {
+                    formManagerParams.setCurrentAnswer(message.getPayload().getMedia().getUrl());
+                } else formManagerParams.setCurrentAnswer(message.getPayload().getText());
+            } else {
+                formManagerParams.setCurrentAnswer("");
+            }
+        }else{
             formManagerParams.setCurrentAnswer("");
         }
 
@@ -84,27 +90,28 @@ public class ODKTransformer extends TransformerProvider {
 
     @Override
     public XMessage transform(XMessage xMessage) {
-        String formID = xMessage.getTransformers().get(0).getMetaData().get("Form");
-        formID = "practice_form";
+        String formID; //= xMessage.getTransformers().get(0).getMetaData().get("Form");
+        formID = "diksha_test";
         String formPath = getFormPath(formID);
 
-        // Get details of User from database
+        // Switch from-to
+        SenderReceiverInfo from = xMessage.getFrom();
+        SenderReceiverInfo to = xMessage.getTo();
+        xMessage.setFrom(to);
+        xMessage.setTo(from);
 
-        FormManagerParams previousMeta = getPreviousMetadata(xMessage);
+        // Get details of User from database
+        FormManagerParams previousMeta = getPreviousMetadata(xMessage, formID);
+
+        // TODO Make a distinction between Form and MenuManager based on Campaign Configuration.
         ServiceResponse response = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath).start();
 
         // Create new xMessage from response
         XMessage nextMessage = getMessageFromResponse(xMessage, response);
 
         // Update database with new fields.
-        try {
-            appendNewResponse(xMessage, response);
-            replaceUserState(xMessage, response);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        } catch (JAXBException e) {
-            e.printStackTrace();
-        }
+        appendNewResponse(xMessage, response);
+        replaceUserState(xMessage, response);
 
         return nextMessage;
     }
@@ -134,27 +141,24 @@ public class ODKTransformer extends TransformerProvider {
         return null;
     }
 
-    private void appendNewResponse(XMessage xMessage, ServiceResponse response) throws JsonProcessingException {
-        GupshupMessageEntity msgEntity = msgRepo.findByPhoneNo(xMessage.getTo().getUserID());
-
-        if (msgEntity == null) {
-            msgEntity = new GupshupMessageEntity();
-        }
+    private void appendNewResponse(XMessage xMessage, ServiceResponse response) {
+        GupshupMessageEntity msgEntity = new GupshupMessageEntity();
         msgEntity.setPhoneNo(xMessage.getTo().getUserID());
         msgEntity.setMessage(xMessage.getPayload().getText());
         msgEntity.setLastResponse(response.getCurrentIndex().equals("endOfForm"));
         msgRepo.save(msgEntity);
     }
 
-    private void replaceUserState(XMessage xMessage, ServiceResponse response) throws JAXBException {
-        GupshupStateEntity saveEntity = stateRepo.findByPhoneNo(xMessage.getTo().getUserID());
+    private void replaceUserState(XMessage xMessage, ServiceResponse response) {
+        String botFormName = "diksha_test"; // = xMessage.getTransformers().get(0).getMetaData().get("Form");
+        GupshupStateEntity saveEntity = stateRepo.findByPhoneNoAndBotFormName(xMessage.getTo().getUserID(), botFormName);
         if (saveEntity == null) {
             saveEntity = new GupshupStateEntity();
         }
         saveEntity.setPhoneNo(xMessage.getTo().getUserID());
         saveEntity.setPreviousPath(response.getCurrentIndex());
         saveEntity.setXmlPrevious(response.getCurrentResponseState());
-        saveEntity.setBotFormName(null);
+        saveEntity.setBotFormName(botFormName);
         stateRepo.save(saveEntity);
     }
 }
