@@ -1,7 +1,8 @@
 package com.samagra.transformer.conversation;
 
-import com.samagra.orchestrator.User.CampaignService;
 import com.samagra.transformer.TransformerProvider;
+import com.samagra.transformer.User.CampaignService;
+import com.samagra.transformer.User.UserService;
 import com.samagra.transformer.publisher.CommonProducer;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;
@@ -17,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import com.samagra.orchestrator.User.UserService;
 
 @Slf4j
 @Component
@@ -92,7 +92,7 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         List<XMessage> transformedMessages = this.transformToMany(xMessage);
         for (XMessage msg : transformedMessages) {
-            kafkaProducer.send("Form", msg.toXML());
+            kafkaProducer.send("Form1", msg.toXML());
         }
     }
 

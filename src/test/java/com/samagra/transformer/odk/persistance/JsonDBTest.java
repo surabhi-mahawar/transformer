@@ -13,9 +13,6 @@ import java.security.GeneralSecurityException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@RunWith(SpringRunner.class)
-@SpringBootTest(classes=JsonDB.class)
-@EnableConfigurationProperties
 public class JsonDBTest {
 
     @Test
