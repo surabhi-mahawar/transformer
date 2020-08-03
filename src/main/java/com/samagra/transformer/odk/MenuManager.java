@@ -362,7 +362,7 @@ public class MenuManager {
                     int event = fec.stepToNextEvent();
                     while (event != FormEntryController.EVENT_END_OF_FORM) {
                         String candidateXPath = getXPath(fec, fec.getModel().getFormIndex());
-                        log.info("xpath: " + candidateXPath);
+                        //log.info("xpath: " + candidateXPath);
                         if (candidateXPath.equals(xpath)) {
                             returned = fec.getModel().getFormIndex();
                             break;
@@ -566,7 +566,7 @@ public class MenuManager {
         FileInputStream fis = null;
         // no binary, read from xml
         try {
-            log.info(String.format("Attempting to load from: %s", formXml.getAbsolutePath()));
+            // log.info(String.format("Attempting to load from: %s", formXml.getAbsolutePath()));
             Path path = FileSystems.getDefault().getPath("CensusBot.xml");
             fis = new FileInputStream(formXml);
             FormDef fd = XFormUtils.getFormFromInputStream(fis);

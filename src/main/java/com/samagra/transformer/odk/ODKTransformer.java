@@ -24,6 +24,7 @@ import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Slf4j
@@ -43,12 +44,16 @@ public class ODKTransformer extends TransformerProvider {
     @Autowired
     private MessageRepository msgRepo;
 
-    @KafkaListener(id = "transformer", topics = "Form1")
+    @KafkaListener(id = "transformer1", topics = "Form1")
     public void consumeMessage(String message) throws Exception {
+        long startTime = System.nanoTime();
         log.info("Form Transormer Message: " + message);
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         XMessage transformedMessage = this.transform(xMessage);
         kafkaProducer.send("outbound", transformedMessage.toXML());
+        long endTime = System.nanoTime();
+        long duration = (endTime - startTime);
+        log.error("Total time spent in processing form: " + duration/1000000);
     }
 
     // Listen to topic "Forms"
@@ -100,7 +105,7 @@ public class ODKTransformer extends TransformerProvider {
         xMessage.setFrom(to);
         xMessage.setTo(from);
 
-        // Get details of User from database
+        // Get details of user from database
         FormManagerParams previousMeta = getPreviousMetadata(xMessage, formID);
 
         // TODO Make a distinction between Form and MenuManager based on Campaign Configuration.

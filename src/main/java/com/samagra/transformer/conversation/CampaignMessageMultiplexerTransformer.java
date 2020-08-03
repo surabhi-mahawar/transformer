@@ -50,7 +50,7 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
                             .builder()
                             .userID(user.mobilePhone)
                             .formID(parentXMessage.getTransformers().get(0).getMetaData().get("Form"))
-                            .build(); //User of the campaign
+                            .build(); //user of the campaign
 
                     ConversationStage conversationStage = ConversationStage
                             .builder()

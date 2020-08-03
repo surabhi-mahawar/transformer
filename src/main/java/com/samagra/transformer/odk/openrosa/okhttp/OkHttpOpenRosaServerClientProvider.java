@@ -30,7 +30,7 @@ public class OkHttpOpenRosaServerClientProvider implements OpenRosaServerClientP
     private static final int CONNECTION_TIMEOUT = 30000;
     private static final int WRITE_CONNECTION_TIMEOUT = 60000; // it can take up to 27 seconds to spin up an Aggregate
     private static final int READ_CONNECTION_TIMEOUT = 60000; // it can take up to 27 seconds to spin up an Aggregate
-    private static final String USER_AGENT_HEADER = "User-Agent";
+    private static final String USER_AGENT_HEADER = "user-Agent";
     private static final String OPEN_ROSA_VERSION_HEADER = OpenRosaConstants.VERSION_HEADER;
     private static final String OPEN_ROSA_VERSION = "1.0";
     private static final String DATE_HEADER = "Date";
