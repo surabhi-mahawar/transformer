@@ -389,21 +389,13 @@ public class FormListDownloader {
             return false;
         }
         List<Form> formList = null;
-        try {
-            formList = new FormsDao(JsonDB.setupDatabase()).getFormsCursorForMd5Hash(md5Hash);
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-        }
+        formList = new FormsDao(JsonDB.getInstance().getDB()).getFormsCursorForMd5Hash(md5Hash);
         return formList != null && formList.size() == 0;
     }
 
     private boolean areNewerMediaFilesAvailable(String formId, String formVersion, List<MediaFile> newMediaFiles) {
         String mediaDirPath = null;
-        try {
-            mediaDirPath = new FormsDao(JsonDB.setupDatabase()).getFormMediaPath(formId, formVersion);
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-        }
+        mediaDirPath = new FormsDao(JsonDB.getInstance().getDB()).getFormMediaPath(formId, formVersion);
         if (mediaDirPath != null) {
             File[] localMediaFiles = new File(mediaDirPath).listFiles();
             if (localMediaFiles != null) {

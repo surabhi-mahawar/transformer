@@ -22,6 +22,7 @@ import org.javarosa.model.xform.XFormsModule;
 import org.javarosa.xform.parse.XFormParser;
 import org.javarosa.xform.util.XFormUtils;
 import org.javarosa.xpath.XPathTypeMismatchException;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.io.*;
 import java.nio.file.FileSystems;
@@ -88,7 +89,7 @@ public class MenuManager {
 
     public ServiceResponse start() {
         new XFormsModule().registerModule();
-        FECWrapper fecWrapper = loadForm(); // If instance load from instance (If form is filled load new)
+        FECWrapper fecWrapper = loadForm(formPath, xpath); // If instance load from instance (If form is filled load new)
         formController = fecWrapper.controller;
         String currentPath = "";
         String udpatedInstanceXML = "";
@@ -583,7 +584,8 @@ public class MenuManager {
         return FormDef.findQuestionByRef(t.getRef(), fec.getModel().getForm());
     }
 
-    protected FECWrapper loadForm() {
+    @Cacheable("fecwrapper")
+    public FECWrapper loadForm(String formPath, String xpath) {
 
         if (formPath == null) {
             System.out.println("formPath is null");

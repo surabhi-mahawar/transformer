@@ -15,6 +15,7 @@ import messagerosa.core.model.XMessagePayload;
 import messagerosa.dao.XMessageRepo;
 import messagerosa.xml.XMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -44,7 +45,7 @@ public class ODKTransformer extends TransformerProvider {
     @Autowired
     private MessageRepository msgRepo;
 
-    @KafkaListener(id = "transformer1", topics = "Form1")
+    @KafkaListener(id = "transformer1", topics = "Form2")
     public void consumeMessage(String message) throws Exception {
         long startTime = System.nanoTime();
         log.info("Form Transormer Message: " + message);
@@ -96,7 +97,7 @@ public class ODKTransformer extends TransformerProvider {
     @Override
     public XMessage transform(XMessage xMessage) {
         String formID; //= xMessage.getTransformers().get(0).getMetaData().get("Form");
-        formID = "diksha_test";
+        formID = "practice_form";
         String formPath = getFormPath(formID);
 
         // Switch from-to
@@ -136,14 +137,10 @@ public class ODKTransformer extends TransformerProvider {
         return xMessage;
     }
 
+
     public static String getFormPath(String formID) {
-        try {
-            FormsDao dao = new FormsDao(JsonDB.setupDatabase());
-            return dao.getFormsCursorForFormId(formID).getFormFilePath();
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-        }
-        return null;
+        FormsDao dao = new FormsDao(JsonDB.getInstance().getDB());
+        return dao.getFormsCursorForFormId(formID).getFormFilePath();
     }
 
     private void appendNewResponse(XMessage xMessage, ServiceResponse response) {
@@ -155,7 +152,7 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private void replaceUserState(XMessage xMessage, ServiceResponse response) {
-        String botFormName = "diksha_test"; // = xMessage.getTransformers().get(0).getMetaData().get("Form");
+        String botFormName = "practice_form"; // = xMessage.getTransformers().get(0).getMetaData().get("Form");
         GupshupStateEntity saveEntity = stateRepo.findByPhoneNoAndBotFormName(xMessage.getTo().getUserID(), botFormName);
         if (saveEntity == null) {
             saveEntity = new GupshupStateEntity();

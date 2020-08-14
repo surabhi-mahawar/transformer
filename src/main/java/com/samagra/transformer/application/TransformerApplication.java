@@ -21,6 +21,7 @@ import okhttp3.OkHttpClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
@@ -42,6 +43,7 @@ import java.util.Map;
 
 @EnableKafka
 @EnableAsync
+@EnableCaching
 @ComponentScan(basePackages = {"com.samagra.transformer"})
 @EnableJpaRepositories(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
 @EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer", "com.samagra.transformer.odk"})
@@ -75,7 +77,7 @@ public class TransformerApplication {
         try{
             File directoryToDelete = new File("/tmp/forms");
             FileSystemUtils.deleteRecursively(directoryToDelete);
-            dao = new FormsDao(JsonDB.setupDatabase());
+            dao = new FormsDao(JsonDB.getInstance().getDB());
             dao.deleteFormsDatabase();
         }catch (Exception e){}
 
@@ -102,16 +104,11 @@ public class TransformerApplication {
                 count += 1;
             }
             FormDownloader formDownloader = null;
-            try {
-                dao = new FormsDao(JsonDB.setupDatabase());
-                formDownloader = new FormDownloader(dao, openRosaAPIClient);
-                formDownloader.downloadForms(forms);
-                List<Form> downloadedForms =  dao.getForms();
-                log.info("Total downloaded forms: " + downloadedForms.size());
-
-            } catch (GeneralSecurityException e) {
-                e.printStackTrace();
-            }
+            dao = new FormsDao(JsonDB.getInstance().getDB());
+            formDownloader = new FormDownloader(dao, openRosaAPIClient);
+            formDownloader.downloadForms(forms);
+            List<Form> downloadedForms =  dao.getForms();
+            log.info("Total downloaded forms: " + downloadedForms.size());
         }
     }
 }

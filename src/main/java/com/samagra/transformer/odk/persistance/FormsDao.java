@@ -7,6 +7,7 @@ import com.samagra.transformer.odk.model.Form;
 import com.samagra.transformer.odk.utilities.FileUtils;
 import io.jsondb.JsonDBTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -43,6 +44,7 @@ public class FormsDao {
         return null;
     }
 
+    @Cacheable(cacheNames="form")
     public Form getFormsCursorForFormId(String formId) {
         String jxQuery = String.format("/.[jrFormId='%s']", formId);
         return jsonDBTemplate.findOne(jxQuery, Form.class);

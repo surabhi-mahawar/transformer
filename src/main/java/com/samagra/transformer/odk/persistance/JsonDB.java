@@ -6,26 +6,41 @@ import io.jsondb.JsonDBTemplate;
 import io.jsondb.crypto.Default1Cipher;
 import io.jsondb.crypto.ICipher;
 import lombok.NoArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-@NoArgsConstructor
 public class JsonDB {
+    private static volatile JsonDB instance = new JsonDB();
+    private JsonDBTemplate DB = null;
 
-    public static JsonDBTemplate setupDatabase() throws GeneralSecurityException {
+    private JsonDB() {
         String dbFilesLocation = "/tmp/db";
         String baseScanPackage = "com.samagra.transformer.odk.model.Form";
-        ICipher cipher = new Default1Cipher("1r8+24pibarAWgS85/Heeg==");
-        JsonDBTemplate jsonDBTemplate = new JsonDBTemplate(dbFilesLocation, baseScanPackage, cipher);
-        try{
-            jsonDBTemplate.createCollection(Form.class);
-        }catch (InvalidJsonDbApiUsageException e){
+        ICipher cipher;
+        try {
+            cipher = new Default1Cipher("1r8+24pibarAWgS85/Heeg==");
+            JsonDBTemplate jsonDBTemplate = new JsonDBTemplate(dbFilesLocation, baseScanPackage, cipher);
+            DB = jsonDBTemplate;
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static JsonDB getInstance() {
+        return instance;
+    }
+
+    public JsonDBTemplate getDB(){
+        try {
+            instance.DB.createCollection(Form.class);
+        } catch (InvalidJsonDbApiUsageException e) {
             System.out.println("DB already exist");
-        }catch (Exception e){
+        } catch (Exception e) {
             System.out.println(e.getMessage());
         }
-        return jsonDBTemplate;
+        return instance.DB;
     }
 }

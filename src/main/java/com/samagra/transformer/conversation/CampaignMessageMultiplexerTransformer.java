@@ -92,7 +92,7 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         List<XMessage> transformedMessages = this.transformToMany(xMessage);
         for (XMessage msg : transformedMessages) {
-            kafkaProducer.send("Form1", msg.toXML());
+            kafkaProducer.send("Form2", msg.toXML());
         }
     }
 

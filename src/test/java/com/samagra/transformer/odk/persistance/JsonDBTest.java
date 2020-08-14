@@ -17,7 +17,7 @@ public class JsonDBTest {
 
     @Test
     public void testJSONDBSetup() throws GeneralSecurityException, IOException {
-        JsonDBTemplate jsonDBTemplate = JsonDB.setupDatabase();
+        JsonDBTemplate jsonDBTemplate = JsonDB.getInstance().getDB();
         System.out.println("cfcfv " + jsonDBTemplate);
     }
 }
