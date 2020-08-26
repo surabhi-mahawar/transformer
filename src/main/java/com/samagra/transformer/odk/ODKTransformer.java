@@ -66,6 +66,8 @@ public class ODKTransformer extends TransformerProvider {
         String prevPath = null;
         String prevXMl = null;
         FormManagerParams formManagerParams = new FormManagerParams();
+        //formID = "samagra_workflows"; //TODO: Remove this
+
 
         if (!message.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
             GupshupStateEntity stateEntity = stateRepo.findByPhoneNoAndBotFormName(message.getTo().getUserID(), formID);
@@ -97,7 +99,8 @@ public class ODKTransformer extends TransformerProvider {
     @Override
     public XMessage transform(XMessage xMessage) {
         String formID; //= xMessage.getTransformers().get(0).getMetaData().get("Form");
-        formID = "practice_form";
+        //formID = "samagra_workflows_form";
+        formID = "diksha_test_v2";
         String formPath = getFormPath(formID);
 
         // Switch from-to
@@ -152,7 +155,8 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private void replaceUserState(XMessage xMessage, ServiceResponse response) {
-        String botFormName = "practice_form"; // = xMessage.getTransformers().get(0).getMetaData().get("Form");
+        //String botFormName = "samagra_workflows"; // = xMessage.getTransformers().get(0).getMetaData().get("Form");
+        String botFormName ="diksha_test_v2";
         GupshupStateEntity saveEntity = stateRepo.findByPhoneNoAndBotFormName(xMessage.getTo().getUserID(), botFormName);
         if (saveEntity == null) {
             saveEntity = new GupshupStateEntity();

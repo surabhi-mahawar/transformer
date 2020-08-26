@@ -25,7 +25,17 @@ public class ExternalAnswerResolver extends DefaultAnswerResolver {
                 formDef, treeElement.getRef());
         if (questionDef != null && (questionDef.getControlType() == Constants.CONTROL_SELECT_ONE
                 || questionDef.getControlType() == Constants.CONTROL_SELECT_MULTI)) {
-                List<SelectChoice> staticChoices = questionDef.getChoices();
+                List<SelectChoice> staticChoices;
+                try{
+                    staticChoices = questionDef.getChoices();
+                    if(staticChoices == null){
+                        formDef.populateDynamicChoices(questionDef.getDynamicChoices(), treeElement.getRef());
+                        staticChoices = questionDef.getDynamicChoices().getChoices();
+                    }
+                }catch(Exception e){
+                    System.out.println(e);
+                    staticChoices = new ArrayList<>();
+                }
                 for (int index = 0; index < staticChoices.size(); index++) {
                     SelectChoice selectChoice = staticChoices.get(index);
                     String selectChoiceValue = selectChoice.getValue();

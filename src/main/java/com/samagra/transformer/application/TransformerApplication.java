@@ -65,7 +65,7 @@ public class TransformerApplication {
     }
 
     private void testFormManager() {
-        String formPath = ODKTransformer.getFormPath("practice_form");
+        String formPath = ODKTransformer.getFormPath("samagra_workflows_form");
         ServiceResponse response1 = new FormManager(null, null, null, formPath).start();
         log.debug("First response");
         log.debug(response1.getCurrentIndex(), response1.getNextMessage());

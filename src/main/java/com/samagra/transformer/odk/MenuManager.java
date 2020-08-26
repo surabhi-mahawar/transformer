@@ -8,6 +8,7 @@ import lombok.extern.java.Log;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.javarosa.core.model.*;
 import org.javarosa.core.model.data.IAnswerData;
+import org.javarosa.core.model.data.SelectOneData;
 import org.javarosa.core.model.data.StringData;
 import org.javarosa.core.model.instance.FormInstance;
 import org.javarosa.core.model.instance.InstanceInitializationFactory;
@@ -28,6 +29,8 @@ import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.List;
+
+import static org.javarosa.form.api.FormEntryController.ANSWER_OK;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -94,66 +97,76 @@ public class MenuManager {
         String currentPath = "";
         String udpatedInstanceXML = "";
         String nextQuestion = "";
+        SaveStatus saveStatus = new SaveStatus();
 
-        if (answer.equals("100")) {
+        if (answer != null && answer.equals("#")) {
             // Get to the note of the previous group
+
+            // Set the current answer as blank
+            setBlankAnswer();
 
             // Skip to previous question
             formController.stepToPreviousEvent();
-            try {
-                // Skip if it is a note
-                if (isIntro())
-                    formController.stepToPreviousEvent();
-                formController.getModel().getQuestionPrompt();
-            } catch (Exception e) {
+            // Check for a dynamic question with select and skip 2 questions answer the level
+            if(isDynamicQuestion()){
+                setBlankAnswer();
                 formController.stepToPreviousEvent();
-            }
-
-            // If question if part of a group of just one question, skip that too to the the start of the group.
-            formController.stepToPreviousEvent();
-            try {
-                // Skip if it is a note
-                if (isIntro())
-                    formController.stepToPreviousEvent();
-
-                // Skip a non question TODO: Should remove all non questions. Right now doing only for one.
-                if (formController.getModel().getEvent() != FormEntryController.EVENT_GROUP) {
-                    formController.getModel().getQuestionPrompt();
-                    formController.stepToNextEvent();
+                SelectOneData s = (SelectOneData) formController.getModel().getForm().getMainInstance().resolveReference(formController.getModel().getFormIndex().getReference()).getValue();
+                String value = s.getDisplayText();
+                setBlankAnswer();
+                try {
+                    udpatedInstanceXML = getCurrentInstance();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-            } catch (Exception e) {
+                xpath = getXPath(formController, formController.getModel().getFormIndex());;
+                answer = value;
+                instanceXML = udpatedInstanceXML;
+                return start();
+
+            }else{
+                try {
+                    // Skip if it is a note
+                    if (isIntro())
+                        formController.stepToPreviousEvent();
+                    formController.getModel().getQuestionPrompt();
+                } catch (Exception e) {
+                    formController.stepToPreviousEvent();
+                }
+
+                // If question if part of a group of just one question, skip that too to the the start of the group.
                 formController.stepToPreviousEvent();
+                try {
+                    // Skip if it is a note
+                    if (isIntro())
+                        formController.stepToPreviousEvent();
+
+                    // Skip a non question TODO: Should remove all non questions. Right now doing only for one.
+                    if (formController.getModel().getEvent() != FormEntryController.EVENT_GROUP) {
+                        formController.getModel().getQuestionPrompt();
+                        formController.stepToNextEvent();
+                    }
+                } catch (Exception e) {
+                    formController.stepToPreviousEvent();
+                }
             }
 
-            udpatedInstanceXML = instanceXML;
+            try {
+                udpatedInstanceXML = getCurrentInstance();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
-        } else if (answer.equals("1001")) {
-                /*
-                FormIndex idx = getIndexFromXPath("beginningOfForm", formController);
-                formController.jumpToIndex(idx);
-                final File formXml = new File(formPath);
-                FormDef formDef = createFormDefFromCacheOrXml(formPath, formXml);
-                final FormEntryModel fem = new FormEntryModel(formDef);
-                FormEntryController fec = new FormEntryController(fem);
-                FormInstance formInstance = fec.getModel().getForm().getInstance();
-                XFormSerializingVisitor serializer = new XFormSerializingVisitor();
-                ByteArrayPayload payload = null;
-                payload = (ByteArrayPayload) serializer.createSerializedPayload(formInstance);
-                udpatedInstanceXML = payload.toString();
-                nextQuestion = createView(fec.getModel().getEvent(), "");
-                currentPath = getXPath(fec, fec.getModel().getFormIndex());
-                */
-                FormIndex idx = getIndexFromXPath("beginningOfForm", formController);
-                formController.jumpToIndex(idx);
-                udpatedInstanceXML = instanceXML;
-                nextQuestion = createView(formController.getModel().getEvent(), "");
-                currentPath = getXPath(formController, formController.getModel().getFormIndex());
-
+        } else if (answer != null && answer.equals("*")) {
+             instanceXML = null;
+             xpath = null;
+             answer = null;
+             return start();
 
         } else {
-            SaveStatus saveStatus = new SaveStatus();
             try {
                 if (xpath != null && !xpath.equals("endOfForm")) {
                     saveStatus = addResponseToForm(getIndexFromXPath(xpath, formController), answer);
@@ -170,7 +183,7 @@ public class MenuManager {
                 log.info(String.format("Current question is %s", nextQuestion));
 
                 if (instanceXML != null) {
-                    if (!udpatedInstanceXML.equals(instanceXML) || saveStatus.getSaveStatus() == FormEntryController.ANSWER_OK) {
+                    if (!udpatedInstanceXML.equals(instanceXML) || saveStatus.getSaveStatus() == ANSWER_OK) {
                         currentPath = getXPath(formController, formController.getModel().getFormIndex());
                     } else {
                         if (xpath.equals("endOfForm")) {
@@ -199,10 +212,34 @@ public class MenuManager {
                 e.printStackTrace();
             }
         }
-        if (answer.equals("1001")) {
-            currentPath = getXPath(formController, formController.getModel().getFormIndex());
-        }
         return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML);
+    }
+
+    private boolean isDynamicQuestion() {
+        try{
+            return formController.getModel().getEvent() == 4 &&
+                    formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_SELECT_ONE &&
+                    formController.getModel().getQuestionPrompt().getQuestion().getDynamicChoices().getChoices() != null;
+        }catch (Exception e){
+            return false;
+        }
+    }
+
+    private void setBlankAnswer() {
+        IAnswerData answerData = new StringData("");
+        FormIndex fi = formController.getModel().getFormIndex();
+        int saveData = formController.answerQuestion(fi, answerData, true);
+        if(saveData != ANSWER_OK){
+            TreeElement t = formController.getModel().getForm().getMainInstance().resolveReference(fi.getReference());
+            formController.getModel().getForm().setValue(answerData, t.getRef(), true);
+        }
+    }
+
+    private String getCurrentInstance() throws IOException {
+        FormInstance formInstance = formController.getModel().getForm().getInstance();
+        XFormSerializingVisitor serializer = new XFormSerializingVisitor();
+        ByteArrayPayload payload = (ByteArrayPayload) serializer.createSerializedPayload(formInstance);
+        return payload.toString();
     }
 
     public SaveStatus addResponseToForm(FormIndex formIndex, String value) throws IOException {
@@ -230,14 +267,14 @@ public class MenuManager {
                         saveStatus = formController.answerQuestion(formIndex, answerData, true);
                     } catch (Exception e) {
                         log.severe("Error in filling form response");
-                        saveStatus = FormEntryController.ANSWER_OK;
+                        saveStatus = ANSWER_OK;
                     }
                 }
             } catch (Exception e) {
                 log.severe("Error in filling form response");
-                saveStatus = FormEntryController.ANSWER_OK;
+                saveStatus = ANSWER_OK;
             }
-            if (saveStatus != FormEntryController.ANSWER_OK) {
+            if (saveStatus != ANSWER_OK) {
                 return new SaveStatus(instanceXML, saveStatus);
             } else {
                 FormInstance formInstance = formController.getModel().getForm().getInstance();

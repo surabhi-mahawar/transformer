@@ -35,8 +35,9 @@ public class FormTransformerTestAPI {
         log.info("CurrentAnswer" +  currentAnswer);
         log.info("InstanceCurrentXML" + instanceXMlPrevious);
         log.info("botFormName" +  botFormName);
-        String formPath = ODKTransformer.getFormPath("practice_form");
+        String formPath = ODKTransformer.getFormPath("diksha_test_v2");
         ServiceResponse serviceResponse = new MenuManager(previousPath, currentAnswer, instanceXMlPrevious, formPath).start();
+        System.out.println(serviceResponse.getCurrentResponseState());
         return serviceResponse;
     }
 }
