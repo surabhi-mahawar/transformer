@@ -49,6 +49,7 @@ public class MenuManager {
     String answer;
     String instanceXML;
     String formPath;
+    String initialInstanceXML;
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath) {
         this.xpath = xpath;
@@ -108,7 +109,7 @@ public class MenuManager {
             // Skip to previous question
             formController.stepToPreviousEvent();
             // Check for a dynamic question with select and skip 2 questions answer the level
-            if(isDynamicQuestion()){
+            if (isDynamicQuestion()) {
                 setBlankAnswer();
                 formController.stepToPreviousEvent();
                 SelectOneData s = (SelectOneData) formController.getModel().getForm().getMainInstance().resolveReference(formController.getModel().getFormIndex().getReference()).getValue();
@@ -119,12 +120,13 @@ public class MenuManager {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                xpath = getXPath(formController, formController.getModel().getFormIndex());;
+                xpath = getXPath(formController, formController.getModel().getFormIndex());
+                ;
                 answer = value;
                 instanceXML = udpatedInstanceXML;
                 return start();
 
-            }else{
+            } else {
                 try {
                     // Skip if it is a note
                     if (isIntro())
@@ -161,10 +163,10 @@ public class MenuManager {
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
         } else if (answer != null && answer.equals("*")) {
-             instanceXML = null;
-             xpath = null;
-             answer = null;
-             return start();
+            // instanceXML = null;
+            xpath = null;
+            answer = null;
+            return start();
 
         } else {
             try {
@@ -216,22 +218,26 @@ public class MenuManager {
     }
 
     private boolean isDynamicQuestion() {
-        try{
+        try {
             return formController.getModel().getEvent() == 4 &&
                     formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_SELECT_ONE &&
                     formController.getModel().getQuestionPrompt().getQuestion().getDynamicChoices().getChoices() != null;
-        }catch (Exception e){
+        } catch (Exception e) {
             return false;
         }
     }
 
     private void setBlankAnswer() {
-        IAnswerData answerData = new StringData("");
-        FormIndex fi = formController.getModel().getFormIndex();
-        int saveData = formController.answerQuestion(fi, answerData, true);
-        if(saveData != ANSWER_OK){
-            TreeElement t = formController.getModel().getForm().getMainInstance().resolveReference(fi.getReference());
-            formController.getModel().getForm().setValue(answerData, t.getRef(), true);
+        try {
+            IAnswerData answerData = new StringData("");
+            FormIndex fi = formController.getModel().getFormIndex();
+            int saveData = formController.answerQuestion(fi, answerData, true);
+            if (saveData != ANSWER_OK) {
+                TreeElement t = formController.getModel().getForm().getMainInstance().resolveReference(fi.getReference());
+                formController.getModel().getForm().setValue(answerData, t.getRef(), true);
+            }
+        } catch (Exception e) {
+
         }
     }
 
@@ -621,7 +627,6 @@ public class MenuManager {
         return FormDef.findQuestionByRef(t.getRef(), fec.getModel().getForm());
     }
 
-    @Cacheable("fecwrapper")
     public FECWrapper loadForm(String formPath, String xpath) {
 
         if (formPath == null) {
@@ -673,7 +678,15 @@ public class MenuManager {
 
         if (xpath != null && !xpath.isEmpty()) {
             FormIndex idx = getIndexFromXPath(xpath, fec);
-            fec.jumpToIndex(idx);
+            if (idx == null) {
+                log.severe("Unable to evaluate the formIndex");
+                log.severe("xpath ::" + xpath);
+                log.severe(instanceXML);
+                log.severe(answer);
+                log.severe("__________________________________");
+            } else {
+                fec.jumpToIndex(idx);
+            }
         }
         return new FECWrapper(fec, usedSavepoint);
     }

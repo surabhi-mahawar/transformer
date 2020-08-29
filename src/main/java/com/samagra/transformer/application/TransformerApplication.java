@@ -44,7 +44,7 @@ import java.util.Map;
 @EnableKafka
 @EnableAsync
 @EnableCaching
-@ComponentScan(basePackages = {"com.samagra.transformer"})
+@ComponentScan(basePackages = {"com.samagra.transformer", "messagerosa"})
 @EnableJpaRepositories(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
 @EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer", "com.samagra.transformer.odk"})
 @PropertySource("application-messagerosa.properties")

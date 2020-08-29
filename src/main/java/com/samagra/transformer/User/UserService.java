@@ -5,16 +5,19 @@ import com.inversoft.rest.ClientResponse;
 import io.fusionauth.client.FusionAuthClient;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;
+import io.fusionauth.domain.api.UserRequest;
 import io.fusionauth.domain.api.UserResponse;
 import io.fusionauth.domain.api.user.SearchRequest;
 import io.fusionauth.domain.api.user.SearchResponse;
 import io.fusionauth.domain.search.UserSearchCriteria;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @Slf4j
@@ -58,7 +61,8 @@ public class UserService {
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
         if(currentApplication != null){
             UserSearchCriteria usc = new UserSearchCriteria();
-            usc.queryString = "(registrations.applicationId: " + currentApplication.id.toString() + ")";
+            usc.numberOfResults = 100;
+            usc.queryString = "(memberships.groupId: " + currentApplication.data.get("group") + ")";
             SearchRequest sr = new SearchRequest(usc);
             ClientResponse<SearchResponse, Errors> cr = staticClient.searchUsersByQueryString(sr);
 
@@ -73,7 +77,57 @@ public class UserService {
         return new ArrayList<>();
     }
 
-    public static SenderReceiverInfo getInfoForUser(){
+    /*
+    Get the manager for a specific user
+     */
+    public static User getManager(User applicant){
+        try{
+            String managerName = (String) applicant.data.get("reportingManager");
+            User u = getUserByFullName(managerName);
+            if (u != null) return u;
+            return null;
+        }catch (Exception e){
+            return null;
+        }
+    }
+
+    /*
+    Get the manager for a specific user
+     */
+    public static User getEngagementOwner(User applicant){
+        try{
+            String engagementOwnerName = (String) applicant.data.get("programOwner");
+            User u = getUserByFullName(engagementOwnerName);
+            if (u != null) return u;
+            return null;
+        }catch (Exception e){
+            return null;
+        }
+    }
+
+    @Nullable
+    public static User getUserByFullName(String fullName) throws Exception {
+        List<User> allUsers = findUsersForCampaign("Samagra Bot");
+        for (User u : allUsers) {
+            if (u.fullName.equals(fullName)) return u;
+        }
         return null;
+    }
+
+
+    public static User getInfoForUser(String userID){
+        FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
+        List<UUID> ids = new ArrayList<>();
+        ids.add(UUID.fromString(userID));
+        ClientResponse<SearchResponse, Errors> cr = staticClient.searchUsers(ids);
+        return cr.successResponse.users.get(0);
+    }
+
+    public static User update(User user){
+        FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
+        ClientResponse<UserResponse, Errors> userResponse = staticClient.updateUser(user.id, new UserRequest(false, false, user));
+        if(userResponse.wasSuccessful()){
+            return userResponse.successResponse.user;
+        }return null;
     }
 }
