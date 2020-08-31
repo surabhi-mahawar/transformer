@@ -127,7 +127,11 @@ public class ODKTransformer extends TransformerProvider {
         formID = "samagra_workflows_form_updated_2";
         //formID = "diksha_helper";
         String formPath = getFormPath(formID);
-
+        if(xMessage.getPayload().getText().equals("HI")){
+//            XMessagePayload pay = xMessage.getPayload();
+//            pay.setText("");
+            xMessage.setPayload(null);
+        }
         // Switch from-to
         switchFromTo(xMessage);
 
@@ -139,7 +143,7 @@ public class ODKTransformer extends TransformerProvider {
 
         boolean isApprovalFlow = false;
         // TODO Make a distinction between Form and MenuManager based on Campaign Configuration.
-        if (formID.equals("samagra_workflows_form_updated_2")) {
+        if (formID.equals("samagra_workflows_form_updated_2") && xMessage.getPayload() != null) {
 
             isApprovalFlow = approvalFlow(employee, xMessage.getPayload().getText(), xMessage);
 
@@ -170,10 +174,10 @@ public class ODKTransformer extends TransformerProvider {
         replaceUserState(xMessage, response);
 
         XMessage cloneMessage = getClone(nextMessage);
-
-        if (response.getCurrentIndex().equals("endOfForm") || response.currentIndex.contains("eof")){
-            new UploadService().submit(response.currentResponseState, restTemplate, customRestTemplate);
-        }
+//
+//        if (response.getCurrentIndex().equals("endOfForm") || response.currentIndex.contains("eof")){
+//            new UploadService().submit(response.currentResponseState, restTemplate, customRestTemplate);
+//        }
 
         if (formID.equals("samagra_workflows_form_updated_2") && !isApprovalFlow && !previousMeta.currentAnswer.equals("#")) {
             SamagraOrgForm orgForm = null;
@@ -427,6 +431,7 @@ public class ODKTransformer extends TransformerProvider {
     public static String getFormPath(String formID) {
         FormsDao dao = new FormsDao(JsonDB.getInstance().getDB());
         return dao.getFormsCursorForFormId(formID).getFormFilePath();
+//        return "/tmp/forms/Samagra Workflows Form Updated 2.xml";
     }
 
     private void appendNewResponse(XMessage xMessage, ServiceResponse response) {
