@@ -51,4 +51,25 @@ public class TemplateService {
         String template = "Kindly note that %s was unsuccessful in boarding the flight booked under %s.";
         return String.format(template, employeeName, pnr);
     }
+
+    public static String getOneWayTrainTicketMessage(String employeeName, String travelDate, String startCity, String endCity, String trainNo){
+        String template = "%s has submitted an train travel request for %s from %s to %s for %s";
+        return String.format(template, employeeName, travelDate, startCity, endCity, trainNo);
+    }
+
+    public static String getTwoWayTrainTicketMessage(String employeeName, String onwardDate, String returnDate, String startCity, String endCity, String onwardTrainNo, String returnTrainNo){
+        String template = "%s has submitted an train travel request for %s to %s from %s to %s on %s and %s";
+        return String.format(template, employeeName, onwardDate, returnDate, startCity, endCity, onwardTrainNo, returnTrainNo);
+    }
+
+    public static String getTrainTicketCancellationMessage(String employeeName, String pnr){
+        String template = "Hi Raju. %s has submitted a cancellation request for %s.";
+        return String.format(template, employeeName, pnr);
+    }
+
+    public static String getTrainMissedMessage(String employeeName, String pnr){
+        String template = "Kindly note that %s was unsuccessful in boarding the train booked under %s.";
+        return String.format(template, employeeName, pnr);
+    }
+
 }

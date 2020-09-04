@@ -123,8 +123,24 @@ public class SamagraOrgForm {
         return (Map<String, Object>) ((Map<String, Object>) this.instanceData.get("air_ticket")).get("air_ticket_new");
     }
 
+    public Map<String, Object> getTrainOneWayData() {
+        return (Map<String, Object>) ((Map<String, Object>) this.instanceData.get("train_ticket")).get("new_train_ticket");
+    }
+
+    public Map<String, Object> getTrainTwoWayData() {
+        return (Map<String, Object>) ((Map<String, Object>) ((Map<String, Object>) this.instanceData.get("train_ticket")).get("new_train_ticket")).get("'new_train_ticket_round'");
+    }
+
+    public String getTrainCancellationPNR() {
+        return (String) ((Map<String, Object>) ((Map<String, Object>) this.instanceData.get("train_ticket")).get("train_ticket_cancellation")).get("PNR_number");
+    }
+
+    public String getTrainMissedPNR() {
+        return (String) ((Map<String, Object>) ((Map<String, Object>) this.instanceData.get("train_ticket")).get("train_missed")).get("PNR_number");
+    }
+
     public Map<String, Object> getAirTwoWayData() {
-        return (Map<String, Object>)((Map<String, Object>) ((Map<String, Object>) this.instanceData.get("air_ticket")).get("air_ticket_new")).get("air_ticket_round");
+        return (Map<String, Object>) ((Map<String, Object>) ((Map<String, Object>) this.instanceData.get("air_ticket")).get("air_ticket_new")).get("air_ticket_round");
     }
 
     public String getReasonForLeave() {

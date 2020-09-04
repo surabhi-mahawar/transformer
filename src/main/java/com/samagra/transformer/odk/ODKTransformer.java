@@ -179,7 +179,6 @@ public class ODKTransformer extends TransformerProvider {
                     orgForm.parse(response.currentResponseState);
                     if (response.getCurrentIndex().equals("endOfForm") || response.currentIndex.contains("eof")) {
                         new UploadService().submit(response.currentResponseState, restTemplate, customRestTemplate);
-
                         if (response.currentIndex.contains("eof_leave_applied_message")) {
                             // Send message to manager
                             User manager = UserService.getManager(employee);
@@ -194,10 +193,15 @@ public class ODKTransformer extends TransformerProvider {
                         } else if (response.currentIndex.contains("eof_missed_flight_note")) {
                             sendMissedFlightMessageToAdmin(orgForm, cloneMessage, employee);
                         } else if (response.currentIndex.contains("eof_train_ticket_applied_message_one_way")) {
+                            sendOneWayMessageForTrainToAdmin(orgForm, cloneMessage, employee);
                         } else if (response.currentIndex.contains("eof_train_ticket_applied_message_two_way")) {
+                            sendTwoWayMessageForTrainToAdmin(orgForm, cloneMessage, employee);
                         } else if (response.currentIndex.contains("eof_train_ticket_cancellation_note")) {
+                            sendTrainCancellationMessageToAdmin(orgForm, cloneMessage, employee);
                         } else if (response.currentIndex.contains("eof_train_missed_note")) {
+                            sendTrainMissedMessageToAdmin(orgForm, cloneMessage, employee);
                         } else {
+                            log.info("Unable to find any any endOfForm cased that were mentioned.");
                         }
                     }
                 }
@@ -205,6 +209,78 @@ public class ODKTransformer extends TransformerProvider {
             }
         }
         return null;
+    }
+
+    private void sendTrainMissedMessageToAdmin(SamagraOrgForm orgForm, XMessage message, User employee) {
+        try {
+            User admin = UserService.getUserByFullName("Raju Ram", "SamagraBot");
+            if (admin != null) {
+                String missedFlightMessage = TemplateService.getTrainMissedMessage(employee.fullName, orgForm.getTrainMissedPNR());
+                switchFromTo(message);
+                message.getTo().setUserID(admin.mobilePhone);
+                message.getPayload().setText(missedFlightMessage);
+                sendSingle(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendTrainCancellationMessageToAdmin(SamagraOrgForm orgForm, XMessage message, User employee) {
+        try {
+            User admin = UserService.getUserByFullName("Raju Ram", "SamagraBot");
+            if (admin != null) {
+                String missedFlightMessage = TemplateService.getTrainMissedMessage(employee.fullName, orgForm.getTrainCancellationPNR());
+                switchFromTo(message);
+                message.getTo().setUserID(admin.mobilePhone);
+                message.getPayload().setText(missedFlightMessage);
+                sendSingle(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendTwoWayMessageForTrainToAdmin(SamagraOrgForm orgForm, XMessage message, User employee) {
+        try {
+            User admin = UserService.getUserByFullName("Raju Ram", "SamagraBot");
+            if (admin != null) {
+                String onwardDate = (String) orgForm.getTrainOneWayData().get("start_date_train");
+                String returnDate = (String) orgForm.getTrainTwoWayData().get("start_date_return");
+                String startCity = (String) orgForm.getTrainOneWayData().get("start_city_name_one_way_train");
+                String destinationCity = (String) orgForm.getTrainOneWayData().get("end_city_name_one_way_train");
+                String onwardTrainNumber = (String) orgForm.getTrainOneWayData().get("train_number");
+                String returnTrainNumber = (String) orgForm.getTrainTwoWayData().get("train_number_return");
+                String oneWayTripMessage = TemplateService.getTwoWayTrainTicketMessage(employee.fullName,
+                        onwardDate, returnDate, startCity, destinationCity, onwardTrainNumber, returnTrainNumber);
+                switchFromTo(message);
+                message.getTo().setUserID(admin.mobilePhone);
+                message.getPayload().setText(oneWayTripMessage);
+                sendSingle(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendOneWayMessageForTrainToAdmin(SamagraOrgForm orgForm, XMessage message, User employee) {
+        try {
+            User admin = UserService.getUserByFullName("Raju Ram", "SamagraBot");
+            if (admin != null) {
+                String travelDate = (String) orgForm.getTrainOneWayData().get("start_date_train");
+                String startCity = (String) orgForm.getTrainOneWayData().get("start_city_name_one_way_train");
+                String destinationCity = (String) orgForm.getTrainOneWayData().get("end_city_name_one_way_train");
+                String trainNumber = (String) orgForm.getTrainOneWayData().get("train_number");
+                String oneWayTripMessage = TemplateService.getOneWayTrainTicketMessage(employee.fullName,
+                        travelDate, startCity, destinationCity, trainNumber);
+                switchFromTo(message);
+                message.getTo().setUserID(admin.mobilePhone);
+                message.getPayload().setText(oneWayTripMessage);
+                sendSingle(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private String getFormID(Application campaign) {
@@ -288,8 +364,8 @@ public class ODKTransformer extends TransformerProvider {
             if (admin != null) {
                 String travelDate = (String) orgForm.getAirOneWayData().get("start_date");
                 String returnDate = (String) orgForm.getAirTwoWayData().get("end_date");
-                String startCity = (String) orgForm.getAirOneWayData().get("start_city");
-                String destinationCity = (String) orgForm.getAirOneWayData().get("destination_city");
+                String startCity = (String) orgForm.getAirOneWayData().get("start_city_name_one_way");
+                String destinationCity = (String) orgForm.getAirOneWayData().get("end_city_name_one_way");
                 String flightNumber = (String) orgForm.getAirOneWayData().get("enter_onward_flight");
                 String returnFlightNumber = (String) orgForm.getAirTwoWayData().get("enter_return_flight");
                 String twoWayTripMessage = TemplateService.getTwoWayTripMessage(employee.fullName,
