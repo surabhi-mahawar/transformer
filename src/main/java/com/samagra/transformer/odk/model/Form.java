@@ -27,12 +27,12 @@ import java.io.Serializable;
  * <p>
  * Objects of this class are created using the builder pattern: https://en.wikipedia.org/wiki/Builder_pattern
  */
-@Document(collection = "forms", schemaVersion = "2.0")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Document(collection = "forms", schemaVersion = "3.0")
 public class Form implements Serializable {
     @Id
     String id;

@@ -42,9 +42,9 @@ public class UserService {
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
         UserSearchCriteria usc = new UserSearchCriteria();
         usc.queryString = "*" + phone + "*";
+        usc.numberOfResults = 100;
         SearchRequest sr = new SearchRequest(usc);
         ClientResponse<SearchResponse, Errors> cr = staticClient.searchUsersByQueryString(sr);
-
         if (cr.wasSuccessful()) {
             return cr.successResponse.users.get(0);
         } else if (cr.exception != null) {
@@ -83,7 +83,7 @@ public class UserService {
     public static User getManager(User applicant){
         try{
             String managerName = (String) applicant.data.get("reportingManager");
-            User u = getUserByFullName(managerName);
+            User u = getUserByFullName(managerName, "SamagraBot");
             if (u != null) return u;
             return null;
         }catch (Exception e){
@@ -97,7 +97,7 @@ public class UserService {
     public static User getEngagementOwner(User applicant){
         try{
             String engagementOwnerName = (String) applicant.data.get("programOwner");
-            User u = getUserByFullName(engagementOwnerName);
+            User u = getUserByFullName(engagementOwnerName, "SamagraBot");
             if (u != null) return u;
             return null;
         }catch (Exception e){
@@ -106,8 +106,8 @@ public class UserService {
     }
 
     @Nullable
-    public static User getUserByFullName(String fullName) throws Exception {
-        List<User> allUsers = findUsersForCampaign("Samagra Bot");
+    public static User getUserByFullName(String fullName, String campaignName) throws Exception {
+        List<User> allUsers = findUsersForCampaign(campaignName);
         for (User u : allUsers) {
             if (u.fullName.equals(fullName)) return u;
         }

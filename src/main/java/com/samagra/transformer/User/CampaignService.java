@@ -13,6 +13,7 @@ public class CampaignService {
 
     /**
      * Retrieve Campaign Params From its Identifier
+     *
      * @param campaignID - Campaign Identifier
      * @return Application
      * @throws Exception Error Exception, in failure in Network request.
@@ -22,9 +23,9 @@ public class CampaignService {
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
         System.out.println("Client: " + staticClient);
         ClientResponse<ApplicationResponse, Void> applicationResponse = staticClient.retrieveApplication(UUID.fromString(campaignID));
-        if(applicationResponse.wasSuccessful() ) {
+        if (applicationResponse.wasSuccessful()) {
             Application application = applicationResponse.successResponse.application;
-            Map<String,Object> campaignData = new HashMap<>();
+            Map<String, Object> campaignData = new HashMap<>();
             ArrayList<String> transformers = new ArrayList<>();
             // transformers.add(0, "Broadcast::SMS_1"); //SMS_1 refers to the template ID.
             // transformers.add(1, "FORM::FORM_ID_1"); //Form_ID_1 refers to first step ODK Form
@@ -34,20 +35,21 @@ public class CampaignService {
             campaignData.put("transformers", transformers);
             application.data = campaignData;
             return application;
-        }else if (applicationResponse.exception != null) {
+        } else if (applicationResponse.exception != null) {
             Exception exception = applicationResponse.exception;
-            throw  exception;
+            throw exception;
         }
         return null;
     }
 
     /**
      * Retrieve Campaign Params From its Name
+     *
      * @param campaignName - Campaign Name
      * @return Application
      * @throws Exception Error Exception, in failure in Network request.
      */
-    public static Application getCampaignFromName(String campaignName) throws Exception {
+    public static Application getCampaignFromName(String campaignName) {
         List<Application> applications = new ArrayList<>();
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
         ClientResponse<ApplicationResponse, Void> response = staticClient.retrieveApplications();
@@ -59,10 +61,14 @@ public class CampaignService {
 
 
         Application currentApplication = null;
-        if(applications.size() > 0){
-            for(Application application: applications){
-                if(application.name.equals(campaignName)){
-                    currentApplication = application;
+        if (applications.size() > 0) {
+            for (Application application : applications) {
+                try {
+                    if (application.data.get("appName").equals(campaignName)) {
+                        currentApplication = application;
+                    }
+                }catch (Exception e){
+
                 }
             }
         }

@@ -15,7 +15,7 @@
     <description>Demo project for Spring Boot</description>
 
     <properties>
-        <java.version>1.8</java.version>
+        <java.version>10</java.version>
     </properties>
 
     <repositories>
@@ -78,7 +78,7 @@
         <dependency>
             <groupId>io.jsondb</groupId>
             <artifactId>jsondb-core</artifactId>
-            <version>1.0.115-j8</version>
+            <version>1.0.115-j11</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

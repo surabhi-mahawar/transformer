@@ -18,12 +18,11 @@ public class JsonDB {
 
     private JsonDB() {
         String dbFilesLocation = "/tmp/db";
-        String baseScanPackage = "com.samagra.transformer.odk.model.Form";
+        String baseScanPackage = "com.samagra.transformer";
         ICipher cipher;
         try {
             cipher = new Default1Cipher("1r8+24pibarAWgS85/Heeg==");
-            JsonDBTemplate jsonDBTemplate = new JsonDBTemplate(dbFilesLocation, baseScanPackage, cipher);
-            DB = jsonDBTemplate;
+            DB = new JsonDBTemplate(dbFilesLocation, baseScanPackage, cipher);
         } catch (GeneralSecurityException e) {
             e.printStackTrace();
         }

@@ -7,6 +7,9 @@ import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import io.fusionauth.domain.User;
 import lombok.*;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import java.util.Map;
 import java.util.UUID;
@@ -48,7 +51,7 @@ public class SamagraOrgForm {
     }
 
     public String getReason() {
-        return (String) ((Map<String, Object>) this.instanceData.get("leave_app")).get("reason");
+        return (String) ((Map<String, Object>) this.instanceData.get("leave_app")).get("leave_type_text");
     }
 
     public User getEngagementOwner() {
@@ -89,15 +92,19 @@ public class SamagraOrgForm {
                 "        <member_name>%s</member_name>\n" +
                 "        <leave_balance>%s</leave_balance>\n" +
                 "        <team_name>%s</team_name>\n" +
+                "        <filling_date>%s</filling_date>\n" +
                 "        <preferences />\n" +
                 "        <form_intro />\n" +
                 "    </application_process>\n" +
                 "</data>";
 
+        DateTime dt = DateTime.now();
+        DateTimeFormatter fmt = DateTimeFormat.forPattern("dd-MM-yyyy");
+
         return String.format(instanceXML, instanceID.toString(),
                 this.engagementOwner.fullName, this.engagementOwner.mobilePhone,
                 this.manager.fullName, this.manager.mobilePhone,
-                this.user.fullName, this.user.data.get("leavesAvailable"), this.user.data.get("engagement"));
+                this.user.fullName, this.user.data.get("leavesAvailable"), this.user.data.get("engagement"), fmt.print(dt));
     }
 
     public String getMissedFlightPNR() {
@@ -118,5 +125,9 @@ public class SamagraOrgForm {
 
     public Map<String, Object> getAirTwoWayData() {
         return (Map<String, Object>)((Map<String, Object>) ((Map<String, Object>) this.instanceData.get("air_ticket")).get("air_ticket_new")).get("air_ticket_round");
+    }
+
+    public String getReasonForLeave() {
+        return (String) ((Map<String, Object>) this.instanceData.get("leave_app")).get("reason");
     }
 }

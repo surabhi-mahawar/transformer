@@ -2,18 +2,23 @@ package com.samagra.transformer.samagra;
 
 public class TemplateService {
 
-    public static String getTemplate(String managerName, String employeeName, String startDate, String endDate, String numberOfDays, String reasonForLeave){
-        String template =  "Hi %s, this is to inform you that %s from your team has applied for a " +
+    public static String getTemplate(String managerName, String employeeName, String reason, String startDate, String endDate, String numberOfDays, String reasonForLeave){
+        String template =  "Hi %s, this is to inform you that %s from your team has applied for a %s " +
                 "leave from %s to %s for %s working days with reason being %s.\n" +
                 "\n" +
                 "Please choose one of the following options:\n" +
                 "1. Approve \n" + "2. Reject \n";
-        return String.format(template, managerName, employeeName, startDate, endDate, numberOfDays, reasonForLeave);
+        return String.format(template, managerName, employeeName, reason, startDate, endDate, numberOfDays, reasonForLeave);
     }
 
     public static String getApprovalStatusMessage(String employeeName, String status, String ownerName){
         String template = "Hi %s! This is to inform you that your leave has been %s by your manager."
                 + "Your program owner %s has also been apprised about your leave. Thanks!";
+        return String.format(template, employeeName, status, ownerName);
+    }
+
+    public static String getRejectionStatusMessage(String employeeName, String status, String ownerName){
+        String template = "Hi %s! This is to inform you that your leave has been %s by your manager.";
         return String.format(template, employeeName, status, ownerName);
     }
 

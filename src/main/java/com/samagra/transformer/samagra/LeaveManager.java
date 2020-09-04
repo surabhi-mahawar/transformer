@@ -60,7 +60,6 @@ public class LeaveManager {
             previousLeaves = Double.parseDouble(user.data.get("leavesAvailable").toString());
         }
 
-
         DateTime dt = DateTime.now();
         DateTimeFormatter fmt = DateTimeFormat.forPattern("dd-MM-yyyy");
         user.data.put("lastUpdatedAt", fmt.print(dt));

@@ -553,7 +553,8 @@ public class MenuManager {
     }
 
     private boolean isIntro() {
-        return getXPath(formController, formController.getModel().getFormIndex()).indexOf("intro") >= 0;
+        String xPath = getXPath(formController, formController.getModel().getFormIndex());
+        return xPath.contains("intro");
     }
 
     private String getChoices(String choices) {
