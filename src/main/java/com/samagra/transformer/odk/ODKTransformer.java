@@ -1,8 +1,6 @@
 package com.samagra.transformer.odk;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.samagra.transformer.TransformerProvider;
 import com.samagra.transformer.User.CampaignService;
 import com.samagra.transformer.User.UserService;
@@ -29,7 +27,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import com.samagra.transformer.publisher.CommonProducer;
@@ -507,7 +504,7 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private void buildApprovalMessage(User user, XMessage message) {
-        String approvalMessage = TemplateService.getApprovalStatusMessage(user.fullName, "Approved", (String) user.data.get("programOwner"));
+        String approvalMessage = TemplateService.approvalStatus(user.fullName, "Approved", (String) user.data.get("programOwner"));
         switchFromTo(message);
         message.getTo().setUserID(user.mobilePhone);
         message.getPayload().setText(approvalMessage);
