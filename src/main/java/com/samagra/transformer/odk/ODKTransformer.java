@@ -12,7 +12,7 @@ import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
 import com.samagra.transformer.samagra.LeaveManager;
 import com.samagra.transformer.samagra.SamagraOrgForm;
-import com.samagra.transformer.samagra.TemplateService;
+import com.samagra.transformer.samagra.TemplateServiceUtills;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;
 import lombok.extern.slf4j.Slf4j;
@@ -115,7 +115,7 @@ public class ODKTransformer extends TransformerProvider {
 
 
     @Override
-    public XMessage transform(XMessage xMessage) {
+    public XMessage transform(XMessage xMessage) throws Exception {
         Application campaign = CampaignService.getCampaignFromName(xMessage.getApp());
         if (campaign != null) {
             String formID = getFormID(campaign);
@@ -212,7 +212,7 @@ public class ODKTransformer extends TransformerProvider {
         try {
             User admin = UserService.getUserByFullName("Raju Ram", "SamagraBot");
             if (admin != null) {
-                String missedFlightMessage = TemplateService.getTrainMissedMessage(employee.fullName, orgForm.getTrainMissedPNR());
+                String missedFlightMessage = TemplateServiceUtills.getFormattedString("TrainMissedMessage",employee.fullName, orgForm.getTrainMissedPNR());
                 switchFromTo(message);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
@@ -227,7 +227,7 @@ public class ODKTransformer extends TransformerProvider {
         try {
             User admin = UserService.getUserByFullName("Raju Ram", "SamagraBot");
             if (admin != null) {
-                String missedFlightMessage = TemplateService.getTrainMissedMessage(employee.fullName, orgForm.getTrainCancellationPNR());
+                String missedFlightMessage = TemplateServiceUtills.getFormattedString("TrainMissedMessage",employee.fullName, orgForm.getTrainCancellationPNR());
                 switchFromTo(message);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
@@ -248,7 +248,7 @@ public class ODKTransformer extends TransformerProvider {
                 String destinationCity = (String) orgForm.getTrainOneWayData().get("end_city_name_one_way_train");
                 String onwardTrainNumber = (String) orgForm.getTrainOneWayData().get("train_number");
                 String returnTrainNumber = (String) orgForm.getTrainTwoWayData().get("train_number_return");
-                String oneWayTripMessage = TemplateService.getTwoWayTrainTicketMessage(employee.fullName,
+                String oneWayTripMessage = TemplateServiceUtills.getFormattedString("TwoWayTrainTicketMessage",employee.fullName,
                         onwardDate, returnDate, startCity, destinationCity, onwardTrainNumber, returnTrainNumber);
                 switchFromTo(message);
                 message.getTo().setUserID(admin.mobilePhone);
@@ -268,7 +268,7 @@ public class ODKTransformer extends TransformerProvider {
                 String startCity = (String) orgForm.getTrainOneWayData().get("start_city_name_one_way_train");
                 String destinationCity = (String) orgForm.getTrainOneWayData().get("end_city_name_one_way_train");
                 String trainNumber = (String) orgForm.getTrainOneWayData().get("train_number");
-                String oneWayTripMessage = TemplateService.getOneWayTrainTicketMessage(employee.fullName,
+                String oneWayTripMessage = TemplateServiceUtills.getFormattedString("OneWayTrainTicketMessage",employee.fullName,
                         travelDate, startCity, destinationCity, trainNumber);
                 switchFromTo(message);
                 message.getTo().setUserID(admin.mobilePhone);
@@ -284,8 +284,8 @@ public class ODKTransformer extends TransformerProvider {
         return (String) ((Map<Object, Object>) ((ArrayList<Map>) campaign.data.get("parts")).get(0).get("meta")).get("formID");
     }
 
-    private void sendMessageToManagerForApproval(User employee, XMessage nextMessage, SamagraOrgForm orgForm, User manager) {
-        String getLeaveMessage = TemplateService.getTemplate(manager.fullName, employee.fullName, orgForm.getReason(),
+    private void sendMessageToManagerForApproval(User employee, XMessage nextMessage, SamagraOrgForm orgForm, User manager) throws Exception {
+        String getLeaveMessage = TemplateServiceUtills.getFormattedString("LeaveMessageTemplate",manager.fullName, employee.fullName, orgForm.getReason(),
                 orgForm.getStartDate(), orgForm.getEndDate(), orgForm.getNumberOfWorkingDays(),
                 orgForm.getReasonForLeave());
         XMessagePayload payload = XMessagePayload.builder().text(getLeaveMessage).build();
@@ -309,7 +309,7 @@ public class ODKTransformer extends TransformerProvider {
         try {
             User admin = UserService.getUserByFullName("Sanchita Dasgupta", "SamagraBot");
             if (admin != null) {
-                String missedFlightMessage = TemplateService.getMissedFlightMessage(employee.fullName, orgForm.getMissedFlightPNR());
+                String missedFlightMessage = TemplateServiceUtills.getFormattedString("MissedFlightMessage",employee.fullName, orgForm.getMissedFlightPNR());
                 switchFromTo(message);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
@@ -324,7 +324,7 @@ public class ODKTransformer extends TransformerProvider {
         try {
             User admin = UserService.getUserByFullName("Sanchita Dasgupta", "SamagraBot");
             if (admin != null) {
-                String missedFlightMessage = TemplateService.getTicketCancellationMesssage(employee.fullName, orgForm.getMissedFlightPNR());
+                String missedFlightMessage = TemplateServiceUtills.getFormattedString("TicketCancellationMesssage",employee.fullName, orgForm.getMissedFlightPNR());
                 switchFromTo(message);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
@@ -343,7 +343,7 @@ public class ODKTransformer extends TransformerProvider {
                 String startCity = (String) orgForm.getAirOneWayData().get("start_city");
                 String destinationCity = (String) orgForm.getAirOneWayData().get("destination_city");
                 String flightNumber = (String) orgForm.getAirOneWayData().get("enter_onward_flight");
-                String oneWayTripMessage = TemplateService.getOneWayTripMessage(employee.fullName,
+                String oneWayTripMessage = TemplateServiceUtills.getFormattedString("OneWayTripMessage",employee.fullName,
                         travelDate, startCity, destinationCity, flightNumber);
                 switchFromTo(message);
                 message.getTo().setUserID(admin.mobilePhone);
@@ -365,7 +365,7 @@ public class ODKTransformer extends TransformerProvider {
                 String destinationCity = (String) orgForm.getAirOneWayData().get("end_city_name_one_way");
                 String flightNumber = (String) orgForm.getAirOneWayData().get("enter_onward_flight");
                 String returnFlightNumber = (String) orgForm.getAirTwoWayData().get("enter_return_flight");
-                String twoWayTripMessage = TemplateService.getTwoWayTripMessage(employee.fullName,
+                String twoWayTripMessage = TemplateServiceUtills.getFormattedString("TwoWayTripMessage",employee.fullName,
                         travelDate, returnDate, startCity, destinationCity, flightNumber, returnFlightNumber);
                 switchFromTo(message);
                 message.getTo().setUserID(admin.mobilePhone);
@@ -472,8 +472,8 @@ public class ODKTransformer extends TransformerProvider {
         }
     }
 
-    private void respondToManager(User manager, XMessage message) {
-        String approvalMessage = TemplateService.getManagerAcknowledgementMessage(manager.fullName);
+    private void respondToManager(User manager, XMessage message) throws Exception {
+        String approvalMessage = TemplateServiceUtills.getFormattedString("ManagerAcknowledgementMessage",manager.fullName);
         message.getPayload().setText(approvalMessage);
         sendSingle(message);
     }
@@ -483,18 +483,18 @@ public class ODKTransformer extends TransformerProvider {
     private void updateLastSentForm(User user) {
     }
 
-    private void buildRejectionMessage(User user, XMessage message) {
-        String approvalMessage = TemplateService.getRejectionStatusMessage(user.fullName, "Rejected", (String) user.data.get("reportingManager"));
+    private void buildRejectionMessage(User user, XMessage message) throws Exception {
+        String approvalMessage = TemplateServiceUtills.getFormattedString("RejectionStatusMessage",user.fullName, "Rejected", (String) user.data.get("reportingManager"));
         switchFromTo(message);
         message.getTo().setUserID(user.mobilePhone);
         message.getPayload().setText(approvalMessage);
         sendSingle(message);
     }
 
-    private void buildProgramOwnerMessage(User user, XMessage message, String startDate, String endDate, String numberOfdays) {
+    private void buildProgramOwnerMessage(User user, XMessage message, String startDate, String endDate, String numberOfdays) throws Exception {
         User owner = UserService.getEngagementOwner(user);
         if (owner != null) {
-            String approvalMessage = TemplateService.getPOReportMessage(owner.fullName, user.fullName,
+            String approvalMessage = TemplateServiceUtills.getFormattedString("POReportMessage",owner.fullName, user.fullName,
                     (String) user.data.get("engagement"), startDate, endDate, numberOfdays);
             switchFromTo(message);
             message.getTo().setUserID(owner.mobilePhone);
@@ -503,8 +503,8 @@ public class ODKTransformer extends TransformerProvider {
         }
     }
 
-    private void buildApprovalMessage(User user, XMessage message) {
-        String approvalMessage = TemplateService.approvalStatus(user.fullName, "Approved", (String) user.data.get("programOwner"));
+    private void buildApprovalMessage(User user, XMessage message) throws Exception {
+        String approvalMessage = TemplateServiceUtills.getFormattedString("ApprovalStatus",user.fullName, "Approved", (String) user.data.get("programOwner"));
         switchFromTo(message);
         message.getTo().setUserID(user.mobilePhone);
         message.getPayload().setText(approvalMessage);

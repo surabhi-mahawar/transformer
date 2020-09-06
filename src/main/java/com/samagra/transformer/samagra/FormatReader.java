@@ -321,13 +321,13 @@ public class FormatReader extends BufferedReader
             return String.valueOf(tape[head]);
         }
     }
-//
-//    /**
-//     * Test sequence.
-//     *
-//     * @param args
-//     * @throws Throwable
-//     */
+
+    /**
+     * Test sequence.
+     *
+     * @param args
+     * @throws Throwable
+     */
 //    public static void main(String[] args) throws Throwable {
 //        String[][] testPair = {
 //                { "this is a test.", "%s is a %s." },

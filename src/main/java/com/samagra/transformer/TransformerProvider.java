@@ -16,7 +16,7 @@ public abstract class TransformerProvider {
     XMessage finalState;
 
 
-    public abstract XMessage transform(XMessage xMessage);
+    public abstract XMessage transform(XMessage xMessage) throws Exception;
 
     public abstract List<XMessage> transformToMany(XMessage xMessage);
 
