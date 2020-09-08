@@ -328,41 +328,4 @@ public class FormatReader extends BufferedReader
      * @param args
      * @throws Throwable
      */
-//    public static void main(String[] args) throws Throwable {
-//        String[][] testPair = {
-//                { "this is a test.", "%s is a %s." },
-//                { "line 1" + ls + "line 2", "%s%n%s" },
-//                { "command(arg)", "%s(%s)" },
-//                { "A test has been completed within 03:24 min",
-//                        "A test has been completed within %d:%d min" },
-//                { "pi = 3.14159", "pi = %f" },
-//                { "testing octal = 2634%", "testing octal = %o%%" },
-//                { "testing hex = baadf00d", "testing hex = %x" },
-//                { "2009-03-21 13:28:32 [INFO] Trying to log anything",
-//                        "%d-%d-%d %d:%d:%d [%s] %s" },
-//                {"the character A", "the character %c"} };
-//
-//        double[] avg = new double[testPair.length];
-//
-//        int attempts = 1000;
-//        for(int n = 0; n < attempts; ++n)
-//        {
-//            for(int t = 0; t < testPair.length; ++t)
-//            {
-//                String[] pair = testPair[t];
-//                long start = System.nanoTime();
-//                Object[] ret = new FormatReader(new StringReader(pair[0]))
-//                        .scanf(pair[1]);
-//                long end = System.nanoTime();
-//                if(n > 0)
-//                    avg[t] += (end - start) / 1e6;
-//                if(n + 1 == attempts)
-//                {
-//                    for(Object r : ret)
-//                        System.out.println(r);
-//                    System.out.printf("%f%n", avg[t] / (n - 1));
-//                }
-//            }
-//        }
-//    }
 }

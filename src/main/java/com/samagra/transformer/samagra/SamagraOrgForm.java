@@ -128,7 +128,7 @@ public class SamagraOrgForm {
     }
 
     public Map<String, Object> getTrainTwoWayData() {
-        return (Map<String, Object>) ((Map<String, Object>) ((Map<String, Object>) this.instanceData.get("train_ticket")).get("new_train_ticket")).get("'new_train_ticket_round'");
+        return (Map<String, Object>) ((Map<String, Object>) ((Map<String, Object>) this.instanceData.get("train_ticket")).get("new_train_ticket")).get("new_train_ticket_round");
     }
 
     public String getTrainCancellationPNR() {
