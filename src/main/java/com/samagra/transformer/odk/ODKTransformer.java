@@ -214,6 +214,7 @@ public class ODKTransformer extends TransformerProvider {
             if (admin != null) {
                 String missedFlightMessage = TemplateServiceUtills.getFormattedString("TrainMissedMessage", employee.fullName, orgForm.getTrainMissedPNR());
                 switchFromTo(message);
+                message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
                 sendSingle(message);
@@ -230,6 +231,7 @@ public class ODKTransformer extends TransformerProvider {
                 String missedFlightMessage = TemplateServiceUtills.getFormattedString(
                         "TrainMissedMessage", employee.fullName, orgForm.getTrainCancellationPNR());
                 switchFromTo(message);
+                message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
                 sendSingle(message);
@@ -253,6 +255,7 @@ public class ODKTransformer extends TransformerProvider {
                         "TwoWayTrainTicketMessage", employee.fullName,
                         onwardDate, returnDate, startCity, destinationCity, onwardTrainNumber, returnTrainNumber);
                 switchFromTo(message);
+                message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(oneWayTripMessage);
                 sendSingle(message);
@@ -274,6 +277,7 @@ public class ODKTransformer extends TransformerProvider {
                         "OneWayTrainTicketMessage", employee.fullName,
                 travelDate, startCity, destinationCity, trainNumber);
                 switchFromTo(message);
+                message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(oneWayTripMessage);
                 sendSingle(message);
@@ -289,11 +293,12 @@ public class ODKTransformer extends TransformerProvider {
 
     private void sendMessageToManagerForApproval(User employee, XMessage nextMessage, SamagraOrgForm orgForm, User manager) throws Exception {
         String getLeaveMessage = TemplateServiceUtills.getFormattedString(
-                "LeaveMessageTemplate", manager.fullName, employee.fullName, orgForm.getReason(),
+                "LeaveMessage", manager.fullName, employee.fullName, orgForm.getReason(),
                 orgForm.getStartDate(), orgForm.getEndDate(), orgForm.getNumberOfWorkingDays(),
                 orgForm.getReasonForLeave());
         XMessagePayload payload = XMessagePayload.builder().text(getLeaveMessage).build();
         nextMessage.setPayload(payload);
+        nextMessage.setMessageType(XMessage.MessageType.HSM);
         nextMessage.getTo().setUserID(manager.mobilePhone);
         sendSingle(nextMessage);
     }
@@ -316,6 +321,7 @@ public class ODKTransformer extends TransformerProvider {
                 String missedFlightMessage = TemplateServiceUtills.getFormattedString(
                         "MissedFlightMessage", employee.fullName, orgForm.getMissedFlightPNR());
                 switchFromTo(message);
+                message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
                 sendSingle(message);
@@ -332,6 +338,7 @@ public class ODKTransformer extends TransformerProvider {
                 String missedFlightMessage = TemplateServiceUtills.getFormattedString(
                         "TicketCancellationMesssage", employee.fullName, orgForm.getMissedFlightPNR());
                 switchFromTo(message);
+                message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
                 sendSingle(message);
@@ -352,6 +359,7 @@ public class ODKTransformer extends TransformerProvider {
                 String oneWayTripMessage = TemplateServiceUtills.getFormattedString("OneWayTripMessage", employee.fullName,
                         travelDate, startCity, destinationCity, flightNumber);
                 switchFromTo(message);
+                message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(oneWayTripMessage);
                 sendSingle(message);
@@ -374,6 +382,7 @@ public class ODKTransformer extends TransformerProvider {
                 String twoWayTripMessage = TemplateServiceUtills.getFormattedString("TwoWayTripMessage", employee.fullName,
                         travelDate, returnDate, startCity, destinationCity, flightNumber, returnFlightNumber);
                 switchFromTo(message);
+                message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(twoWayTripMessage);
                 sendSingle(message);
@@ -480,6 +489,7 @@ public class ODKTransformer extends TransformerProvider {
 
     private void respondToManager(User manager, XMessage message) throws Exception {
         String approvalMessage = TemplateServiceUtills.getFormattedString("ManagerAcknowledgementMessage", manager.fullName);
+        message.setMessageType(XMessage.MessageType.HSM);
         message.getPayload().setText(approvalMessage);
         sendSingle(message);
     }
@@ -492,6 +502,7 @@ public class ODKTransformer extends TransformerProvider {
     private void buildRejectionMessage(User user, XMessage message) throws Exception {
         String approvalMessage = TemplateServiceUtills.getFormattedString("RejectionStatusMessage", user.fullName, "Rejected", (String) user.data.get("reportingManager"));
         switchFromTo(message);
+        message.setMessageType(XMessage.MessageType.HSM);
         message.getTo().setUserID(user.mobilePhone);
         message.getPayload().setText(approvalMessage);
         sendSingle(message);
@@ -503,6 +514,7 @@ public class ODKTransformer extends TransformerProvider {
             String approvalMessage = TemplateServiceUtills.getFormattedString("POReportMessage", owner.fullName, user.fullName,
                     (String) user.data.get("engagement"), startDate, endDate, numberOfdays);
             switchFromTo(message);
+            message.setMessageType(XMessage.MessageType.HSM);
             message.getTo().setUserID(owner.mobilePhone);
             message.getPayload().setText(approvalMessage);
             sendSingle(message);
@@ -512,6 +524,7 @@ public class ODKTransformer extends TransformerProvider {
     private void buildApprovalMessage(User user, XMessage message) throws Exception {
         String approvalMessage = TemplateServiceUtills.getFormattedString("ApprovalStatus", user.fullName, "Approved", (String) user.data.get("programOwner"));
         switchFromTo(message);
+        message.setMessageType(XMessage.MessageType.HSM);
         message.getTo().setUserID(user.mobilePhone);
         message.getPayload().setText(approvalMessage);
         sendSingle(message);
