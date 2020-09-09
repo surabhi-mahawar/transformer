@@ -1,9 +1,9 @@
 create table if not exists scheduled_tasks (
 	task_name varchar(100),
 	task_instance varchar(100),
-	task_data blob,
+	task_data bytea,
 	execution_time TIMESTAMP WITH TIME ZONE,
-	picked BIT,
+	picked boolean,
 	picked_by varchar(50),
 	last_success TIMESTAMP WITH TIME ZONE,
 	last_failure TIMESTAMP WITH TIME ZONE,

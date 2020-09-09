@@ -1,6 +1,8 @@
 package com.samagra.transformer.odk;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.github.kagkarlsson.scheduler.task.Task;
+import com.github.kagkarlsson.scheduler.task.helper.Tasks;
 import com.samagra.transformer.TransformerProvider;
 import com.samagra.transformer.User.CampaignService;
 import com.samagra.transformer.User.UserService;
@@ -34,7 +36,11 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
+
+import static com.github.kagkarlsson.scheduler.task.schedule.Schedules.fixedDelay;
 
 
 @Slf4j
@@ -64,6 +70,9 @@ public class ODKTransformer extends TransformerProvider {
     public void consumeMessage(String message) throws Exception {
         long startTime = System.nanoTime();
         log.info("Form Transformer Message: " + message);
+
+        recurringSampleTask("Chakshu Gautam","CTT","20-10-2020");
+
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         XMessage transformedMessage = this.transform(xMessage);
         if (transformedMessage != null) {
@@ -436,7 +445,7 @@ public class ODKTransformer extends TransformerProvider {
                         buildApprovalMessage(employee, getClone(xmsg));
                         buildProgramOwnerMessage(employee, getClone(xmsg), startDateString, endDateString, workingDays);
                         deleteLastMessage(manager);
-                        updateStatusForApproval(employee.fullName, (String) employee.data.get("engagement"), startDateString);
+                        recurringSampleTask(employee.fullName, (String) employee.data.get("engagement"), startDateString);
                     } else {// If rejected => update the end user;
                         buildRejectionMessage(employee, getClone(xmsg));
                     }
@@ -453,10 +462,26 @@ public class ODKTransformer extends TransformerProvider {
         return isApprovalFlow;
     }
 
-    private void updateStatusForApproval(String employeeName, String teamName, String startDateString) {
+    Task<Void> recurringSampleTask(String employeeName, String teamName, String startDateString) throws Exception{
+        log.info("++++++++++++++++++++++++++++++++++++");
+        return Tasks
+                .recurring("recurring-sample-task", fixedDelay(Duration.ofMinutes(1)))
+                .execute((instance, ctx) -> {
+                    log.info("Running recurring-simple-task. Instance: {}, ctx: {}", instance, ctx);
+                    try {
+                        updateStatusForApproval(employeeName,teamName,startDateString);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+    }
+    public static int retry =0;
+    private void updateStatusForApproval(String employeeName, String teamName, String startDateString) throws Exception {
+        log.info("starting task ===============================================");
         String baseURL = "http://139.59.93.172:3000/samagra-internal-workflow-v2?filter=";
         String filters = String.format("{\"where\":{\"data.member_name\": \"%s\", \"data.team_name\": \"%s\", \"data.start_date_leave\": \"%s\"}}",
                 employeeName, teamName, startDateString);
+
         try {
             OkHttpClient client = new OkHttpClient().newBuilder()
                     .build();
@@ -481,9 +506,13 @@ public class ODKTransformer extends TransformerProvider {
                     .build();
             Response response2 = client.newCall(request2).execute();
             String updateResponse = response2.body().string();
-
         } catch (Exception e) {
-            e.printStackTrace();
+            if(retry == 2){
+                throw e;
+            }
+            retry++;
+            Thread.sleep(300000);
+            updateStatusForApproval(employeeName,teamName,startDateString);
         }
     }
 

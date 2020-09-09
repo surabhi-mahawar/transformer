@@ -2,6 +2,8 @@ package com.samagra.transformer.application;
 
 import android.webkit.MimeTypeMap;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.github.kagkarlsson.scheduler.Scheduler;
+import com.github.kagkarlsson.scheduler.task.Task;
 import com.samagra.transformer.odk.*;
 import com.samagra.transformer.odk.model.Form;
 import com.samagra.transformer.odk.model.FormDetails;
@@ -18,12 +20,14 @@ import io.jsondb.JsonDBTemplate;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;
 import okhttp3.OkHttpClient;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -36,6 +40,7 @@ import javax.swing.*;
 import javax.xml.bind.JAXBException;
 import java.io.File;
 import java.security.GeneralSecurityException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +49,7 @@ import java.util.Map;
 @EnableKafka
 @EnableAsync
 @EnableCaching
-@ComponentScan(basePackages = {"com.samagra.transformer", "messagerosa"})
+@ComponentScan(basePackages = {"com.samagra.transformer", "messagerosa","com.github"})
 @EnableJpaRepositories(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
 @EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer", "com.samagra.transformer.odk"})
 @PropertySource("application-messagerosa.properties")
@@ -110,5 +115,14 @@ public class TransformerApplication {
             log.info("Total downloaded forms: " + downloadedForms.size());
         }
     }
+//    @Bean
+//    CommandLineRunner executeOnStartup(Scheduler scheduler, Task<Void> sampleOneTimeTask) {
+//        log.info("Scheduling one time task to now!");
+//
+//        return ignored -> scheduler.schedule(
+//                sampleOneTimeTask.instance("command-line-runner"),
+//                Instant.now()
+//        );
+//    }
 }
 

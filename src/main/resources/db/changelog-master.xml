@@ -10,4 +10,6 @@
 
   <include file="db/migration/001_gupshup_message.sql"/>
   <include file="db/migration/002_gupshup_state.sql"/>
+  <include file="db/migration/003_scheduled_tasks.sql"/>
+
 </databaseChangeLog>
