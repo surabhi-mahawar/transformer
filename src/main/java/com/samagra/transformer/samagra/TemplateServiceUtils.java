@@ -3,16 +3,18 @@ package com.samagra.transformer.samagra;
 import java.io.StringReader;
 import java.util.HashMap;
 
-public class TemplateServiceUtills {
+public class TemplateServiceUtils {
 
     private static HashMap<String,String> map = new HashMap<>();
 
     static{
+
         map.put("LeaveMessage","Hi %s, this is to inform you that %s from your team has applied for a %s " +
-                "leave from %s to %s for %s working days with reason being %s. \n" +
-                "Please choose one of the following options:\n\n 1. Approve \n 2. Reject \n");
-        map.put("ApprovalStatus","Hi %s! This is to inform you that your leave has been %s by your manager."
+                "leave from %s to %s for %s working days with reason being %s. \\n" +
+                "Please choose one of the following options:\\n\\n 1. Approve \\n 2. Reject \\n");
+        map.put("ApprovalStatus","Hi %s! This is to inform you that your leave has been %s by your manager. "
                 +"Your program owner %s has also been apprised about your leave. Thanks!");
+
         map.put("RejectionStatusMessage","Hi %s! This is to inform you that your leave has been %s by your manager.");
         map.put("ManagerAcknowledgementMessage","Thanks %s! Your action has been recorded. The team member and program owner will receive the relevant update.");
         map.put("POReportMessage","Hi %s, this is to inform you that %s from team %s will be on leave from %s to %s for %s working days, as approved by the manager.");

@@ -15,47 +15,55 @@ import java.util.Date;
 public class LeaveManager {
     User user;
 
-    public int getCurrentLeaves(){
+    public int getCurrentLeaves() {
         return (int) user.data.get("currentLeaves");
     }
 
-    public double accruedLeavesSinceDateOfJoining(){
+    public double accruedLeavesSinceDateOfJoining() {
         return 0.0;
     }
 
 
-    public int getCurrentFiscalYear(){
+    public int getCurrentFiscalYear() {
         int CurrentYear = Calendar.getInstance().get(Calendar.YEAR);
-        int CurrentMonth = (Calendar.getInstance().get(Calendar.MONTH)+1);
-        if (CurrentMonth<4) return CurrentYear-1;
+        int CurrentMonth = (Calendar.getInstance().get(Calendar.MONTH) + 1);
+        if (CurrentMonth < 4) return CurrentYear - 1;
         else return CurrentYear;
     }
 
-    public double accruedLeavesForCurrentYear(){
-        double ACCRUAL_CONST = 18/365.0;
+    public double accruedLeavesForCurrentYear() {
+        double ACCRUAL_CONST = 18 / 365.0;
         DateTime startOfFinancialYear = new DateTime(getCurrentFiscalYear(), 4, 1, 0, 0, 0, 0);
         int daysInThisYear = Days.daysBetween(startOfFinancialYear, new DateTime()).getDays();
-        return ACCRUAL_CONST*daysInThisYear;
+        return ACCRUAL_CONST * daysInThisYear;
     }
 
-    public double accruedLeavedSinceDate(String date){
-        double ACCRUAL_CONST = 18/365.0;
+    public double accruedLeavedSinceDate(String date) {
+        double ACCRUAL_CONST = 18 / 365.0;
         int day = Integer.parseInt(date.split("-")[0]);
         int month = Integer.parseInt(date.split("-")[1]);
         int year = Integer.parseInt(date.split("-")[2]);
-        DateTime startOfFinancialYear = new DateTime(year, month, day, 0,0,0,0);
+        DateTime startOfFinancialYear = new DateTime(year, month, day, 0, 0, 0, 0);
         int daysInThisYear = Days.daysBetween(new DateTime(startOfFinancialYear), new DateTime()).getDays();
-        return ACCRUAL_CONST*daysInThisYear;
+        return ACCRUAL_CONST * daysInThisYear;
     }
 
-    public void updateLeaves(int workingDays){
+    public void updateLeaves(int workingDays) {
 
         double accruedLeaves = 0.0;
         double previousLeaves = 0.0;
-        if(user.data.get("lastUpdatedAt") != null){
+        if (user.data.get("lastUpdatedAt") != null) {
             accruedLeaves = accruedLeavedSinceDate((String) user.data.get("lastUpdatedAt"));
-            previousLeaves = (double) user.data.get("accurateLeaves");
-        }else{
+            if (user.data.get("accurateLeaves") == null) {
+                previousLeaves = Double.parseDouble((String) user.data.get("leavesAvailable"));
+            } else {
+                try{
+                    previousLeaves = Double.parseDouble((String) user.data.get("accurateLeaves"));
+                }catch (Exception e){
+                    previousLeaves = (double) user.data.get("accurateLeaves");
+                }
+            }
+        } else {
             accruedLeaves = accruedLeavesForCurrentYear();
             previousLeaves = Double.parseDouble(user.data.get("leavesAvailable").toString());
         }
@@ -63,8 +71,8 @@ public class LeaveManager {
         DateTime dt = DateTime.now();
         DateTimeFormatter fmt = DateTimeFormat.forPattern("dd-MM-yyyy");
         user.data.put("lastUpdatedAt", fmt.print(dt));
-        user.data.put("accurateLeaves", accruedLeaves+previousLeaves - workingDays);
-        user.data.put("leavesAvailable", Math.round(accruedLeaves+previousLeaves) - workingDays);
+        user.data.put("accurateLeaves", accruedLeaves + previousLeaves - workingDays);
+        user.data.put("leavesAvailable", Math.round(accruedLeaves + previousLeaves) - workingDays);
 
         UserService.update(user);
 

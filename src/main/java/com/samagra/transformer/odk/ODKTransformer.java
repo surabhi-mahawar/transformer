@@ -1,8 +1,9 @@
 package com.samagra.transformer.odk;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.github.kagkarlsson.scheduler.task.Task;
-import com.github.kagkarlsson.scheduler.task.helper.Tasks;
+import com.github.kagkarlsson.scheduler.Scheduler;
+import com.github.kagkarlsson.scheduler.task.*;
+import com.github.kagkarlsson.scheduler.task.helper.OneTimeTask;
 import com.samagra.transformer.TransformerProvider;
 import com.samagra.transformer.User.CampaignService;
 import com.samagra.transformer.User.UserService;
@@ -14,9 +15,10 @@ import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
 import com.samagra.transformer.samagra.LeaveManager;
 import com.samagra.transformer.samagra.SamagraOrgForm;
-import com.samagra.transformer.samagra.TemplateServiceUtills;
+import com.samagra.transformer.samagra.TemplateServiceUtils;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
@@ -34,13 +36,13 @@ import org.springframework.stereotype.Component;
 import com.samagra.transformer.publisher.CommonProducer;
 import org.springframework.web.client.RestTemplate;
 
+import javax.sql.DataSource;
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
-
-import static com.github.kagkarlsson.scheduler.task.schedule.Schedules.fixedDelay;
 
 
 @Slf4j
@@ -66,12 +68,14 @@ public class ODKTransformer extends TransformerProvider {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    DataSource dataSource;
+
+
     @KafkaListener(id = "transformer1", topics = "Form2")
     public void consumeMessage(String message) throws Exception {
         long startTime = System.nanoTime();
         log.info("Form Transformer Message: " + message);
-
-        recurringSampleTask("Chakshu Gautam","CTT","20-10-2020");
 
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         XMessage transformedMessage = this.transform(xMessage);
@@ -189,6 +193,7 @@ public class ODKTransformer extends TransformerProvider {
                             // Send message to manager
                             User manager = UserService.getManager(employee);
                             sendMessageToManagerForApproval(employee, cloneMessage, orgForm, manager);
+                            oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), orgForm.getStartDate(), "3");
                         } else if (response.currentIndex.contains("eof_air_ticket_applied_message_one_way")) {
                             sendMessageForFlightOneWayToAdmin(orgForm, cloneMessage, employee);
                         } else if (response.currentIndex.contains("eof_air_ticket_applied_message_two_way")) {
@@ -221,7 +226,7 @@ public class ODKTransformer extends TransformerProvider {
         try {
             User admin = UserService.getUserByFullName("Raju Ram", "SamagraBot");
             if (admin != null) {
-                String missedFlightMessage = TemplateServiceUtills.getFormattedString("TrainMissedMessage", employee.fullName, orgForm.getTrainMissedPNR());
+                String missedFlightMessage = TemplateServiceUtils.getFormattedString("TrainMissedMessage", employee.fullName, orgForm.getTrainMissedPNR());
                 switchFromTo(message);
                 message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
@@ -237,8 +242,8 @@ public class ODKTransformer extends TransformerProvider {
         try {
             User admin = UserService.getUserByFullName("Raju Ram", "SamagraBot");
             if (admin != null) {
-                String missedFlightMessage = TemplateServiceUtills.getFormattedString(
-                        "TrainMissedMessage", employee.fullName, orgForm.getTrainCancellationPNR());
+                String missedFlightMessage = TemplateServiceUtils.getFormattedString(
+                        "TicketCancellationMesssage", employee.fullName, orgForm.getTrainCancellationPNR());
                 switchFromTo(message);
                 message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
@@ -260,7 +265,7 @@ public class ODKTransformer extends TransformerProvider {
                 String destinationCity = (String) orgForm.getTrainOneWayData().get("end_city_name_one_way_train");
                 String onwardTrainNumber = (String) orgForm.getTrainOneWayData().get("train_name_one_way_name");
                 String returnTrainNumber = (String) orgForm.getTrainOneWayData().get("train_name_return_way_name");
-                String oneWayTripMessage = TemplateServiceUtills.getFormattedString(
+                String oneWayTripMessage = TemplateServiceUtils.getFormattedString(
                         "TwoWayTrainTicketMessage", employee.fullName,
                         onwardDate, returnDate, startCity, destinationCity, onwardTrainNumber, returnTrainNumber);
                 switchFromTo(message);
@@ -282,9 +287,9 @@ public class ODKTransformer extends TransformerProvider {
                 String startCity = (String) orgForm.getTrainOneWayData().get("start_city_name_one_way_train");
                 String destinationCity = (String) orgForm.getTrainOneWayData().get("end_city_name_one_way_train");
                 String trainNumber = (String) orgForm.getTrainOneWayData().get("train_name_one_way_name");
-                String oneWayTripMessage = TemplateServiceUtills.getFormattedString(
+                String oneWayTripMessage = TemplateServiceUtils.getFormattedString(
                         "OneWayTrainTicketMessage", employee.fullName,
-                travelDate, startCity, destinationCity, trainNumber);
+                        travelDate, startCity, destinationCity, trainNumber);
                 switchFromTo(message);
                 message.setMessageType(XMessage.MessageType.HSM);
                 message.getTo().setUserID(admin.mobilePhone);
@@ -301,7 +306,7 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private void sendMessageToManagerForApproval(User employee, XMessage nextMessage, SamagraOrgForm orgForm, User manager) throws Exception {
-        String getLeaveMessage = TemplateServiceUtills.getFormattedString(
+        String getLeaveMessage = TemplateServiceUtils.getFormattedString(
                 "LeaveMessage", manager.fullName, employee.fullName, orgForm.getReason(),
                 orgForm.getStartDate(), orgForm.getEndDate(), orgForm.getNumberOfWorkingDays(),
                 orgForm.getReasonForLeave());
@@ -327,7 +332,7 @@ public class ODKTransformer extends TransformerProvider {
         try {
             User admin = UserService.getUserByFullName("Sanchita Dasgupta", "SamagraBot");
             if (admin != null) {
-                String missedFlightMessage = TemplateServiceUtills.getFormattedString(
+                String missedFlightMessage = TemplateServiceUtils.getFormattedString(
                         "MissedFlightMessage", employee.fullName, orgForm.getMissedFlightPNR());
                 switchFromTo(message);
                 message.setMessageType(XMessage.MessageType.HSM);
@@ -344,7 +349,7 @@ public class ODKTransformer extends TransformerProvider {
         try {
             User admin = UserService.getUserByFullName("Sanchita Dasgupta", "SamagraBot");
             if (admin != null) {
-                String missedFlightMessage = TemplateServiceUtills.getFormattedString(
+                String missedFlightMessage = TemplateServiceUtils.getFormattedString(
                         "TicketCancellationMesssage", employee.fullName, orgForm.getMissedFlightPNR());
                 switchFromTo(message);
                 message.setMessageType(XMessage.MessageType.HSM);
@@ -365,7 +370,7 @@ public class ODKTransformer extends TransformerProvider {
                 String startCity = (String) orgForm.getAirOneWayData().get("start_city_name_one_way");
                 String destinationCity = (String) orgForm.getAirOneWayData().get("end_city_name_one_way");
                 String flightNumber = (String) orgForm.getAirOneWayData().get("enter_onward_flight");
-                String oneWayTripMessage = TemplateServiceUtills.getFormattedString("OneWayTripMessage", employee.fullName,
+                String oneWayTripMessage = TemplateServiceUtils.getFormattedString("OneWayTripMessage", employee.fullName,
                         travelDate, startCity, destinationCity, flightNumber);
                 switchFromTo(message);
                 message.setMessageType(XMessage.MessageType.HSM);
@@ -388,7 +393,7 @@ public class ODKTransformer extends TransformerProvider {
                 String destinationCity = (String) orgForm.getAirOneWayData().get("end_city_name_one_way");
                 String flightNumber = (String) orgForm.getAirOneWayData().get("enter_onward_flight");
                 String returnFlightNumber = (String) orgForm.getAirTwoWayData().get("enter_return_flight");
-                String twoWayTripMessage = TemplateServiceUtills.getFormattedString("TwoWayTripMessage", employee.fullName,
+                String twoWayTripMessage = TemplateServiceUtils.getFormattedString("TwoWayTripMessage", employee.fullName,
                         travelDate, returnDate, startCity, destinationCity, flightNumber, returnFlightNumber);
                 switchFromTo(message);
                 message.setMessageType(XMessage.MessageType.HSM);
@@ -445,9 +450,10 @@ public class ODKTransformer extends TransformerProvider {
                         buildApprovalMessage(employee, getClone(xmsg));
                         buildProgramOwnerMessage(employee, getClone(xmsg), startDateString, endDateString, workingDays);
                         deleteLastMessage(manager);
-                        recurringSampleTask(employee.fullName, (String) employee.data.get("engagement"), startDateString);
+                        oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), startDateString, "1");
                     } else {// If rejected => update the end user;
                         buildRejectionMessage(employee, getClone(xmsg));
+                        oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), startDateString, "2");
                     }
 
                     // Update the previously submitted form for employee.
@@ -462,62 +468,99 @@ public class ODKTransformer extends TransformerProvider {
         return isApprovalFlow;
     }
 
-    Task<Void> recurringSampleTask(String employeeName, String teamName, String startDateString) throws Exception{
+    private void oneTimeSampleTask(String employeeName, String teamName, String startDateString, String status) {
         log.info("++++++++++++++++++++++++++++++++++++");
-        return Tasks
-                .recurring("recurring-sample-task", fixedDelay(Duration.ofMinutes(1)))
-                .execute((instance, ctx) -> {
-                    log.info("Running recurring-simple-task. Instance: {}, ctx: {}", instance, ctx);
-                    try {
-                        updateStatusForApproval(employeeName,teamName,startDateString);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                });
+        FailureHandler failureHandler = new FailureHandler.OnFailureRetryLater(Duration.ofSeconds(20));
+        SchedulerData schedulerData = new SchedulerData(employeeName, teamName, startDateString, status);
+
+        OneTimeTask<SchedulerData> oneTimeTask = new OneTimeTask<SchedulerData>("one-time-" + UUID.randomUUID().toString(), SchedulerData.class, failureHandler, new DeadExecutionHandler<SchedulerData>() {
+            @Override
+            public void deadExecution(Execution execution, ExecutionOperations<SchedulerData> executionOperations) {
+
+            }
+        }) {
+            @SneakyThrows
+            @Override
+            public void executeOnce(TaskInstance<SchedulerData> taskInstance, ExecutionContext executionContext) {
+                log.info("Running recurring-simple-task. Instance: {}, ctx: {}", taskInstance, executionContext);
+                try {
+                    updateStatusForApproval(taskInstance.getData().getEmployeeName(),
+                            taskInstance.getData().getTeamName(),
+                            taskInstance.getData().getStartDateString(),
+                            taskInstance.getData().getStatus());
+                } catch (Exception e) {
+
+                    log.error("Exception in task");
+                    log.error(e.getMessage());
+                    throw new Exception("Failed to execute => So retrying"); //For retrying
+                }
+            }
+        };
+        final Scheduler scheduler = Scheduler
+                .create(dataSource, oneTimeTask)
+                .serializer(new DbSchedulerJsonSerializer())
+                .threads(2)
+                .build();
+
+        scheduler.start();
+
+        // Schedule the task for execution a certain time in the future and optionally provide custom data for the execution
+        scheduler.schedule(oneTimeTask.instance(UUID.randomUUID().toString(), schedulerData), Instant.now().plusSeconds(5));
     }
-    public static int retry =0;
-    private void updateStatusForApproval(String employeeName, String teamName, String startDateString) throws Exception {
+
+    public static int retry = 0;
+
+    private void updateStatusForApproval(String employeeName, String teamName, String startDateString, String approvalStatus) throws IOException {
         log.info("starting task ===============================================");
         String baseURL = "http://139.59.93.172:3000/samagra-internal-workflow-v2?filter=";
         String filters = String.format("{\"where\":{\"data.member_name\": \"%s\", \"data.team_name\": \"%s\", \"data.start_date_leave\": \"%s\"}}",
                 employeeName, teamName, startDateString);
+        OkHttpClient client = new OkHttpClient().newBuilder()
+                .build();
+        Request request = new Request.Builder()
+                .url(baseURL + filters)
+                .method("GET", null)
+                .build();
+        log.info("Currently calling::" +  baseURL + filters);
+        Response response = client.newCall(request).execute();
+        String jsonData = response.body().string();
+        JSONArray jsonArray = new JSONArray(jsonData);
+        JSONObject data = (JSONObject) jsonArray.get(0);
 
+
+        String oldData = null;
         try {
-            OkHttpClient client = new OkHttpClient().newBuilder()
-                    .build();
-            Request request = new Request.Builder()
-                    .url(baseURL + filters)
-                    .method("GET", null)
-                    .build();
-            Response response = client.newCall(request).execute();
-            String jsonData = response.body().string();
-            JSONArray jsonArray = new JSONArray(jsonData);
-            JSONObject data = (JSONObject) jsonArray.get(0);
-
-            ((JSONObject) data.getJSONArray("data").get(0)).put("manager_approval", true);
-
-            MediaType mediaType = MediaType.parse("application/json");
-            RequestBody body = RequestBody.create(mediaType, data.toString());
-
-            Request request2 = new Request.Builder()
-                    .url("http://139.59.93.172:3000/samagra-internal-workflow-v2/" + data.get("id"))
-                    .method("PUT", body)
-                    .addHeader("Content-Type", "application/json")
-                    .build();
-            Response response2 = client.newCall(request2).execute();
-            String updateResponse = response2.body().string();
+            oldData = ((JSONObject) data.getJSONArray("data").get(0)).getString("manager_approval");
         } catch (Exception e) {
-            if(retry == 2){
-                throw e;
-            }
-            retry++;
-            Thread.sleep(300000);
-            updateStatusForApproval(employeeName,teamName,startDateString);
         }
+        log.info("OldAns :: " +  oldData);
+        if (approvalStatus.equals("3") && oldData == null) {
+            ((JSONObject) data.getJSONArray("data").get(0)).put("manager_approval", approvalStatus);
+        } else if ((oldData == null || oldData.equals("2") || oldData.equals("1")) && approvalStatus.equals("2")) {
+            ((JSONObject) data.getJSONArray("data").get(0)).put("manager_approval", approvalStatus);
+        } else if ((oldData == null || oldData.equals("3") || oldData.equals("2")) && approvalStatus.equals("1")) {
+            ((JSONObject) data.getJSONArray("data").get(0)).put("manager_approval", approvalStatus);
+        } else {
+            return;
+        }
+
+
+        MediaType mediaType = MediaType.parse("application/json");
+        RequestBody body = RequestBody.create(mediaType, data.toString());
+
+        Request request2 = new Request.Builder()
+                .url("http://139.59.93.172:3000/samagra-internal-workflow-v2/" + data.get("id"))
+                .method("PUT", body)
+                .addHeader("Content-Type", "application/json")
+                .build();
+        Response response2 = client.newCall(request2).execute();
+        String updateResponse = response2.body().string();
+        log.info(updateResponse);
+        log.info("task completed ===============================================");
     }
 
     private void respondToManager(User manager, XMessage message) throws Exception {
-        String approvalMessage = TemplateServiceUtills.getFormattedString("ManagerAcknowledgementMessage", manager.fullName);
+        String approvalMessage = TemplateServiceUtils.getFormattedString("ManagerAcknowledgementMessage", manager.fullName);
         message.setMessageType(XMessage.MessageType.HSM);
         message.getPayload().setText(approvalMessage);
         sendSingle(message);
@@ -529,7 +572,7 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private void buildRejectionMessage(User user, XMessage message) throws Exception {
-        String approvalMessage = TemplateServiceUtills.getFormattedString("RejectionStatusMessage", user.fullName, "Rejected", (String) user.data.get("reportingManager"));
+        String approvalMessage = TemplateServiceUtils.getFormattedString("RejectionStatusMessage", user.fullName, "Rejected", (String) user.data.get("reportingManager"));
         switchFromTo(message);
         message.setMessageType(XMessage.MessageType.HSM);
         message.getTo().setUserID(user.mobilePhone);
@@ -540,7 +583,7 @@ public class ODKTransformer extends TransformerProvider {
     private void buildProgramOwnerMessage(User user, XMessage message, String startDate, String endDate, String numberOfdays) throws Exception {
         User owner = UserService.getEngagementOwner(user);
         if (owner != null) {
-            String approvalMessage = TemplateServiceUtills.getFormattedString("POReportMessage", owner.fullName, user.fullName,
+            String approvalMessage = TemplateServiceUtils.getFormattedString("POReportMessage", owner.fullName, user.fullName,
                     (String) user.data.get("engagement"), startDate, endDate, numberOfdays);
             switchFromTo(message);
             message.setMessageType(XMessage.MessageType.HSM);
@@ -551,7 +594,7 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private void buildApprovalMessage(User user, XMessage message) throws Exception {
-        String approvalMessage = TemplateServiceUtills.getFormattedString("ApprovalStatus", user.fullName, "Approved", (String) user.data.get("programOwner"));
+        String approvalMessage = TemplateServiceUtils.getFormattedString("ApprovalStatus", user.fullName, "Approved", (String) user.data.get("programOwner"));
         switchFromTo(message);
         message.setMessageType(XMessage.MessageType.HSM);
         message.getTo().setUserID(user.mobilePhone);
@@ -609,5 +652,4 @@ public class ODKTransformer extends TransformerProvider {
         saveEntity.setBotFormName(formID);
         stateRepo.save(saveEntity);
     }
-
 }
