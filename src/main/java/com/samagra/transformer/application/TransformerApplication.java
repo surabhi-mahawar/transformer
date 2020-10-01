@@ -64,8 +64,7 @@ public class TransformerApplication {
     }
 
     @PostConstruct
-    private void postConstruct() {
-        // downloadForms();
+    private void postConstruct() { downloadForms();
         // testFormManager();
     }
 

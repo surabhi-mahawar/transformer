@@ -61,7 +61,7 @@ public class UserService {
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
         if(currentApplication != null){
             UserSearchCriteria usc = new UserSearchCriteria();
-            usc.numberOfResults = 100;
+            usc.numberOfResults = 10000;
             usc.queryString = "(memberships.groupId: " + currentApplication.data.get("group") + ")";
             SearchRequest sr = new SearchRequest(usc);
             ClientResponse<SearchResponse, Errors> cr = staticClient.searchUsersByQueryString(sr);

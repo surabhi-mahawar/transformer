@@ -603,12 +603,12 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private XMessageDAO getLastSentMessage(String replyId) {
-        String url = String.format("http://localhost:8081/getLastMessage?replyId=%s", replyId);
+        String url = String.format("http://orchestrator:8686/getLastMessage?replyId=%s", replyId);
         return restTemplate.getForEntity(url, XMessageDAO.class).getBody();
     }
 
     private void deleteLastMessage(User user) {
-        String url = String.format("http://localhost:8081/deleteLastMessage?userID=%s&messageType=REPLIED", user.mobilePhone);
+        String url = String.format("http://orchestrator:8686/deleteLastMessage?userID=%s&messageType=REPLIED", user.mobilePhone);
         restTemplate.getForEntity(url, Object.class);
     }
 

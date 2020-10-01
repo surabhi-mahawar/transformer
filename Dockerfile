@@ -1,4 +1,4 @@
-FROM openjdk:8-alpine
+FROM openjdk:12-alpine
 ENV export $(cat .env | xargs)
 ARG JAR_FILE=target/*.jar
 RUN echo $JAR_FILE
