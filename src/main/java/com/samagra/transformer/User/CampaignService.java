@@ -74,4 +74,36 @@ public class CampaignService {
         }
         return currentApplication;
     }
+
+    /**
+     * Retrieve Campaign Params From its Name
+     *
+     * @param campaignName - Campaign Name
+     * @return Application
+     * @throws Exception Error Exception, in failure in Network request.
+     */
+    public static Application getCampaignFromNameESamwad(String campaignName) {
+        List<Application> applications = new ArrayList<>();
+        FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
+        ClientResponse<ApplicationResponse, Void> response = staticClient.retrieveApplications();
+        if (response.wasSuccessful()) {
+            applications = response.successResponse.applications;
+        } else if (response.exception != null) {
+            Exception exception = response.exception;
+        }
+
+        Application currentApplication = null;
+        if (applications.size() > 0) {
+            for (Application application : applications) {
+                try {
+                    if (application.data.get("appName").equals(campaignName)) {
+                        currentApplication = application;
+                    }
+                }catch (Exception e){
+
+                }
+            }
+        }
+        return currentApplication;
+    }
 }

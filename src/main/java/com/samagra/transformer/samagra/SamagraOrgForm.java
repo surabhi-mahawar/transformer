@@ -1,5 +1,6 @@
 package com.samagra.transformer.samagra;
 
+import android.util.Log;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.samagra.transformer.User.UserService;
@@ -24,6 +25,7 @@ public class SamagraOrgForm {
     User user;
     User engagementOwner;
     User manager;
+    User programCoordinator;
 
     public void init() {
         getEngagementOwner();
@@ -56,7 +58,13 @@ public class SamagraOrgForm {
 
     public User getEngagementOwner() {
         if (this.engagementOwner == null) {
-            this.engagementOwner = UserService.getEngagementOwner(this.user);
+            Boolean isAssociate = UserService.isAssociate(this.user);
+            String programConstruct = UserService.getProgramConstruct(this.user);
+            if (isAssociate && programConstruct.equals("2")){
+                this.engagementOwner = UserService.getManager(this.user);
+            }else{
+                this.engagementOwner = UserService.getEngagementOwner(this.user);
+            }
         }
         return this.engagementOwner;
     }
@@ -71,7 +79,13 @@ public class SamagraOrgForm {
 
     public User getManager() {
         if (this.manager == null) {
-            this.manager = UserService.getManager(this.user);
+            Boolean isAssociate = UserService.isAssociate(this.user);
+            String programConstruct = UserService.getProgramConstruct(this.user);
+            if (isAssociate && programConstruct.equals("2")){
+                this.manager = UserService.getProgramCoordinator(this.user);
+            }else{
+                this.manager = UserService.getManager(this.user);
+            }
         }
 
         return this.manager;
@@ -90,6 +104,8 @@ public class SamagraOrgForm {
                 "        <manager_name>%s</manager_name>\n" +
                 "        <manager_contact>%s</manager_contact>\n" +
                 "        <member_name>%s</member_name>\n" +
+                "        <member_name_edited>%s</member_name_edited>\n" +
+                "        <status>3</status>\n" +
                 "        <leave_balance>%s</leave_balance>\n" +
                 "        <team_name>%s</team_name>\n" +
                 "        <filling_date>%s</filling_date>\n" +
@@ -101,10 +117,12 @@ public class SamagraOrgForm {
         DateTime dt = DateTime.now();
         DateTimeFormatter fmt = DateTimeFormat.forPattern("dd-MM-yyyy");
 
+        String memberNameEdited = this.user.fullName.replaceAll(" ", "%20");
+
         return String.format(instanceXML, instanceID.toString(),
                 this.engagementOwner.fullName, this.engagementOwner.mobilePhone,
                 this.manager.fullName, this.manager.mobilePhone,
-                this.user.fullName, this.user.data.get("leavesAvailable"), this.user.data.get("engagement"), fmt.print(dt));
+                this.user.fullName, memberNameEdited, this.user.data.get("leavesAvailable"), this.user.data.get("engagement"), fmt.print(dt));
     }
 
     public String getMissedFlightPNR() {

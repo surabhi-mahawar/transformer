@@ -9,7 +9,6 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import java.util.Calendar;
-import java.util.Date;
 
 @Builder
 public class LeaveManager {
@@ -76,5 +75,48 @@ public class LeaveManager {
 
         UserService.update(user);
 
+    }
+
+    public User deleteLeaves(int workingDays){
+        // Update the leaves in FA.
+        double existingLeaves = getExistingLeaves();
+        DateTime dt = DateTime.now();
+        DateTimeFormatter fmt = DateTimeFormat.forPattern("dd-MM-yyyy");
+        user.data.put("lastUpdatedAt", fmt.print(dt));
+        user.data.put("accurateLeaves", existingLeaves + workingDays);
+        user.data.put("leavesAvailable", Math.round(existingLeaves + workingDays));
+
+       return UserService.update(user);
+
+    }
+
+    public User addLeaves(int workingDays){
+        // Update the leaves in FA.
+        double existingLeaves = getExistingLeaves();
+        DateTime dt = DateTime.now();
+        DateTimeFormatter fmt = DateTimeFormat.forPattern("dd-MM-yyyy");
+        user.data.put("lastUpdatedAt", fmt.print(dt));
+        user.data.put("accurateLeaves", existingLeaves - workingDays);
+        user.data.put("leavesAvailable", Math.round(existingLeaves - workingDays));
+
+        return UserService.update(user);
+    }
+
+    private double getExistingLeaves() {
+        double existingLeaves = 0.0;
+        if (user.data.get("lastUpdatedAt") != null) {
+            if (user.data.get("accurateLeaves") == null) {
+                existingLeaves = Double.parseDouble((String) user.data.get("leavesAvailable"));
+            } else {
+                try{
+                    existingLeaves = Double.parseDouble((String) user.data.get("accurateLeaves"));
+                }catch (Exception e){
+                    existingLeaves = (double) user.data.get("accurateLeaves");
+                }
+            }
+        } else {
+            existingLeaves = Double.parseDouble(user.data.get("leavesAvailable").toString());
+        }
+        return existingLeaves;
     }
 }

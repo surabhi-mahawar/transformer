@@ -50,12 +50,26 @@ public class MenuManager {
     String instanceXML;
     String formPath;
     String initialInstanceXML;
+    Boolean isSpecialResponse;
+    Boolean isPrefilled;
+
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath) {
         this.xpath = xpath;
         this.answer = answer;
         this.instanceXML = instanceXML;
         this.formPath = formPath;
+        this.isSpecialResponse = false;
+        this.isPrefilled = false;
+    }
+
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, Boolean isPrefilled) {
+        this.xpath = xpath;
+        this.answer = answer;
+        this.instanceXML = instanceXML;
+        this.formPath = formPath;
+        this.isSpecialResponse = false;
+        this.isPrefilled = isPrefilled;
     }
 
     protected static class FECWrapper {
@@ -101,6 +115,7 @@ public class MenuManager {
         SaveStatus saveStatus = new SaveStatus();
 
         if (answer != null && answer.equals("#")) {
+            this.isSpecialResponse = true;
             // Get to the note of the previous group
 
             // Set the current answer as blank
@@ -121,7 +136,6 @@ public class MenuManager {
                     e.printStackTrace();
                 }
                 xpath = getXPath(formController, formController.getModel().getFormIndex());
-                ;
                 answer = value;
                 instanceXML = udpatedInstanceXML;
                 return start();
@@ -163,7 +177,7 @@ public class MenuManager {
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
         } else if (answer != null && answer.equals("*")) {
-            // instanceXML = null;
+            if(!isPrefilled) instanceXML = null;
             xpath = null;
             answer = null;
             return start();
@@ -259,8 +273,12 @@ public class MenuManager {
                         for (int i = 0; i < items.size(); i++) {
                             if (value.equals(items.get(i).getLabelInnerText()) ||
                                     checkForSpaceInOptions(value, items, i) ||
-                                    checkForDotInOptions(value, items, i)) {
-                                IAnswerData answerData = new StringData(items.get(i).getValue());
+                                    checkForDotInOptions(value, items, i) ||
+                                    this.isSpecialResponse
+                            ) {
+                                IAnswerData answerData;
+                                if (!this.isSpecialResponse) answerData = new StringData(items.get(i).getValue());
+                                else answerData = new StringData(value);
                                 saveStatus = formController.answerQuestion(formIndex, answerData, true);
                                 break;
                             }
@@ -557,6 +575,11 @@ public class MenuManager {
         return xPath.contains("intro");
     }
 
+    private boolean isNote() {
+        String xPath = getXPath(formController, formController.getModel().getFormIndex());
+        return xPath.contains("note");
+    }
+
     private String getChoices(String choices) {
         try {
             switch (formController.getModel().getQuestionPrompt().getControlType()) {
@@ -574,6 +597,7 @@ public class MenuManager {
     }
 
     private String createViewForFormEnd(FormEntryController formController) {
+
         return "";
     }
 

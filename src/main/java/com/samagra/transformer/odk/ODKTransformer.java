@@ -13,6 +13,8 @@ import com.samagra.transformer.odk.persistance.FormsDao;
 import com.samagra.transformer.odk.persistance.JsonDB;
 import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
+import com.samagra.transformer.pt.MissionPrerna;
+import com.samagra.transformer.pt.SakshamSamiksha;
 import com.samagra.transformer.samagra.LeaveManager;
 import com.samagra.transformer.samagra.SamagraOrgForm;
 import com.samagra.transformer.samagra.TemplateServiceUtils;
@@ -80,9 +82,11 @@ public class ODKTransformer extends TransformerProvider {
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         XMessage transformedMessage = this.transform(xMessage);
         if (transformedMessage != null) {
+            /*
             log.error("mainSender");
             log.error(transformedMessage.toXML());
             log.error("________________________________________");
+             */
             kafkaProducer.send("outbound", transformedMessage.toXML());
             long endTime = System.nanoTime();
             long duration = (endTime - startTime);
@@ -122,7 +126,6 @@ public class ODKTransformer extends TransformerProvider {
 
         formManagerParams.setPreviousPath(prevPath);
         formManagerParams.setInstanceXMlPrevious(prevXMl);
-
         return formManagerParams;
     }
 
@@ -134,9 +137,8 @@ public class ODKTransformer extends TransformerProvider {
             String formID = getFormID(campaign);
             String formPath = getFormPath(formID);
             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.data.get("startingMessage"));
-            if (isStartingMessage) {
-                xMessage.setPayload(null);
-            }
+            boolean isPrefilled = false;
+
             // Switch from-to
             switchFromTo(xMessage);
 
@@ -145,10 +147,11 @@ public class ODKTransformer extends TransformerProvider {
 
             boolean isApprovalFlow = false;
             User employee = null;
-            // TODO Make a distinction between Form and MenuManager based on Campaign Configuration.
-            if (formID.equals("samagra_workflows_form_updated_2")) {
 
-                employee = UserService.findByPhone(xMessage.getTo().getUserID());
+            // TODO Make a distinction between Form and MenuManager based on Campaign Configuration.
+            if (isSamagraBot(formID)) {
+                isPrefilled = true;
+                employee = UserService.findByPhoneAndCampaign(xMessage.getTo().getUserID(), campaign);
                 if (xMessage.getPayload() != null) {
                     isApprovalFlow = approvalFlow(employee, xMessage.getPayload().getText(), xMessage);
                 }
@@ -170,9 +173,39 @@ public class ODKTransformer extends TransformerProvider {
                 }
             }
 
+            if (isSakshamSamikshaBot(formID)) {
+                isPrefilled = true;
+                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
+                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
+                    ss.parse(response.currentResponseState);
+                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
+                }
+                if (previousMeta.currentAnswer.equals("#")) {
+                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
+                    ss.parse(previousMeta.instanceXMlPrevious);
+                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
+                }
+            }
+
+            if (isMissionPrerna(formID)) {
+                isPrefilled = true;
+                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
+                    MissionPrerna ss = MissionPrerna.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
+                    ss.parse(response.currentResponseState);
+                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
+                }
+                if (previousMeta.currentAnswer.equals("#")) {
+                    MissionPrerna ss = MissionPrerna.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
+                    ss.parse(previousMeta.instanceXMlPrevious);
+                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
+                }
+            }
+
             if (!isApprovalFlow) {
 
-                ServiceResponse response = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath).start();
+                ServiceResponse response = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, isPrefilled).start();
 
                 // Create new xMessage from response
                 XMessage nextMessage = getMessageFromResponse(xMessage, response);
@@ -183,17 +216,30 @@ public class ODKTransformer extends TransformerProvider {
 
                 XMessage cloneMessage = getClone(nextMessage);
 
-                if (formID.equals("samagra_workflows_form_updated_2") && !previousMeta.currentAnswer.equals("#")) {
+                if (!isSamagraBot(formID) && isEndOfForm(response)) {
+                    new UploadService().submit(response.currentResponseState, restTemplate, customRestTemplate);
+                }
+
+                if (isSamagraBot(formID) && !previousMeta.currentAnswer.equals("#")) {
                     SamagraOrgForm orgForm = null;
                     orgForm = SamagraOrgForm.builder().build();
                     orgForm.parse(response.currentResponseState);
-                    if (response.getCurrentIndex().equals("endOfForm") || response.currentIndex.contains("eof")) {
+                    if (isEndOfForm(response)) {
                         new UploadService().submit(response.currentResponseState, restTemplate, customRestTemplate);
                         if (response.currentIndex.contains("eof_leave_applied_message")) {
                             // Send message to manager
-                            User manager = UserService.getManager(employee);
-                            sendMessageToManagerForApproval(employee, cloneMessage, orgForm, manager);
-                            oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), orgForm.getStartDate(), "3");
+
+                            // Check for program construct.
+                            String construct = UserService.getProgramConstruct(employee);
+                            Boolean isAssociate = UserService.isAssociate(employee);
+                            if (construct.equals("2") && isAssociate) {
+                                User coordinator = UserService.getProgramCoordinator(employee);
+                                sendMessageToManagerForApproval(employee, cloneMessage, orgForm, coordinator);
+                            } else {
+                                User manager = UserService.getManager(employee);
+                                sendMessageToManagerForApproval(employee, cloneMessage, orgForm, manager);
+                                oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), orgForm.getStartDate(), "3");
+                            }
                         } else if (response.currentIndex.contains("eof_air_ticket_applied_message_one_way")) {
                             sendMessageForFlightOneWayToAdmin(orgForm, cloneMessage, employee);
                         } else if (response.currentIndex.contains("eof_air_ticket_applied_message_two_way")) {
@@ -220,6 +266,22 @@ public class ODKTransformer extends TransformerProvider {
             }
         }
         return null;
+    }
+
+    private boolean isEndOfForm(ServiceResponse response) {
+        return response.getCurrentIndex().equals("endOfForm") || response.currentIndex.contains("eof");
+    }
+
+    private boolean isSamagraBot(String formID) {
+        return formID.equals("samagra_workflows_form_updated_6");
+    }
+
+    private boolean isSakshamSamikshaBot(String formID) {
+        return formID.equals("schoolheads_v1");
+    }
+
+    private boolean isMissionPrerna(String formID) {
+        return formID.equals("ss_form_mpc");
     }
 
     private void sendTrainMissedMessageToAdmin(SamagraOrgForm orgForm, XMessage message, User employee) {
@@ -302,7 +364,11 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private String getFormID(Application campaign) {
-        return (String) ((Map<Object, Object>) ((ArrayList<Map>) campaign.data.get("parts")).get(0).get("meta")).get("formID");
+        try{
+            return (String) ((Map<Object, Object>) ((ArrayList<Map>) campaign.data.get("parts")).get(0).get("meta")).get("formID");
+        }catch (Exception e){
+            return (String) ((Map<Object, Object>) ((ArrayList<Map>) campaign.data.get("parts")).get(1).get("meta")).get("formID");
+        }
     }
 
     private void sendMessageToManagerForApproval(User employee, XMessage nextMessage, SamagraOrgForm orgForm, User manager) throws Exception {
@@ -432,32 +498,26 @@ public class ODKTransformer extends TransformerProvider {
         // Check if the response is from a manager.
         // Get last thing sent to the manager
         try {
-            String message = getLastSentMessage(xmsg.getMessageId().getReplyId()).getXMessage();
+            String message = getLastSentMessage(xmsg.getMessageId().getReplyId(), manager.mobilePhone).getXMessage();
             if (message.contains("1. Approve")) {
                 respondToManager(manager, getClone(xmsg));
                 isApprovalFlow = true;
                 // Get the employee for that manager.
-                String employeeName = message.split(" from your team has applied for")[0].split("this is to inform you that ")[1];
-                String startDateString = message.split("leave from ")[1].split(" to ")[0];
-                String endDateString = message.split("leave from ")[1].split(" to ")[1].split(" for ")[0];
-                String workingDays = message.split(" working days ")[0].split(" for ")[2];
-
+                String employeeName = getEmployeeNameFromMessage(message);
+                String startDateString = getStartingDateFromMessage(message);
+                String endDateString = getEndDateFromMessage(message);
+                String workingDays = getWorkingDaysFromMessage(message);
                 try {
                     User employee = UserService.getUserByFullName(employeeName, "SamagraBot");
+
                     boolean isApproved = payload.equals("1");
-                    if (isApproved) { // If approved => update leave status; update the end user;
-                        LeaveManager.builder().user(employee).build().updateLeaves(Integer.parseInt(workingDays));
-                        buildApprovalMessage(employee, getClone(xmsg));
-                        buildProgramOwnerMessage(employee, getClone(xmsg), startDateString, endDateString, workingDays);
-                        deleteLastMessage(manager);
-                        oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), startDateString, "1");
-                    } else {// If rejected => update the end user;
-                        buildRejectionMessage(employee, getClone(xmsg));
-                        oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), startDateString, "2");
-                    }
+
+                    if (isApproved) approvalPipeline(manager, xmsg, startDateString, endDateString, workingDays, employee);
+                    else rejectionPipeline(xmsg, startDateString, employee);
 
                     // Update the previously submitted form for employee.
                     updateLastSentForm(employee);
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -466,6 +526,39 @@ public class ODKTransformer extends TransformerProvider {
             return false;
         }
         return isApprovalFlow;
+    }
+
+    private String getWorkingDaysFromMessage(String message) {
+        return message.split(" working days ")[0].split(" for ")[2];
+    }
+
+    private String getEndDateFromMessage(String message) {
+        return message.split("leave from ")[1].split(" to ")[1].split(" for ")[0];
+    }
+
+    private String getStartingDateFromMessage(String message) {
+        return message.split("leave from ")[1].split(" to ")[0];
+    }
+
+    private String getEmployeeNameFromMessage(String message) {
+        return message.split(" from your team has applied for")[0].split("this is to inform you that ")[1];
+    }
+
+    private void rejectionPipeline(XMessage xmsg, String startDateString, User employee) throws Exception {
+        // If rejected => update the end user;
+        buildRejectionMessage(employee, getClone(xmsg));
+        oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), startDateString, "2");
+    }
+
+    private void approvalPipeline(User manager, XMessage xmsg, String startDateString, String endDateString, String workingDays, User employee) throws Exception {
+        // If approved => update leave status; update the end user;
+        LeaveManager.builder().user(employee).build().updateLeaves(Integer.parseInt(workingDays));
+        buildApprovalMessage(employee, getClone(xmsg));
+        buildProgramOwnerMessage(employee, getClone(xmsg), startDateString, endDateString, workingDays);
+        deleteLastMessage(manager);
+        oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), startDateString, "1");
+
+
     }
 
     private void oneTimeSampleTask(String employeeName, String teamName, String startDateString, String status) {
@@ -484,10 +577,12 @@ public class ODKTransformer extends TransformerProvider {
             public void executeOnce(TaskInstance<SchedulerData> taskInstance, ExecutionContext executionContext) {
                 log.info("Running recurring-simple-task. Instance: {}, ctx: {}", taskInstance, executionContext);
                 try {
-                    updateStatusForApproval(taskInstance.getData().getEmployeeName(),
+                    updateStatusForApproval(
+                            taskInstance.getData().getEmployeeName(),
                             taskInstance.getData().getTeamName(),
                             taskInstance.getData().getStartDateString(),
-                            taskInstance.getData().getStatus());
+                            taskInstance.getData().getStatus()
+                    );
                 } catch (Exception e) {
 
                     log.error("Exception in task");
@@ -511,7 +606,7 @@ public class ODKTransformer extends TransformerProvider {
     public static int retry = 0;
 
     private void updateStatusForApproval(String employeeName, String teamName, String startDateString, String approvalStatus) throws IOException {
-        log.info("starting task ===============================================");
+        log.info("starting task ===============================================" + employeeName + "-" +teamName+ "-" + startDateString+ "-" + approvalStatus);
         String baseURL = "http://139.59.93.172:3000/samagra-internal-workflow-v2?filter=";
         String filters = String.format("{\"where\":{\"data.member_name\": \"%s\", \"data.team_name\": \"%s\", \"data.start_date_leave\": \"%s\"}}",
                 employeeName, teamName, startDateString);
@@ -521,7 +616,7 @@ public class ODKTransformer extends TransformerProvider {
                 .url(baseURL + filters)
                 .method("GET", null)
                 .build();
-        log.info("Currently calling::" +  baseURL + filters);
+        log.info("Currently calling::" + baseURL + filters);
         Response response = client.newCall(request).execute();
         String jsonData = response.body().string();
         JSONArray jsonArray = new JSONArray(jsonData);
@@ -533,7 +628,7 @@ public class ODKTransformer extends TransformerProvider {
             oldData = ((JSONObject) data.getJSONArray("data").get(0)).getString("manager_approval");
         } catch (Exception e) {
         }
-        log.info("OldAns :: " +  oldData);
+        log.info("OldAns :: " + oldData);
         if (approvalStatus.equals("3") && oldData == null) {
             ((JSONObject) data.getJSONArray("data").get(0)).put("manager_approval", approvalStatus);
         } else if ((oldData == null || oldData.equals("2") || oldData.equals("1")) && approvalStatus.equals("2")) {
@@ -581,7 +676,10 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private void buildProgramOwnerMessage(User user, XMessage message, String startDate, String endDate, String numberOfdays) throws Exception {
-        User owner = UserService.getEngagementOwner(user);
+        User owner;
+        if(UserService.getProgramConstruct(user).equals("2") && UserService.isAssociate(user)){
+            owner = UserService.getManager(user);
+        }else owner = UserService.getEngagementOwner(user);
         if (owner != null) {
             String approvalMessage = TemplateServiceUtils.getFormattedString("POReportMessage", owner.fullName, user.fullName,
                     (String) user.data.get("engagement"), startDate, endDate, numberOfdays);
@@ -594,7 +692,12 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private void buildApprovalMessage(User user, XMessage message) throws Exception {
-        String approvalMessage = TemplateServiceUtils.getFormattedString("ApprovalStatus", user.fullName, "Approved", (String) user.data.get("programOwner"));
+        User owner;
+        if(UserService.getProgramConstruct(user).equals("2") && UserService.isAssociate(user)){
+            owner = UserService.getManager(user);
+        }else owner = UserService.getEngagementOwner(user);
+
+        String approvalMessage = TemplateServiceUtils.getFormattedString("ApprovalStatus", user.fullName, "Approved", owner.fullName);
         switchFromTo(message);
         message.setMessageType(XMessage.MessageType.HSM);
         message.getTo().setUserID(user.mobilePhone);
@@ -602,8 +705,8 @@ public class ODKTransformer extends TransformerProvider {
         sendSingle(message);
     }
 
-    private XMessageDAO getLastSentMessage(String replyId) {
-        String url = String.format("http://orchestrator:8686/getLastMessage?replyId=%s", replyId);
+    private XMessageDAO getLastSentMessage(String replyId, String userId) {
+        String url = String.format("http://orchestrator:8686/getLastMessage?replyId=%s&userId=%s", replyId, userId);
         return restTemplate.getForEntity(url, XMessageDAO.class).getBody();
     }
 

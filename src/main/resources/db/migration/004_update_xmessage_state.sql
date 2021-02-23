@@ -1,0 +1,1 @@
+ALTER TABLE xmessage_state ALTER COLUMN previous_path TYPE varchar(500);
