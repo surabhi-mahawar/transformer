@@ -1,6 +1,7 @@
 package com.samagra.transformer.odk;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.github.kagkarlsson.scheduler.Scheduler;
 import com.github.kagkarlsson.scheduler.task.*;
 import com.github.kagkarlsson.scheduler.task.helper.OneTimeTask;
@@ -74,7 +75,8 @@ public class ODKTransformer extends TransformerProvider {
     DataSource dataSource;
 
 
-    @KafkaListener(id = "transformer1", topics = "Form2")
+    // Listen to all ODK based transformers
+    @KafkaListener(id = "odk-transformer", topicPattern = "com.odk.*")
     public void consumeMessage(String message) throws Exception {
         long startTime = System.nanoTime();
         log.info("Form Transformer Message: " + message);
@@ -82,11 +84,6 @@ public class ODKTransformer extends TransformerProvider {
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         XMessage transformedMessage = this.transform(xMessage);
         if (transformedMessage != null) {
-            /*
-            log.error("mainSender");
-            log.error(transformedMessage.toXML());
-            log.error("________________________________________");
-             */
             kafkaProducer.send("outbound", transformedMessage.toXML());
             long endTime = System.nanoTime();
             long duration = (endTime - startTime);
@@ -132,11 +129,11 @@ public class ODKTransformer extends TransformerProvider {
 
     @Override
     public XMessage transform(XMessage xMessage) throws Exception {
-        Application campaign = CampaignService.getCampaignFromName(xMessage.getApp());
+        JsonNode campaign = CampaignService.getCampaignFromName(xMessage.getApp());
         if (campaign != null) {
             String formID = getFormID(campaign);
             String formPath = getFormPath(formID);
-            boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.data.get("startingMessage"));
+            boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage"));
             boolean isPrefilled = false;
 
             // Switch from-to
@@ -173,37 +170,37 @@ public class ODKTransformer extends TransformerProvider {
                 }
             }
 
-            if (isSakshamSamikshaBot(formID)) {
-                isPrefilled = true;
-                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-                    previousMeta.currentAnswer = "*";
-                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
-                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
-                    ss.parse(response.currentResponseState);
-                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
-                }
-                if (previousMeta.currentAnswer.equals("#")) {
-                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
-                    ss.parse(previousMeta.instanceXMlPrevious);
-                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
-                }
-            }
+//            if (isSakshamSamikshaBot(formID)) {
+//                isPrefilled = true;
+//                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+//                    previousMeta.currentAnswer = "*";
+//                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
+//                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
+//                    ss.parse(response.currentResponseState);
+//                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
+//                }
+//                if (previousMeta.currentAnswer.equals("#")) {
+//                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
+//                    ss.parse(previousMeta.instanceXMlPrevious);
+//                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
+//                }
+//            }
 
-            if (isMissionPrerna(formID)) {
-                isPrefilled = true;
-                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-                    previousMeta.currentAnswer = "*";
-                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
-                    MissionPrerna ss = MissionPrerna.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
-                    ss.parse(response.currentResponseState);
-                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
-                }
-                if (previousMeta.currentAnswer.equals("#")) {
-                    MissionPrerna ss = MissionPrerna.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
-                    ss.parse(previousMeta.instanceXMlPrevious);
-                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
-                }
-            }
+//            if (isMissionPrerna(formID)) {
+//                isPrefilled = true;
+//                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+//                    previousMeta.currentAnswer = "*";
+//                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
+//                    MissionPrerna ss = MissionPrerna.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
+//                    ss.parse(response.currentResponseState);
+//                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
+//                }
+//                if (previousMeta.currentAnswer.equals("#")) {
+//                    MissionPrerna ss = MissionPrerna.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
+//                    ss.parse(previousMeta.instanceXMlPrevious);
+//                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
+//                }
+//            }
 
             if (!isApprovalFlow) {
 
@@ -365,11 +362,11 @@ public class ODKTransformer extends TransformerProvider {
         }
     }
 
-    private String getFormID(Application campaign) {
+    private String getFormID(JsonNode campaign) {
         try{
-            return (String) ((Map<Object, Object>) ((ArrayList<Map>) campaign.data.get("parts")).get(0).get("meta")).get("formID");
+            return campaign.findValue("formID").asText();
         }catch (Exception e){
-            return (String) ((Map<Object, Object>) ((ArrayList<Map>) campaign.data.get("parts")).get(1).get("meta")).get("formID");
+            return "";
         }
     }
 

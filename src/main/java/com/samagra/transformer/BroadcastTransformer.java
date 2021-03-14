@@ -45,6 +45,7 @@ public class BroadcastTransformer extends TransformerProvider {
     public XMessage transform(XMessage xMessage) {
         //TODO: Get all the phone numbers for the users and update the userID
 
+        /*
         try {
             StringBuilder userIds = new StringBuilder();
             String ids = "";
@@ -64,6 +65,7 @@ public class BroadcastTransformer extends TransformerProvider {
             e.printStackTrace();
             log.error("Exception in getting users for this campaign");
         }
+         */
         return xMessage;
     }
 

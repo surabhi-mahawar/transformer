@@ -36,6 +36,8 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
     public List<XMessage> transformToMany(XMessage parentXMessage) {
         Application campaign;
         List<XMessage> startingMessagesForUsers = new ArrayList<>();
+        //Fixme !!Important
+        /*
         try {
             campaign = CampaignService.getCampaignFromName(parentXMessage.getApp());
             List<User> users = UserService.findUsersForCampaign(parentXMessage.getApp());
@@ -82,7 +84,7 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
+        */
         return startingMessagesForUsers;
     }
 

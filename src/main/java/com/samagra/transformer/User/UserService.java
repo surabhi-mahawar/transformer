@@ -1,5 +1,6 @@
 package com.samagra.transformer.User;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inversoft.error.Errors;
 import com.inversoft.rest.ClientResponse;
@@ -64,27 +65,29 @@ public class UserService {
         return null;
     }
 
-    public static User findByPhoneAndCampaign(String phone, Application campaign) {
-        FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
-        if(campaign != null){
-            UserSearchCriteria usc = new UserSearchCriteria();
-            usc.queryString = "(mobilePhone: " + phone + ") AND (memberships.groupId: " + campaign.data.get("group") +")";
-            usc.numberOfResults = 100;
-            SearchRequest sr = new SearchRequest(usc);
-            ClientResponse<SearchResponse, Errors> cr = staticClient.searchUsersByQueryString(sr);
-            if (cr.wasSuccessful()) {
-                return cr.successResponse.users.get(0);
-            } else if (cr.exception != null) {
-                // Exception Handling
-                Exception exception = cr.exception;
-                log.error("Exception in getting users for campaign: " + exception.toString());
-            }
-        }
+    public static User findByPhoneAndCampaign(String phone, JsonNode campaign) {
+//        FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
+//        if(campaign != null){
+//            UserSearchCriteria usc = new UserSearchCriteria();
+//            usc.queryString = "(mobilePhone: " + phone + ") AND (memberships.groupId: " + campaign.data.get("group") +")";
+//            usc.numberOfResults = 100;
+//            SearchRequest sr = new SearchRequest(usc);
+//            ClientResponse<SearchResponse, Errors> cr = staticClient.searchUsersByQueryString(sr);
+//            if (cr.wasSuccessful()) {
+//                return cr.successResponse.users.get(0);
+//            } else if (cr.exception != null) {
+//                // Exception Handling
+//                Exception exception = cr.exception;
+//                log.error("Exception in getting users for campaign: " + exception.toString());
+//            }
+//        }
         return null;
     }
 
     public static List<User> findUsersForCampaign(String campaignName) throws Exception {
 
+        // Fixme: Important
+        /*
         Application currentApplication = CampaignService.getCampaignFromName(campaignName);
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
         if(currentApplication != null){
@@ -101,7 +104,7 @@ public class UserService {
                 Exception exception = cr.exception;
                 log.error("Exception in getting users for campaign: " + exception.toString());
             }
-        }
+        }*/
         return new ArrayList<>();
     }
 
