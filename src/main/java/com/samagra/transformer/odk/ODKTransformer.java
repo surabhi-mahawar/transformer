@@ -18,6 +18,7 @@ import com.samagra.transformer.pt.SakshamSamiksha;
 import com.samagra.transformer.samagra.LeaveManager;
 import com.samagra.transformer.samagra.SamagraOrgForm;
 import com.samagra.transformer.samagra.TemplateServiceUtils;
+import com.samagra.transformer.publisher.CommonProducer;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;
 import lombok.*;
@@ -35,7 +36,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-import com.samagra.transformer.publisher.CommonProducer;
 import org.springframework.web.client.RestTemplate;
 
 import javax.sql.DataSource;
@@ -176,6 +176,7 @@ public class ODKTransformer extends TransformerProvider {
             if (isSakshamSamikshaBot(formID)) {
                 isPrefilled = true;
                 if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                    previousMeta.currentAnswer = "*";
                     ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
                     SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
                     ss.parse(response.currentResponseState);
@@ -191,6 +192,7 @@ public class ODKTransformer extends TransformerProvider {
             if (isMissionPrerna(formID)) {
                 isPrefilled = true;
                 if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                    previousMeta.currentAnswer = "*";
                     ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
                     MissionPrerna ss = MissionPrerna.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
                     ss.parse(response.currentResponseState);

@@ -54,7 +54,11 @@ public class LeaveManager {
         if (user.data.get("lastUpdatedAt") != null) {
             accruedLeaves = accruedLeavedSinceDate((String) user.data.get("lastUpdatedAt"));
             if (user.data.get("accurateLeaves") == null) {
-                previousLeaves = Double.parseDouble((String) user.data.get("leavesAvailable"));
+                try{
+                    previousLeaves = Double.parseDouble((String) user.data.get("leavesAvailable"));
+                }catch (Exception e1){
+                    previousLeaves = 0.0;
+                }
             } else {
                 try{
                     previousLeaves = Double.parseDouble((String) user.data.get("accurateLeaves"));

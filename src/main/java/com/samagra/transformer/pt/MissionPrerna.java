@@ -26,6 +26,8 @@ public class MissionPrerna {
     String phone;
     Map<String, Object> instanceData;
 
+    public static String shortnrBaseURL = "https://url.samagra.io";
+
     public String getInitialValue() {
         UUID instanceID = randomUUID();
 
@@ -38,7 +40,7 @@ public class MissionPrerna {
         JSONObject jsonData = new JSONObject(data);
         RequestBody body = RequestBody.create(mediaType, jsonData.toString());
         Request request = new Request.Builder()
-                .url("http://localhost:8000/user/eval")
+                .url(shortnrBaseURL + "/user/eval")
                 .method("POST", body)
                 .addHeader("Content-Type", "application/json")
                 .build();

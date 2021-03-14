@@ -1,13 +1,11 @@
 package com.samagra.transformer.application;
 
-import android.webkit.MimeTypeMap;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.github.kagkarlsson.scheduler.Scheduler;
-import com.github.kagkarlsson.scheduler.task.Task;
-import com.samagra.transformer.odk.*;
+import com.samagra.transformer.odk.FormDownloader;
+import com.samagra.transformer.odk.FormManager;
+import com.samagra.transformer.odk.ODKTransformer;
+import com.samagra.transformer.odk.ServiceResponse;
 import com.samagra.transformer.odk.model.Form;
 import com.samagra.transformer.odk.model.FormDetails;
-import com.samagra.transformer.odk.openrosa.CollectThenSystemContentTypeMapper;
 import com.samagra.transformer.odk.openrosa.OpenRosaAPIClient;
 import com.samagra.transformer.odk.openrosa.OpenRosaHttpInterface;
 import com.samagra.transformer.odk.openrosa.okhttp.OkHttpConnection;
@@ -16,18 +14,12 @@ import com.samagra.transformer.odk.persistance.FormsDao;
 import com.samagra.transformer.odk.persistance.JsonDB;
 import com.samagra.transformer.odk.utilities.FormListDownloader;
 import com.samagra.transformer.odk.utilities.WebCredentialsUtils;
-import io.jsondb.JsonDBTemplate;
 import lombok.extern.slf4j.Slf4j;
-import messagerosa.core.model.XMessage;
 import okhttp3.OkHttpClient;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -36,11 +28,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.util.FileSystemUtils;
 
 import javax.annotation.PostConstruct;
-import javax.swing.*;
-import javax.xml.bind.JAXBException;
 import java.io.File;
-import java.security.GeneralSecurityException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -65,7 +53,7 @@ public class TransformerApplication {
 
     @PostConstruct
     private void postConstruct() {
-         downloadForms();
+        downloadForms();
         // testFormManager();
     }
 

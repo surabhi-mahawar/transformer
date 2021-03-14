@@ -6,9 +6,7 @@ import android.database.Cursor;
 import com.samagra.transformer.odk.model.Form;
 import com.samagra.transformer.odk.utilities.FileUtils;
 import io.jsondb.JsonDBTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.util.ArrayList;

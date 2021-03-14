@@ -1,6 +1,5 @@
 package com.samagra.transformer.odk.utilities;
 
-import android.app.Application;
 import android.net.Uri;
 import com.samagra.transformer.odk.FormDownloader;
 import com.samagra.transformer.odk.model.Form;
@@ -15,7 +14,6 @@ import org.springframework.lang.Nullable;
 
 import java.io.File;
 import java.net.HttpURLConnection;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

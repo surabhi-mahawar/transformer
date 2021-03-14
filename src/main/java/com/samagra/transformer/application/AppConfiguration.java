@@ -1,11 +1,5 @@
 package com.samagra.transformer.application;
 
-import com.samagra.transformer.odk.model.Form;
-import com.samagra.transformer.odk.persistance.FormsDao;
-import io.jsondb.InvalidJsonDbApiUsageException;
-import io.jsondb.JsonDBTemplate;
-import io.jsondb.crypto.Default1Cipher;
-import io.jsondb.crypto.ICipher;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -20,9 +14,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
-
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 
 @Configuration
 @EnableAutoConfiguration

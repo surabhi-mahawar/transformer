@@ -5,10 +5,11 @@ import com.samagra.transformer.User.UserService;
 import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
 import com.samagra.transformer.publisher.CommonProducer;
-import io.fusionauth.domain.User;
+import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
+import messagerosa.core.model.XMessagePayload;
 import messagerosa.dao.XMessageRepo;
 import messagerosa.xml.XMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Component;
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 @Slf4j
@@ -35,6 +37,9 @@ public class BroadcastTransformer extends TransformerProvider {
 
     @Autowired
     private MessageRepository msgRepo;
+
+    @Autowired
+    private UserService userService;
 
     @Override
     public XMessage transform(XMessage xMessage) {
@@ -75,26 +80,42 @@ public class BroadcastTransformer extends TransformerProvider {
     @Override
     public List<XMessage> transformToMany(XMessage xMessage) {
         ArrayList<XMessage> messages = new ArrayList<>();
-
-        ArrayList<String> groups = xMessage.getTo().getGroups();
-        for (String group : groups) {
-            try {
-                List<User> users = UserService.findUsersForGroup(group);
-                for (User user : users) {
+        try{
+            Application currentApplication = CampaignService.getCampaignFromNameESamwad(xMessage.getApp());
+            ArrayList<HashMap<String, Object>> d = (ArrayList) currentApplication.data.get("parts");
+            if(d.get(0).get("template") != null){
+                ArrayList<UserWithTemplate> usersWithTemplate = userService.getUsersAndTemplateFromFederatedServers(xMessage.getApp());
+                for(UserWithTemplate u: usersWithTemplate){
                     XMessage clone = getClone(xMessage);
+                    XMessagePayload payload = clone.getPayload();
+                    payload.setText(u.getText().replace("\\n", "\n"));
+                    clone.setPayload(payload);
 
                     SenderReceiverInfo to = clone.getTo();
-                    to.setUserID(user.mobilePhone);
+                    to.setUserID(u.getUserPhone());
                     clone.setTo(to);
 
                     clone.setMessageState(XMessage.MessageState.NOT_SENT);
-
                     messages.add(clone);
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
+            }else{
+                List<String> users = UserService.getUsersFromFederatedServers(xMessage.getApp());
+                System.out.println("Total users:: " + users.size());
+                for (String phone: users){
+                    XMessage clone = getClone(xMessage);
+
+                    SenderReceiverInfo to = clone.getTo();
+                    to.setUserID(phone);
+                    clone.setTo(to);
+
+                    clone.setMessageState(XMessage.MessageState.NOT_SENT);
+                    messages.add(clone);
+                }
             }
+        }catch (Exception e){
+            log.error(e.getMessage());
         }
+
         return messages;
 
     }
@@ -103,22 +124,13 @@ public class BroadcastTransformer extends TransformerProvider {
     public void consumeMessage(String message) throws Exception {
 
         long startTime = System.nanoTime();
-        log.info("BroadcastTransformer Transormer Message: " + message);
+        log.info("BroadcastTransformer Transformer Message: " + message);
 
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
-        String userServer = xMessage.getTo().getMeta().get("userServer");
-
-        if (userServer.equals("") || userServer.equals("eSamwad")) {
-            XMessage transformedMessage = this.transform(xMessage);
-            kafkaProducer.send("outbound", transformedMessage.toXML());
-        } else if (userServer.equals("AuthServer")) {
-            ArrayList<XMessage> messages = (ArrayList<XMessage>) this.transformToMany(xMessage);
-            for (XMessage msg : messages) {
-                kafkaProducer.send("outbound", msg.toXML());
-            }
-
-        } else {
-            log.error("No suitable User Repository found");
+        ArrayList<XMessage> messages = (ArrayList<XMessage>) this.transformToMany(xMessage);
+        for (XMessage msg : messages) {
+            kafkaProducer.send("broadcast", msg.toXML());
+            kafkaProducer.send("PassThrough", msg.toXML());
         }
 
         long endTime = System.nanoTime();

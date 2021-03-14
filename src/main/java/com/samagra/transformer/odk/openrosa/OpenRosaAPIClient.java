@@ -1,10 +1,7 @@
 package com.samagra.transformer.odk.openrosa;
 
-import ch.qos.logback.classic.joran.action.LoggerAction;
 import com.samagra.transformer.odk.utilities.DocumentFetchResult;
 import com.samagra.transformer.odk.utilities.WebCredentialsUtils;
-import lombok.extern.java.Log;
-import lombok.extern.log4j.Log4j2;
 import lombok.extern.slf4j.Slf4j;
 import org.kxml2.io.KXmlParser;
 import org.kxml2.kdom.Document;

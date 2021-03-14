@@ -7,12 +7,9 @@ import com.samagra.transformer.publisher.CommonProducer;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;
 import messagerosa.dao.XMessageRepo;
-import messagerosa.xml.XMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayInputStream;
 import java.util.List;
 
 @Slf4j

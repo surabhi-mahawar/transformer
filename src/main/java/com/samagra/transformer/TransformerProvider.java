@@ -21,3 +21,5 @@ public abstract class TransformerProvider {
     public abstract List<XMessage> transformToMany(XMessage xMessage);
 
 }
+
+

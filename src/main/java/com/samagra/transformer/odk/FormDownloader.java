@@ -1,7 +1,5 @@
 package com.samagra.transformer.odk;
 
-import android.content.ContentValues;
-import android.database.Cursor;
 import android.net.Uri;
 
 import com.samagra.transformer.odk.model.Form;
@@ -11,15 +9,11 @@ import com.samagra.transformer.odk.persistance.FormsDao;
 import com.samagra.transformer.odk.utilities.DocumentFetchResult;
 import com.samagra.transformer.odk.utilities.FileUtils;
 import com.samagra.transformer.odk.utilities.MediaFile;
-import liquibase.pro.packaged.R;
 import lombok.extern.slf4j.Slf4j;
 import org.javarosa.core.reference.ReferenceManager;
 import org.javarosa.core.reference.RootTranslator;
 import org.javarosa.xform.parse.XFormParser;
 import org.kxml2.kdom.Element;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -29,7 +23,6 @@ import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 

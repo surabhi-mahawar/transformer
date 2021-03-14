@@ -1,20 +1,14 @@
 package com.samagra.transformer.pt;
 
-import com.samagra.transformer.User.UserService;
 import com.samagra.transformer.samagra.MapEntryConverter;
 import com.thoughtworks.xstream.XStream;
-import io.fusionauth.domain.User;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import okhttp3.*;
-import org.apache.commons.lang.text.StrSubstitutor;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
@@ -33,6 +27,11 @@ public class SakshamSamiksha {
     String phone;
     Map<String, Object> instanceData;
 
+
+    @Value("${external.services.url-shortnr.baseURL}")
+    public static String shortnrBaseURL;
+
+
     public String getInitialValue() {
         UUID instanceID = randomUUID();
 
@@ -45,7 +44,7 @@ public class SakshamSamiksha {
         JSONObject jsonData = new JSONObject(data);
         RequestBody body = RequestBody.create(mediaType, jsonData.toString());
         Request request = new Request.Builder()
-                .url("http://localhost:8000/user/eval")
+                .url(shortnrBaseURL + "/user/eval")
                 .method("POST", body)
                 .addHeader("Content-Type", "application/json")
                 .build();

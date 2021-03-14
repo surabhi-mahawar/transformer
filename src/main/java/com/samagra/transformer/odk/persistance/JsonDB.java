@@ -5,11 +5,7 @@ import io.jsondb.InvalidJsonDbApiUsageException;
 import io.jsondb.JsonDBTemplate;
 import io.jsondb.crypto.Default1Cipher;
 import io.jsondb.crypto.ICipher;
-import lombok.NoArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.core.io.ClassPathResource;
 
-import java.io.IOException;
 import java.security.GeneralSecurityException;
 
 public class JsonDB {

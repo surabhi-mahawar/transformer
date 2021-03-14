@@ -1,11 +1,7 @@
 package com.samagra.transformer.samagra;
 
-import android.util.Log;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.samagra.transformer.User.UserService;
 import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import io.fusionauth.domain.User;
 import lombok.*;
 import org.joda.time.DateTime;

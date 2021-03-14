@@ -23,7 +23,6 @@ import org.javarosa.model.xform.XFormsModule;
 import org.javarosa.xform.parse.XFormParser;
 import org.javarosa.xform.util.XFormUtils;
 import org.javarosa.xpath.XPathTypeMismatchException;
-import org.springframework.cache.annotation.Cacheable;
 
 import java.io.*;
 import java.nio.file.FileSystems;
