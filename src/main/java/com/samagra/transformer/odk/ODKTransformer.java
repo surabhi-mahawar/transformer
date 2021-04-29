@@ -133,7 +133,7 @@ public class ODKTransformer extends TransformerProvider {
         if (campaign != null) {
             String formID = getFormID(campaign);
             String formPath = getFormPath(formID);
-            boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage"));
+            boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
             boolean isPrefilled = false;
 
             // Switch from-to
@@ -170,21 +170,22 @@ public class ODKTransformer extends TransformerProvider {
                 }
             }
 
-//            if (isSakshamSamikshaBot(formID)) {
-//                isPrefilled = true;
-//                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-//                    previousMeta.currentAnswer = "*";
-//                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
+
+            if (isSakshamSamikshaBot(formID)) {
+                isPrefilled = true;
+                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                    previousMeta.currentAnswer = "*";
+                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
 //                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
 //                    ss.parse(response.currentResponseState);
 //                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
-//                }
+                }
 //                if (previousMeta.currentAnswer.equals("#")) {
 //                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
 //                    ss.parse(previousMeta.instanceXMlPrevious);
 //                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
 //                }
-//            }
+            }
 
 //            if (isMissionPrerna(formID)) {
 //                isPrefilled = true;
@@ -204,7 +205,13 @@ public class ODKTransformer extends TransformerProvider {
 
             if (!isApprovalFlow) {
 
-                ServiceResponse response = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, isPrefilled).start();
+                ServiceResponse response;
+                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                    previousMeta.currentAnswer = "*";
+                    response = new MenuManager(null, null, null, formPath, false).start();
+                }else{
+                    response = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, false).start();
+                }
 
                 // Create new xMessage from response
                 XMessage nextMessage = getMessageFromResponse(xMessage, response);

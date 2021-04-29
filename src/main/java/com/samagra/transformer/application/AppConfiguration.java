@@ -33,7 +33,7 @@ public class AppConfiguration {
     @Bean
     @Qualifier("custom")
     public RestTemplate getCustomTemplate(RestTemplateBuilder builder) {
-        Credentials credentials = new UsernamePasswordCredentials("samagra","impact@scale");
+        Credentials credentials = new UsernamePasswordCredentials("test","abcd1234");
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, credentials);
 

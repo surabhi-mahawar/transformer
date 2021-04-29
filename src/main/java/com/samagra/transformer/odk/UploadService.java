@@ -52,8 +52,8 @@ public class UploadService {
 
     public boolean submit(String form, RestTemplate restTemplate, RestTemplate customRestTemplate) {
         try {
-            String ODK = "http://aggregate.cttsamagra.xyz:8080/Aggregate.html#submissions/filter///";
-            String ODK2 = "http://aggregate.cttsamagra.xyz:8080/submission";
+            String ODK = "https://agg.staging.saksham.samagra.io/Aggregate.html#submissions/filter///";
+            String ODK2 = "https://agg.staging.saksham.samagra.io/submission";
             HttpEntity<String> request = new HttpEntity<String>(getVerifyHttpHeader4());
             HttpEntity<String> response = customRestTemplate.exchange(ODK, HttpMethod.GET, request, String.class);
             System.out.println(new ObjectMapper().writeValueAsString(response));

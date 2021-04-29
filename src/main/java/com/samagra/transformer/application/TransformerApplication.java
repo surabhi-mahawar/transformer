@@ -53,7 +53,7 @@ public class TransformerApplication {
 
     @PostConstruct
     private void postConstruct() {
-        downloadForms();
+        //downloadForms();
         // testFormManager();
     }
 
@@ -68,14 +68,14 @@ public class TransformerApplication {
         //Empty the database and folder
         FormsDao dao;
         try{
-            File directoryToDelete = new File("/tmp/forms");
+            File directoryToDelete = new File("/tmp/forms2");
             FileSystemUtils.deleteRecursively(directoryToDelete);
             dao = new FormsDao(JsonDB.getInstance().getDB());
             dao.deleteFormsDatabase();
         }catch (Exception e){}
 
         //Create a folder /tmp/forms
-        new File("/tmp/forms").mkdirs();
+        new File("/tmp/forms2").mkdirs();
 
         //Download fresh
         OpenRosaHttpInterface openRosaHttpInterface = new OkHttpConnection(

@@ -327,7 +327,6 @@ public class MenuManager {
         }
     }
 
-
     /**
      * Writes payload contents to the disk.
      */
@@ -363,7 +362,6 @@ public class MenuManager {
             }
         }
     }
-
 
     public static void importData(String instanceXML, FormEntryController fec) throws IOException, RuntimeException {
         // convert files into a byte array
@@ -402,7 +400,6 @@ public class MenuManager {
         }
         log.info("Done importing data");
     }
-
 
     public FormIndex getIndexFromXPath(String xpath, FormEntryController fec) {
         switch (xpath) {
@@ -599,7 +596,6 @@ public class MenuManager {
 
         return "";
     }
-
 
     private boolean initializeForm(FormDef formDef, FormEntryController fec) throws IOException {
         final InstanceInitializationFactory instanceInit = new InstanceInitializationFactory();

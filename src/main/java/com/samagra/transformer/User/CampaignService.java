@@ -57,7 +57,7 @@ public class CampaignService {
      */
     public static JsonNode getCampaignFromName(String campaignName) {
         RestTemplate restTemplate = new RestTemplate();
-        String baseURL = "http://localhost:9999/admin/v1/bot/get/?name=";
+        String baseURL = "http://federation-service:9999/admin/v1/bot/get/?name=";
         ResponseEntity<String> response
                 = restTemplate.getForEntity(baseURL + campaignName, String.class);
         if(response.getStatusCode() == HttpStatus.OK){

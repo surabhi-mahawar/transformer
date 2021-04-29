@@ -58,18 +58,18 @@ public class WebCredentialsUtils {
     }
 
     public URI getServerUrlFromPreferences() throws MalformedURLException, URISyntaxException {
-        String downloadUrl = "http://aggregate.cttsamagra.xyz:8080";
+        String downloadUrl = "https://agg.staging.saksham.samagra.io";
         URL url = new URL(downloadUrl);
         URI uri = url.toURI();
         return uri;
     }
 
     public String getPasswordFromPreferences() {
-        return "impact@scale";
+        return "abcd1234";
     }
 
     public String getUserNameFromPreferences() {
-        return "samagra";
+        return "test";
     }
 
     /**

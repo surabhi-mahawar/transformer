@@ -63,7 +63,7 @@ public class FormListDownloader {
     public HashMap<String, FormDetails> downloadFormList(@Nullable String url, @Nullable String username,
                                                          @Nullable String password, boolean alwaysCheckMediaFiles) {
 
-        String downloadListUrl = "http://aggregate.cttsamagra.xyz:8080/formList";
+        String downloadListUrl = "https://agg.staging.saksham.samagra.io/formList";
 
         // We populate this with available forms from the specified server.
         // <formname, details>
