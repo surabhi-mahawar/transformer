@@ -101,7 +101,7 @@ public class BroadcastTransformer extends TransformerProvider {
                     messages.add(clone);
                 }
             }else{
-                List<String> users = UserService.getUsersFromFederatedServers(xMessage.getApp());
+                List<String> users = UserService.getUsersPhoneFromFederatedServers(xMessage.getApp());
                 System.out.println("Total users:: " + users.size());
                 for (String phone: users){
                     XMessage clone = getClone(xMessage);

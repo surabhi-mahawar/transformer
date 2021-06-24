@@ -31,7 +31,7 @@ public class UserService {
 
 //    @Autowired
 //    @Value("${external.services.url-shortnr.baseURL}")
-    private static String shortnrBaseURL = "https://url.samagra.io";
+    private static String shortnrBaseURL = "http://localhost:9999";
 
     public static User findByEmail(String email) {
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
@@ -199,11 +199,11 @@ public class UserService {
         return usersList;
     }
 
-    public static List<String> getUsersFromFederatedServers(String campaignName){
+    public static List<String> getUsersPhoneFromFederatedServers(String campaignName){
 
         Application currentApplication = CampaignService.getCampaignFromNameESamwad(campaignName);
 
-        String baseURL = shortnrBaseURL + "/users";
+        String baseURL = shortnrBaseURL + "/getAllUsers";
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(90, TimeUnit.SECONDS)
                 .writeTimeout(90, TimeUnit.SECONDS)
@@ -221,9 +221,31 @@ public class UserService {
                 .build();
         try {
             Response response = client.newCall(request).execute();
-            ArrayList<String> userPhonesResponse = JSONArrayToList((new JSONObject(response.body().string())).getJSONArray("users"));
+            ArrayList<String> userPhonesResponse = JSONArrayToList((new JSONObject(response.body().string())).getJSONArray("data"));
             return userPhonesResponse;
 
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static JSONArray getUsersFromFederatedServers(String campaignID){
+
+        String baseURL = shortnrBaseURL + "/admin/v1/bot/getAllUsers/" + campaignID;
+        OkHttpClient client = new OkHttpClient().newBuilder()
+                .connectTimeout(90, TimeUnit.SECONDS)
+                .writeTimeout(90, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)
+                .build();
+        MediaType mediaType = MediaType.parse("application/json");
+        Request request = new Request.Builder()
+                .url(baseURL)
+                .addHeader("Content-Type", "application/json")
+                .build();
+        try {
+            Response response = client.newCall(request).execute();
+            return (new JSONObject(response.body().string())).getJSONArray("data");
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -1,5 +1,6 @@
 package com.samagra.transformer.odk;
 
+import liquibase.pro.packaged.A;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -8,6 +9,7 @@ import lombok.extern.java.Log;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.javarosa.core.model.*;
 import org.javarosa.core.model.data.IAnswerData;
+import org.javarosa.core.model.data.IntegerData;
 import org.javarosa.core.model.data.SelectOneData;
 import org.javarosa.core.model.data.StringData;
 import org.javarosa.core.model.instance.FormInstance;
@@ -69,6 +71,14 @@ public class MenuManager {
         this.formPath = formPath;
         this.isSpecialResponse = false;
         this.isPrefilled = isPrefilled;
+    }
+
+    public boolean isGlobal() {
+        return this.formPath.contains("Global Form");
+    }
+
+    public String getNextBotID(String xPathName){
+        return xPathName.split("__")[1];
     }
 
     protected static class FECWrapper {
@@ -268,6 +278,7 @@ public class MenuManager {
             try {
                 if (formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_SELECT_ONE) {
                     List<SelectChoice> items = formController.getModel().getQuestionPrompt().getSelectChoices();
+                    boolean found = false;
                     if (items != null) {
                         for (int i = 0; i < items.size(); i++) {
                             if (value.equals(items.get(i).getLabelInnerText()) ||
@@ -275,6 +286,7 @@ public class MenuManager {
                                     checkForDotInOptions(value, items, i) ||
                                     this.isSpecialResponse
                             ) {
+                                found = true;
                                 IAnswerData answerData;
                                 if (!this.isSpecialResponse) answerData = new StringData(items.get(i).getValue());
                                 else answerData = new StringData(value);
@@ -282,12 +294,31 @@ public class MenuManager {
                                 break;
                             }
                         }
+                        if(!found){ //Checking for labels with indexes as part of the text only
+                            for (int i = 0; i < items.size(); i++) {
+                                if (value.equals(items.get(i).getLabelInnerText().split(" ")[0]) ||
+                                        value.equals(items.get(i).getLabelInnerText().split(". ")[0])
+                                ) {
+                                    found = true;
+                                    IAnswerData answerData;
+                                    if (!this.isSpecialResponse) answerData = new StringData(items.get(i).getValue());
+                                    else answerData = new StringData(value);
+                                    saveStatus = formController.answerQuestion(formIndex, answerData, true);
+                                    break;
+                                }
+                            }
+                        }
                     }
                 } else {
                     try {
                         TreeElement t = formController.getModel().getForm().getMainInstance().resolveReference(formIndex.getReference());
-                        IAnswerData answerData = new StringData(value);
-                        saveStatus = formController.answerQuestion(formIndex, answerData, true);
+                        try{
+                            IAnswerData answerData = new IntegerData(Integer.parseInt(value));
+                            saveStatus = formController.answerQuestion(formIndex, answerData, true);
+                        }catch(Exception e){
+                            IAnswerData answerData = new StringData(value);
+                            saveStatus = formController.answerQuestion(formIndex, answerData, true);
+                        }
                     } catch (Exception e) {
                         log.severe("Error in filling form response");
                         saveStatus = ANSWER_OK;
@@ -295,7 +326,8 @@ public class MenuManager {
                 }
             } catch (Exception e) {
                 log.severe("Error in filling form response");
-                saveStatus = ANSWER_OK;
+                IAnswerData answerData = new IntegerData(Integer.parseInt(value));
+                saveStatus = formController.answerQuestion(formIndex, answerData, true);
             }
             if (saveStatus != ANSWER_OK) {
                 return new SaveStatus(instanceXML, saveStatus);

@@ -2,6 +2,7 @@ package com.samagra.transformer.odk;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.github.kagkarlsson.scheduler.Scheduler;
 import com.github.kagkarlsson.scheduler.task.*;
 import com.github.kagkarlsson.scheduler.task.helper.OneTimeTask;
@@ -16,6 +17,8 @@ import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
 import com.samagra.transformer.pt.MissionPrerna;
 import com.samagra.transformer.pt.SakshamSamiksha;
+import com.samagra.transformer.pt.skills.CandidateApproval;
+import com.samagra.transformer.pt.skills.EmployerRegistration;
 import com.samagra.transformer.samagra.LeaveManager;
 import com.samagra.transformer.samagra.SamagraOrgForm;
 import com.samagra.transformer.samagra.TemplateServiceUtils;
@@ -43,9 +46,13 @@ import javax.sql.DataSource;
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.lang.management.MemoryUsage;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+
+import static messagerosa.core.model.XMessage.MessageState.NOT_SENT;
+import static messagerosa.core.model.XMessage.MessageType.HSM;
 
 
 @Slf4j
@@ -82,12 +89,19 @@ public class ODKTransformer extends TransformerProvider {
         log.info("Form Transformer Message: " + message);
 
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
-        XMessage transformedMessage = this.transform(xMessage);
-        if (transformedMessage != null) {
-            kafkaProducer.send("outbound", transformedMessage.toXML());
-            long endTime = System.nanoTime();
-            long duration = (endTime - startTime);
-            log.error("Total time spent in processing form: " + duration / 1000000);
+        if (xMessage.getMessageType() == XMessage.MessageType.BROADCAST_TEXT) {
+            ArrayList<XMessage> messages = (ArrayList<XMessage>) this.transformToMany(xMessage);
+            for (XMessage msg : messages) {
+                kafkaProducer.send("outbound", msg.toXML());
+            }
+        } else {
+            XMessage transformedMessage = this.transform(xMessage);
+            if (transformedMessage != null) {
+                kafkaProducer.send("outbound", transformedMessage.toXML());
+                long endTime = System.nanoTime();
+                long duration = (endTime - startTime);
+                log.error("Total time spent in processing form: " + duration / 1000000);
+            }
         }
     }
 
@@ -145,6 +159,7 @@ public class ODKTransformer extends TransformerProvider {
             boolean isApprovalFlow = false;
             User employee = null;
 
+
             // TODO Make a distinction between Form and MenuManager based on Campaign Configuration.
             if (isSamagraBot(formID)) {
                 isPrefilled = true;
@@ -187,30 +202,32 @@ public class ODKTransformer extends TransformerProvider {
 //                }
             }
 
-//            if (isMissionPrerna(formID)) {
-//                isPrefilled = true;
-//                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-//                    previousMeta.currentAnswer = "*";
-//                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
-//                    MissionPrerna ss = MissionPrerna.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
-//                    ss.parse(response.currentResponseState);
-//                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
-//                }
-//                if (previousMeta.currentAnswer.equals("#")) {
-//                    MissionPrerna ss = MissionPrerna.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
-//                    ss.parse(previousMeta.instanceXMlPrevious);
-//                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
-//                }
-//            }
-
             if (!isApprovalFlow) {
 
                 ServiceResponse response;
+                MenuManager mm;
                 if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
                     previousMeta.currentAnswer = "*";
-                    response = new MenuManager(null, null, null, formPath, false).start();
-                }else{
-                    response = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, false).start();
+                    mm = new MenuManager(null, null, null, formPath, false);
+                    if(formID.equals("Rozgar-Saathi-MVP-EmpReg-Vac-Chatbot4")){
+                        response = mm.start();
+                        EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
+                        ss.parse(response.currentResponseState);
+                        String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
+                        mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
+                    }
+                    response = mm.start();
+
+                } else {
+                    mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, false);
+                    response = mm.start();
+                }
+
+                if (mm.isGlobal() && response.currentIndex.contains("eof")) {
+                    String nextBotID = mm.getNextBotID(response.currentIndex);
+                    String nextFormID = CampaignService.getFirstFormByBotID(nextBotID);
+                    MenuManager mm2 = new MenuManager(null, null, null, getFormPath(nextFormID), false);
+                    response = mm2.start();
                 }
 
                 // Create new xMessage from response
@@ -296,7 +313,7 @@ public class ODKTransformer extends TransformerProvider {
             if (admin != null) {
                 String missedFlightMessage = TemplateServiceUtils.getFormattedString("TrainMissedMessage", employee.fullName, orgForm.getTrainMissedPNR());
                 switchFromTo(message);
-                message.setMessageType(XMessage.MessageType.HSM);
+                message.setMessageType(HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
                 sendSingle(message);
@@ -313,7 +330,7 @@ public class ODKTransformer extends TransformerProvider {
                 String missedFlightMessage = TemplateServiceUtils.getFormattedString(
                         "TicketCancellationMesssage", employee.fullName, orgForm.getTrainCancellationPNR());
                 switchFromTo(message);
-                message.setMessageType(XMessage.MessageType.HSM);
+                message.setMessageType(HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
                 sendSingle(message);
@@ -337,7 +354,7 @@ public class ODKTransformer extends TransformerProvider {
                         "TwoWayTrainTicketMessage", employee.fullName,
                         onwardDate, returnDate, startCity, destinationCity, onwardTrainNumber, returnTrainNumber);
                 switchFromTo(message);
-                message.setMessageType(XMessage.MessageType.HSM);
+                message.setMessageType(HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(oneWayTripMessage);
                 sendSingle(message);
@@ -359,7 +376,7 @@ public class ODKTransformer extends TransformerProvider {
                         "OneWayTrainTicketMessage", employee.fullName,
                         travelDate, startCity, destinationCity, trainNumber);
                 switchFromTo(message);
-                message.setMessageType(XMessage.MessageType.HSM);
+                message.setMessageType(HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(oneWayTripMessage);
                 sendSingle(message);
@@ -370,9 +387,9 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     private String getFormID(JsonNode campaign) {
-        try{
+        try {
             return campaign.findValue("formID").asText();
-        }catch (Exception e){
+        } catch (Exception e) {
             return "";
         }
     }
@@ -384,7 +401,7 @@ public class ODKTransformer extends TransformerProvider {
                 orgForm.getReasonForLeave());
         XMessagePayload payload = XMessagePayload.builder().text(getLeaveMessage).build();
         nextMessage.setPayload(payload);
-        nextMessage.setMessageType(XMessage.MessageType.HSM);
+        nextMessage.setMessageType(HSM);
         nextMessage.getTo().setUserID(manager.mobilePhone);
         sendSingle(nextMessage);
     }
@@ -407,7 +424,7 @@ public class ODKTransformer extends TransformerProvider {
                 String missedFlightMessage = TemplateServiceUtils.getFormattedString(
                         "MissedFlightMessage", employee.fullName, orgForm.getMissedFlightPNR());
                 switchFromTo(message);
-                message.setMessageType(XMessage.MessageType.HSM);
+                message.setMessageType(HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
                 sendSingle(message);
@@ -424,7 +441,7 @@ public class ODKTransformer extends TransformerProvider {
                 String missedFlightMessage = TemplateServiceUtils.getFormattedString(
                         "TicketCancellationMesssage", employee.fullName, orgForm.getMissedFlightPNR());
                 switchFromTo(message);
-                message.setMessageType(XMessage.MessageType.HSM);
+                message.setMessageType(HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(missedFlightMessage);
                 sendSingle(message);
@@ -445,7 +462,7 @@ public class ODKTransformer extends TransformerProvider {
                 String oneWayTripMessage = TemplateServiceUtils.getFormattedString("OneWayTripMessage", employee.fullName,
                         travelDate, startCity, destinationCity, flightNumber);
                 switchFromTo(message);
-                message.setMessageType(XMessage.MessageType.HSM);
+                message.setMessageType(HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(oneWayTripMessage);
                 sendSingle(message);
@@ -468,7 +485,7 @@ public class ODKTransformer extends TransformerProvider {
                 String twoWayTripMessage = TemplateServiceUtils.getFormattedString("TwoWayTripMessage", employee.fullName,
                         travelDate, returnDate, startCity, destinationCity, flightNumber, returnFlightNumber);
                 switchFromTo(message);
-                message.setMessageType(XMessage.MessageType.HSM);
+                message.setMessageType(HSM);
                 message.getTo().setUserID(admin.mobilePhone);
                 message.getPayload().setText(twoWayTripMessage);
                 sendSingle(message);
@@ -518,7 +535,8 @@ public class ODKTransformer extends TransformerProvider {
 
                     boolean isApproved = payload.equals("1");
 
-                    if (isApproved) approvalPipeline(manager, xmsg, startDateString, endDateString, workingDays, employee);
+                    if (isApproved)
+                        approvalPipeline(manager, xmsg, startDateString, endDateString, workingDays, employee);
                     else rejectionPipeline(xmsg, startDateString, employee);
 
                     // Update the previously submitted form for employee.
@@ -612,7 +630,7 @@ public class ODKTransformer extends TransformerProvider {
     public static int retry = 0;
 
     private void updateStatusForApproval(String employeeName, String teamName, String startDateString, String approvalStatus) throws IOException {
-        log.info("starting task ===============================================" + employeeName + "-" +teamName+ "-" + startDateString+ "-" + approvalStatus);
+        log.info("starting task ===============================================" + employeeName + "-" + teamName + "-" + startDateString + "-" + approvalStatus);
         String baseURL = "http://139.59.93.172:3000/samagra-internal-workflow-v2?filter=";
         String filters = String.format("{\"where\":{\"data.member_name\": \"%s\", \"data.team_name\": \"%s\", \"data.start_date_leave\": \"%s\"}}",
                 employeeName, teamName, startDateString);
@@ -662,7 +680,7 @@ public class ODKTransformer extends TransformerProvider {
 
     private void respondToManager(User manager, XMessage message) throws Exception {
         String approvalMessage = TemplateServiceUtils.getFormattedString("ManagerAcknowledgementMessage", manager.fullName);
-        message.setMessageType(XMessage.MessageType.HSM);
+        message.setMessageType(HSM);
         message.getPayload().setText(approvalMessage);
         sendSingle(message);
     }
@@ -675,7 +693,7 @@ public class ODKTransformer extends TransformerProvider {
     private void buildRejectionMessage(User user, XMessage message) throws Exception {
         String approvalMessage = TemplateServiceUtils.getFormattedString("RejectionStatusMessage", user.fullName, "Rejected", (String) user.data.get("reportingManager"));
         switchFromTo(message);
-        message.setMessageType(XMessage.MessageType.HSM);
+        message.setMessageType(HSM);
         message.getTo().setUserID(user.mobilePhone);
         message.getPayload().setText(approvalMessage);
         sendSingle(message);
@@ -683,14 +701,14 @@ public class ODKTransformer extends TransformerProvider {
 
     private void buildProgramOwnerMessage(User user, XMessage message, String startDate, String endDate, String numberOfdays) throws Exception {
         User owner;
-        if(UserService.getProgramConstruct(user).equals("2") && UserService.isAssociate(user)){
+        if (UserService.getProgramConstruct(user).equals("2") && UserService.isAssociate(user)) {
             owner = UserService.getManager(user);
-        }else owner = UserService.getEngagementOwner(user);
+        } else owner = UserService.getEngagementOwner(user);
         if (owner != null) {
             String approvalMessage = TemplateServiceUtils.getFormattedString("POReportMessage", owner.fullName, user.fullName,
                     (String) user.data.get("engagement"), startDate, endDate, numberOfdays);
             switchFromTo(message);
-            message.setMessageType(XMessage.MessageType.HSM);
+            message.setMessageType(HSM);
             message.getTo().setUserID(owner.mobilePhone);
             message.getPayload().setText(approvalMessage);
             sendSingle(message);
@@ -699,13 +717,13 @@ public class ODKTransformer extends TransformerProvider {
 
     private void buildApprovalMessage(User user, XMessage message) throws Exception {
         User owner;
-        if(UserService.getProgramConstruct(user).equals("2") && UserService.isAssociate(user)){
+        if (UserService.getProgramConstruct(user).equals("2") && UserService.isAssociate(user)) {
             owner = UserService.getManager(user);
-        }else owner = UserService.getEngagementOwner(user);
+        } else owner = UserService.getEngagementOwner(user);
 
         String approvalMessage = TemplateServiceUtils.getFormattedString("ApprovalStatus", user.fullName, "Approved", owner.fullName);
         switchFromTo(message);
-        message.setMessageType(XMessage.MessageType.HSM);
+        message.setMessageType(HSM);
         message.getTo().setUserID(user.mobilePhone);
         message.getPayload().setText(approvalMessage);
         sendSingle(message);
@@ -723,7 +741,45 @@ public class ODKTransformer extends TransformerProvider {
 
     @Override
     public List<XMessage> transformToMany(XMessage xMessage) {
-        return null;
+
+        ArrayList<XMessage> messages = new ArrayList<>();
+
+        // Get All Users with Data.
+        JsonNode campaign = CampaignService.getCampaignFromName(xMessage.getCampaign());
+        String campaignID = campaign.get("id").asText();
+        JSONArray users = UserService.getUsersFromFederatedServers(campaignID);
+        String formID = getFormID(campaign);
+        String formPath = getFormPath(formID);
+        JsonNode firstTransformer = campaign.findValues("transformers").get(0).get(0);
+        ArrayNode hiddenFields = (ArrayNode) firstTransformer.findValue("hiddenFields");
+
+        for(int i=34; i<users.length(); i++){
+            String userPhone = ((JSONObject) users.get(i)).getString("whatsapp_mobile_number");
+            ServiceResponse response = new MenuManager(null, null, null, formPath, false).start();
+            CandidateApproval ss = CandidateApproval.builder().applicationID(campaignID).phone(userPhone).build();
+            ss.parse(response.currentResponseState);
+            String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updateHiddenFields(hiddenFields, (JSONObject) users.get(i)).getXML();
+            MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
+            response = mm.start();
+
+            // Create new xMessage from response
+            XMessage x = getMessageFromResponse(xMessage, response);
+            XMessage nextMessage = getClone(x);
+
+            // Update user info
+            SenderReceiverInfo to = nextMessage.getTo();
+            to.setUserID(userPhone);
+            nextMessage.setTo(to);
+
+            nextMessage.setMessageState(NOT_SENT);
+            nextMessage.setMessageType(HSM);
+
+            // Update database with new fields.
+            appendNewResponse(formID, nextMessage, response);
+            replaceUserState(formID, nextMessage, response);
+            messages.add(nextMessage);
+        }
+        return messages;
     }
 
     private XMessage getMessageFromResponse(XMessage xMessage, ServiceResponse response) {
