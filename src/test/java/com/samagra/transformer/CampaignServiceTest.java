@@ -11,7 +11,8 @@ public class CampaignServiceTest {
 
     @Test
     public void testFormIDForABot() throws Exception {
-        String formID = CampaignService.getFirstFormByBotID("fabc64a7-c9b0-4d0b-b8a6-8778757b2bb5");
+        CampaignService campaignService = new CampaignService();
+        String formID = campaignService.getFirstFormByBotID("fabc64a7-c9b0-4d0b-b8a6-8778757b2bb5");
         Assert.assertEquals("global_form", formID);
     }
 }

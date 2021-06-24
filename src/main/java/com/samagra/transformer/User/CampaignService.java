@@ -9,6 +9,7 @@ import io.fusionauth.client.FusionAuthClient;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.api.ApplicationResponse;
 import org.json.JSONArray;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,9 @@ import java.util.*;
 @Component
 public class CampaignService {
 
+    @Value("${campaign.url}")
+    public String CAMPAIGN_URL;
+
     /**
      * Retrieve Campaign Params From its Identifier
      *
@@ -26,10 +30,10 @@ public class CampaignService {
      * @return Application
      * @throws Exception Error Exception, in failure in Network request.
      */
-    public static JsonNode getCampaignFromID(String campaignID) throws Exception {
+    public JsonNode getCampaignFromID(String campaignID) throws Exception {
         try {
             RestTemplate restTemplate = new RestTemplate();
-            String baseURL = "http://federation-service:9999/admin/v1/bot/get/" + campaignID;
+            String baseURL = CAMPAIGN_URL+ "admin/v1/bot/get/" + campaignID;
             ResponseEntity<String> response = restTemplate.getForEntity(baseURL, String.class);
             if (response.getStatusCode() == HttpStatus.OK) {
                 ObjectMapper mapper = new ObjectMapper();
@@ -49,9 +53,9 @@ public class CampaignService {
      * @return Application
      * @throws Exception Error Exception, in failure in Network request.
      */
-    public static JsonNode getCampaignFromName(String campaignName) {
+    public JsonNode getCampaignFromName(String campaignName) {
         RestTemplate restTemplate = new RestTemplate();
-        String url = "http://federation-service:9999/admin/v1/bot/search/?name=" + campaignName + "&match=true";
+        String url = CAMPAIGN_URL + "admin/v1/bot/search/?name=" + campaignName + "&match=true";
         ResponseEntity<String> response
                 = restTemplate.getForEntity(url, String.class);
         if(response.getStatusCode() == HttpStatus.OK){
@@ -74,9 +78,9 @@ public class CampaignService {
      * @return FormID for the first transformer.
      * @throws Exception Error Exception, in failure in Network request.
      */
-    public static String getFirstFormByBotID(String botID) {
+    public String getFirstFormByBotID(String botID) {
         RestTemplate restTemplate = new RestTemplate();
-        String baseURL = "http://federation-service:9999/admin/v1/bot/get/";
+        String baseURL = CAMPAIGN_URL + "admin/v1/bot/get/";
         ResponseEntity<String> response = restTemplate.getForEntity(baseURL + botID, String.class);
         if(response.getStatusCode() == HttpStatus.OK){
             ObjectMapper mapper = new ObjectMapper();
@@ -98,9 +102,9 @@ public class CampaignService {
      * @return FormID for the first transformer.
      * @throws Exception Error Exception, in failure in Network request.
      */
-    public static ArrayNode getFirstFormHiddenFields(String botID) {
+    public ArrayNode getFirstFormHiddenFields(String botID) {
         RestTemplate restTemplate = new RestTemplate();
-        String baseURL = "http://federation-service:9999/admin/v1/bot/get/";
+        String baseURL = CAMPAIGN_URL + "/admin/v1/bot/get/";
         ResponseEntity<String> response = restTemplate.getForEntity(baseURL + botID, String.class);
         if(response.getStatusCode() == HttpStatus.OK){
             ObjectMapper mapper = new ObjectMapper();

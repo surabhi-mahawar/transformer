@@ -54,7 +54,6 @@ import java.util.*;
 import static messagerosa.core.model.XMessage.MessageState.NOT_SENT;
 import static messagerosa.core.model.XMessage.MessageType.HSM;
 
-
 @Slf4j
 @Component
 public class ODKTransformer extends TransformerProvider {
@@ -80,6 +79,9 @@ public class ODKTransformer extends TransformerProvider {
 
     @Autowired
     DataSource dataSource;
+
+    @Autowired
+    CampaignService campaignService;
 
 
     // Listen to all ODK based transformers
@@ -143,7 +145,7 @@ public class ODKTransformer extends TransformerProvider {
 
     @Override
     public XMessage transform(XMessage xMessage) throws Exception {
-        JsonNode campaign = CampaignService.getCampaignFromName(xMessage.getApp());
+        JsonNode campaign = campaignService.getCampaignFromName(xMessage.getApp());
         if (campaign != null) {
             String formID = getFormID(campaign);
             String formPath = getFormPath(formID);
@@ -225,7 +227,7 @@ public class ODKTransformer extends TransformerProvider {
 
                 if (mm.isGlobal() && response.currentIndex.contains("eof")) {
                     String nextBotID = mm.getNextBotID(response.currentIndex);
-                    String nextFormID = CampaignService.getFirstFormByBotID(nextBotID);
+                    String nextFormID = campaignService.getFirstFormByBotID(nextBotID);
                     MenuManager mm2 = new MenuManager(null, null, null, getFormPath(nextFormID), false);
                     response = mm2.start();
                 }
@@ -745,7 +747,7 @@ public class ODKTransformer extends TransformerProvider {
         ArrayList<XMessage> messages = new ArrayList<>();
 
         // Get All Users with Data.
-        JsonNode campaign = CampaignService.getCampaignFromName(xMessage.getCampaign());
+        JsonNode campaign = campaignService.getCampaignFromName(xMessage.getCampaign());
         String campaignID = campaign.get("id").asText();
         JSONArray users = UserService.getUsersFromFederatedServers(campaignID);
         String formID = getFormID(campaign);
