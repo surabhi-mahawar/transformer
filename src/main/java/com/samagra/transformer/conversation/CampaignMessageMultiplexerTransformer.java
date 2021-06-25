@@ -1,8 +1,6 @@
 package com.samagra.transformer.conversation;
 
 import com.samagra.transformer.TransformerProvider;
-import com.samagra.transformer.User.CampaignService;
-import com.samagra.transformer.User.UserService;
 import com.samagra.transformer.publisher.CommonProducer;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;

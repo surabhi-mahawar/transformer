@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inversoft.error.Errors;
 import com.inversoft.rest.ClientResponse;
 import com.samagra.transformer.UserWithTemplate;
+import com.uci.utils.CampaignService;
 import io.fusionauth.client.FusionAuthClient;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;
@@ -29,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class UserService {
 
+    private CampaignService campaignService;
 //    @Autowired
 //    @Value("${external.services.url-shortnr.baseURL}")
     private static String shortnrBaseURL = "http://localhost:9999";
@@ -128,12 +130,12 @@ public class UserService {
     }
 
 
-    public static List<String> findUsersForESamwad(String campaignName) throws Exception {
+    public List<String> findUsersForESamwad(String campaignName) throws Exception {
 
         List<String> userPhoneNumbers = new ArrayList<>();
 
         Set<String> userSet = new HashSet<String>();
-        Application currentApplication = CampaignService.getCampaignFromNameESamwad(campaignName);
+        Application currentApplication = campaignService.getCampaignFromNameESamwad(campaignName);
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
         FusionAuthClient staticClientLogin = new FusionAuthClient("-vjf6we5HJWexNnOgfWfkuNcYzFx_2Y6WYhSWGj3Frg", "http://www.auth.samagra.io:9011");
         if(currentApplication != null){
@@ -199,9 +201,9 @@ public class UserService {
         return usersList;
     }
 
-    public static List<String> getUsersPhoneFromFederatedServers(String campaignName){
+    public List<String> getUsersPhoneFromFederatedServers(String campaignName){
 
-        Application currentApplication = CampaignService.getCampaignFromNameESamwad(campaignName);
+        Application currentApplication = campaignService.getCampaignFromNameESamwad(campaignName);
 
         String baseURL = shortnrBaseURL + "/getAllUsers";
         OkHttpClient client = new OkHttpClient().newBuilder()
@@ -252,9 +254,9 @@ public class UserService {
         return null;
     }
 
-    public static ArrayList<UserWithTemplate> getUsersAndTemplateFromFederatedServers(String campaignName){
+    public ArrayList<UserWithTemplate> getUsersAndTemplateFromFederatedServers(String campaignName){
 
-        Application currentApplication = CampaignService.getCampaignFromNameESamwad(campaignName);
+        Application currentApplication = campaignService.getCampaignFromNameESamwad(campaignName);
         String baseURL = shortnrBaseURL + "/usersWithTemplate";
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(90, TimeUnit.SECONDS)

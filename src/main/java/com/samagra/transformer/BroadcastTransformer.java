@@ -1,10 +1,10 @@
 package com.samagra.transformer;
 
-import com.samagra.transformer.User.CampaignService;
 import com.samagra.transformer.User.UserService;
 import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
 import com.samagra.transformer.publisher.CommonProducer;
+import com.uci.utils.CampaignService;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
@@ -41,6 +41,9 @@ public class BroadcastTransformer extends TransformerProvider {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    CampaignService campaignService;
+
     @Override
     public XMessage transform(XMessage xMessage) {
         //TODO: Get all the phone numbers for the users and update the userID
@@ -50,7 +53,7 @@ public class BroadcastTransformer extends TransformerProvider {
             StringBuilder userIds = new StringBuilder();
             String ids = "";
 
-            List<String> users = UserService.findUsersForESamwad(CampaignService.getCampaignFromName(xMessage.getApp()).name);
+            List<String> users = UserService.findUsersForESamwad(campaignService.getCampaignFromName(xMessage.getApp()).name);
             for (String user : users) {
                 userIds.append(user).append(",");
             }
@@ -83,7 +86,7 @@ public class BroadcastTransformer extends TransformerProvider {
     public List<XMessage> transformToMany(XMessage xMessage) {
         ArrayList<XMessage> messages = new ArrayList<>();
         try{
-            Application currentApplication = CampaignService.getCampaignFromNameESamwad(xMessage.getApp());
+            Application currentApplication = campaignService.getCampaignFromNameESamwad(xMessage.getApp());
             ArrayList<HashMap<String, Object>> d = (ArrayList) currentApplication.data.get("parts");
             if(d.get(0).get("template") != null){
                 ArrayList<UserWithTemplate> usersWithTemplate = userService.getUsersAndTemplateFromFederatedServers(xMessage.getApp());
@@ -101,7 +104,7 @@ public class BroadcastTransformer extends TransformerProvider {
                     messages.add(clone);
                 }
             }else{
-                List<String> users = UserService.getUsersPhoneFromFederatedServers(xMessage.getApp());
+                List<String> users = userService.getUsersPhoneFromFederatedServers(xMessage.getApp());
                 System.out.println("Total users:: " + users.size());
                 for (String phone: users){
                     XMessage clone = getClone(xMessage);

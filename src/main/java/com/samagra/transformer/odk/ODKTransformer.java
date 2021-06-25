@@ -7,7 +7,6 @@ import com.github.kagkarlsson.scheduler.Scheduler;
 import com.github.kagkarlsson.scheduler.task.*;
 import com.github.kagkarlsson.scheduler.task.helper.OneTimeTask;
 import com.samagra.transformer.TransformerProvider;
-import com.samagra.transformer.User.CampaignService;
 import com.samagra.transformer.User.UserService;
 import com.samagra.transformer.odk.entity.GupshupMessageEntity;
 import com.samagra.transformer.odk.entity.GupshupStateEntity;
@@ -23,6 +22,7 @@ import com.samagra.transformer.samagra.LeaveManager;
 import com.samagra.transformer.samagra.SamagraOrgForm;
 import com.samagra.transformer.samagra.TemplateServiceUtils;
 import com.samagra.transformer.publisher.CommonProducer;
+import com.uci.utils.CampaignService;
 import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;
 import lombok.*;
@@ -145,7 +145,7 @@ public class ODKTransformer extends TransformerProvider {
 
     @Override
     public XMessage transform(XMessage xMessage) throws Exception {
-        JsonNode campaign = campaignService.getCampaignFromName(xMessage.getApp());
+        JsonNode campaign = campaignService.getCampaignFromNameTransformer(xMessage.getApp());
         if (campaign != null) {
             String formID = getFormID(campaign);
             String formPath = getFormPath(formID);
@@ -747,7 +747,7 @@ public class ODKTransformer extends TransformerProvider {
         ArrayList<XMessage> messages = new ArrayList<>();
 
         // Get All Users with Data.
-        JsonNode campaign = campaignService.getCampaignFromName(xMessage.getCampaign());
+        JsonNode campaign = campaignService.getCampaignFromNameTransformer(xMessage.getCampaign());
         String campaignID = campaign.get("id").asText();
         JSONArray users = UserService.getUsersFromFederatedServers(campaignID);
         String formID = getFormID(campaign);
