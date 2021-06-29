@@ -37,7 +37,7 @@ import java.util.Map;
 @EnableKafka
 @EnableAsync
 @EnableCaching
-@ComponentScan(basePackages = {"com.samagra.transformer", "messagerosa","com.github"})
+@ComponentScan(basePackages = {"com.samagra.transformer", "messagerosa","com.github", "com.uci.*"})
 @EnableJpaRepositories(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
 @EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer", "com.samagra.transformer.odk"})
 @PropertySource("application-messagerosa.properties")
@@ -61,7 +61,7 @@ public class TransformerApplication {
         String formPath = ODKTransformer.getFormPath("samagra_workflows_form");
         ServiceResponse response1 = new FormManager(null, null, null, formPath).start();
         log.debug("First response");
-        log.debug(response1.getCurrentIndex(), response1.getNextMessage());
+        log.debug(response1.getCurrentIndex(), response1.getNextMessage().getText());
     }
 
     private void downloadForms() {

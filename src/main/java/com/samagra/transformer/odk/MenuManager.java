@@ -1,11 +1,12 @@
 package com.samagra.transformer.odk;
 
-import liquibase.pro.packaged.A;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.java.Log;
+import messagerosa.core.model.ButtonChoice;
+import messagerosa.core.model.XMessagePayload;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.javarosa.core.model.*;
 import org.javarosa.core.model.data.IAnswerData;
@@ -29,6 +30,7 @@ import org.javarosa.xpath.XPathTypeMismatchException;
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.javarosa.form.api.FormEntryController.ANSWER_OK;
@@ -79,6 +81,7 @@ public class MenuManager {
 
     public String getNextBotID(String xPathName){
         return xPathName.split("__")[1];
+        //question./data/degital_content[1]/eof_cbse_selection[1]
     }
 
     protected static class FECWrapper {
@@ -120,7 +123,7 @@ public class MenuManager {
         formController = fecWrapper.controller;
         String currentPath = "";
         String udpatedInstanceXML = "";
-        String nextQuestion = "";
+        XMessagePayload nextQuestion;
         SaveStatus saveStatus = new SaveStatus();
 
         if (answer != null && answer.equals("#")) {
@@ -204,7 +207,7 @@ public class MenuManager {
                 }
 
                 formController.stepToNextEvent();
-                nextQuestion = createView(formController.getModel().getEvent(), "");
+                nextQuestion =  createView(formController.getModel().getEvent(), "");
                 log.info(String.format("Current question is %s", nextQuestion));
 
                 if (instanceXML != null) {
@@ -213,7 +216,7 @@ public class MenuManager {
                     } else {
                         if (xpath.equals("endOfForm")) {
                             currentPath = xpath;
-                            nextQuestion = "---------End of Form---------";
+                            nextQuestion = XMessagePayload.builder().text("---------End of Form---------").build();
                         } else {
                             currentPath = xpath;
                             udpatedInstanceXML = instanceXML;
@@ -226,7 +229,7 @@ public class MenuManager {
                                     constraintText = "Invalid Input!!! Please try again.";
                                 }
                             }
-                            nextQuestion = constraintText;
+                            nextQuestion = XMessagePayload.builder().text(constraintText).build();
                         }
                     }
                 } else {
@@ -234,6 +237,7 @@ public class MenuManager {
                 }
                 // Jump to the location where it is not filled.
             } catch (IOException e) {
+                nextQuestion = new XMessagePayload();
                 e.printStackTrace();
             }
         }
@@ -506,7 +510,7 @@ public class MenuManager {
      * Steps to the next screen and creates a view for it. Always sets {@code advancingPage} to true
      * to auto-play media.
      */
-    private String createViewForFormBeginning(FormEntryController formController) {
+    private XMessagePayload createViewForFormBeginning(FormEntryController formController) {
         formController.stepToNextEvent(); // To start the form
         if (formController.getModel().getEvent() == FormEntryController.EVENT_GROUP)
             formController.stepToPreviousEvent();
@@ -555,7 +559,7 @@ public class MenuManager {
      *
      * @return newly created View
      */
-    private String createView(int event, String previousPrompt) {
+    private XMessagePayload createView(int event, String previousPrompt) {
         log.info("xPath: " + getXPath(formController, formController.getModel().getFormIndex()));
         log.info("Event: " + getEvent(formController));
 
@@ -568,7 +572,7 @@ public class MenuManager {
             case FormEntryController.EVENT_GROUP:
             case FormEntryController.EVENT_REPEAT:
                 // Check for rendered Types
-                String choices = "";
+                ArrayList<ButtonChoice> choices = new ArrayList<>();
                 try {
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_GROUP) {
                         formController.stepToNextEvent();
@@ -581,14 +585,15 @@ public class MenuManager {
 
                     log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
                     choices = getChoices(choices);
-                    return previousPrompt + renderQuestion(formController) + choices;
+                    //Check this
+                    return XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).build();
                 } catch (Exception e) {
                     log.info("Non Question data type");
                     formController.stepToNextEvent();
                     String currentQuestionString = renderQuestion(formController);
-                    if (previousPrompt != null && previousPrompt != "") return previousPrompt + currentQuestionString;
-                    String nextQuestionString = createView(formController.stepToNextEvent(), "");
-                    return currentQuestionString + nextQuestionString;
+                    if (previousPrompt != null && previousPrompt != "") return XMessagePayload.builder().text(previousPrompt + currentQuestionString).build();
+                    XMessagePayload nextQuestionString = createView(formController.stepToNextEvent(), "");
+                    return XMessagePayload.builder().text(currentQuestionString + nextQuestionString.getText()).build();
                 }
 
             case FormEntryController.EVENT_PROMPT_NEW_REPEAT:
@@ -608,25 +613,27 @@ public class MenuManager {
         return xPath.contains("note");
     }
 
-    private String getChoices(String choices) {
+    private ArrayList<ButtonChoice> getChoices(ArrayList<ButtonChoice> choices) {
+        ArrayList<ButtonChoice> buttonChoices = new ArrayList<>();
         try {
             switch (formController.getModel().getQuestionPrompt().getControlType()) {
                 case Constants.CONTROL_SELECT_ONE:
                     List<SelectChoice> items = formController.getModel().getQuestionPrompt().getSelectChoices();
                     if (items != null) {
                         for (int i = 0; i < items.size(); i++) {
-                            choices += items.get(i).getLabelInnerText() + "\n";
+                            //Check
+                            buttonChoices.add(ButtonChoice.builder().key(items.get(i).getValue()).text(items.get(i).getLabelInnerText()).build());
                         }
                     }
             }
         } catch (Exception e) {
         }
-        return choices;
+        return buttonChoices;
     }
 
-    private String createViewForFormEnd(FormEntryController formController) {
+    private XMessagePayload createViewForFormEnd(FormEntryController formController) {
 
-        return "";
+        return XMessagePayload.builder().text("").build();
     }
 
     private boolean initializeForm(FormDef formDef, FormEntryController fec) throws IOException {

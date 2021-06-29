@@ -1,5 +1,6 @@
 package com.samagra.transformer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.samagra.transformer.User.UserService;
 import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
@@ -15,12 +16,14 @@ import messagerosa.xml.XMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.Consumer;
 
 @Slf4j
 @Component
@@ -45,7 +48,7 @@ public class BroadcastTransformer extends TransformerProvider {
     CampaignService campaignService;
 
     @Override
-    public XMessage transform(XMessage xMessage) {
+    public Mono<XMessage> transform(XMessage xMessage) {
         //TODO: Get all the phone numbers for the users and update the userID
 
         /*
@@ -69,7 +72,7 @@ public class BroadcastTransformer extends TransformerProvider {
             log.error("Exception in getting users for this campaign");
         }
          */
-        return xMessage;
+        return Mono.just(xMessage);
     }
 
     private XMessage getClone(XMessage nextMessage) {
@@ -83,7 +86,7 @@ public class BroadcastTransformer extends TransformerProvider {
     }
 
     @Override
-    public List<XMessage> transformToMany(XMessage xMessage) {
+    public Mono<List<XMessage>> transformToMany(XMessage xMessage) {
         ArrayList<XMessage> messages = new ArrayList<>();
         try{
             Application currentApplication = campaignService.getCampaignFromNameESamwad(xMessage.getApp());
@@ -121,7 +124,7 @@ public class BroadcastTransformer extends TransformerProvider {
             log.error(e.getMessage());
         }
 
-        return messages;
+        return Mono.just(messages);
 
     }
 
@@ -132,14 +135,27 @@ public class BroadcastTransformer extends TransformerProvider {
         log.info("BroadcastTransformer Transformer Message: " + message);
 
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
-        ArrayList<XMessage> messages = (ArrayList<XMessage>) this.transformToMany(xMessage);
-        for (XMessage msg : messages) {
-            kafkaProducer.send("broadcast", msg.toXML());
-            kafkaProducer.send("PassThrough", msg.toXML());
-        }
+//        ArrayList<XMessage> messages =
+        transformToMany(xMessage).subscribe(new Consumer<List<XMessage>>() {
+            @Override
+            public void accept(List<XMessage> xMessages) {
+                xMessages = (ArrayList<XMessage>)xMessages;
+                for (XMessage msg : xMessages) {
+                    try {
+                        kafkaProducer.send("broadcast", msg.toXML());
+                        kafkaProducer.send("PassThrough", msg.toXML());
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    } catch (JAXBException e) {
+                        e.printStackTrace();
+                    }
+                }
 
-        long endTime = System.nanoTime();
-        long duration = (endTime - startTime);
-        log.error("Total time spent in processing form: " + duration / 1000000);
+                long endTime = System.nanoTime();
+                long duration = (endTime - startTime);
+                log.error("Total time spent in processing form: " + duration / 1000000);
+            }
+        });
+
     }
 }

@@ -9,6 +9,7 @@ import messagerosa.core.model.XMessage;
 import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -29,12 +30,12 @@ public class SamagraEOFTransformer extends TransformerProvider {
     private MessageRepository msgRepo;
 
     @Override
-    public XMessage transform(XMessage xMessage) {
+    public Mono<XMessage> transform(XMessage xMessage) {
         return null;
     }
 
     @Override
-    public List<XMessage> transformToMany(XMessage xMessage) {
+    public Mono<List<XMessage>> transformToMany(XMessage xMessage) {
         return null;
     }
 

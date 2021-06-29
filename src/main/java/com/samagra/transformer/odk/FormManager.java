@@ -1,6 +1,7 @@
 package com.samagra.transformer.odk;
 
 import lombok.extern.java.Log;
+import messagerosa.core.model.XMessagePayload;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.javarosa.core.model.*;
 import org.javarosa.core.model.data.IAnswerData;
@@ -78,7 +79,7 @@ public class FormManager {
         formController = fecWrapper.controller;
         String currentPath = "";
         String udpatedInstanceXML = "";
-        String nextQuestion = "";
+        XMessagePayload nextQuestion;
         try {
             if (xpath != null && !xpath.equals("endOfForm")) {
                 udpatedInstanceXML = addResponseToForm(getIndexFromXPath(xpath, formController), answer);
@@ -90,7 +91,7 @@ public class FormManager {
             }
 
             formController.stepToNextEvent();
-            nextQuestion = createView(formController.getModel().getEvent(), "");
+            nextQuestion = XMessagePayload.builder().text(createView(formController.getModel().getEvent(), "")).build();
             log.info(String.format("Current question is %s", nextQuestion));
 
             if (instanceXML != null) {
@@ -99,7 +100,7 @@ public class FormManager {
                 } else {
                     if (xpath.equals("endOfForm")) {
                         currentPath = xpath;
-                        nextQuestion = "---------End of Form---------";
+                        nextQuestion = XMessagePayload.builder().text("---------End of Form---------").build();
                     } else {
                         currentPath = xpath;
                         udpatedInstanceXML = instanceXML;
@@ -112,7 +113,7 @@ public class FormManager {
                                 constraintText = "Invalid Input!!! Please try again.";
                             }
                         }
-                        nextQuestion = constraintText;
+                        nextQuestion = XMessagePayload.builder().text(constraintText).build();
                     }
                 }
             } else {
@@ -120,6 +121,7 @@ public class FormManager {
             }
             // Jump to the location where it is not filled.
         } catch (IOException e) {
+            nextQuestion = new XMessagePayload();
             e.printStackTrace();
         }
         return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML);

@@ -1,5 +1,6 @@
 package com.samagra.transformer.conversation;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.samagra.transformer.TransformerProvider;
 import com.samagra.transformer.publisher.CommonProducer;
 import io.fusionauth.domain.Application;
@@ -10,11 +11,14 @@ import messagerosa.xml.XMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
+import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.function.Consumer;
 
 
 @Slf4j
@@ -26,12 +30,12 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
 
     // Not getting used in this one
     @Override
-    public XMessage transform(XMessage xMessage) {
+    public Mono<XMessage> transform(XMessage xMessage) {
         return null;
     }
 
     @Override
-    public List<XMessage> transformToMany(XMessage parentXMessage) {
+    public Mono<List<XMessage>> transformToMany(XMessage parentXMessage) {
         Application campaign;
         List<XMessage> startingMessagesForUsers = new ArrayList<>();
         //Fixme !!Important
@@ -83,17 +87,29 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
             e.printStackTrace();
         }
         */
-        return startingMessagesForUsers;
+        return Mono.just(startingMessagesForUsers);
     }
 
     @KafkaListener(id = "transformer-campaign-multiplexer", topics = "CampaignMessageMultiplexer")
     public void consumeMessage(String message) throws Exception {
         log.info("CampaignMessageMultiplexer Transformer Message: " + message);
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
-        List<XMessage> transformedMessages = this.transformToMany(xMessage);
-        for (XMessage msg : transformedMessages) {
-            kafkaProducer.send("Form2", msg.toXML());
-        }
+                this.transformToMany(xMessage).subscribe(new Consumer<List<XMessage>>() {
+                    @Override
+                    public void accept(List<XMessage> transformedMessages) {
+
+                        for (XMessage msg : transformedMessages) {
+                            try {
+                                kafkaProducer.send("Form2", msg.toXML());
+                            } catch (JsonProcessingException e) {
+                                e.printStackTrace();
+                            } catch (JAXBException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                });
+
     }
 
 }

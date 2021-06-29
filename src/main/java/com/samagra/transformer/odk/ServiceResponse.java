@@ -1,18 +1,20 @@
 package com.samagra.transformer.odk;
 
+import messagerosa.core.model.XMessagePayload;
+
 public class ServiceResponse {
     String currentIndex;
-    String nextMessage; // Next question message
+    XMessagePayload nextMessage; // Next question message
     String currentResponseState;
     boolean shouldSwitchToNextForm;
 
-    public ServiceResponse(String currentIndex, String nextMessage, String currentResponseState) {
+    public ServiceResponse(String currentIndex, XMessagePayload nextMessage, String currentResponseState) {
         this.currentIndex = currentIndex;
         this.nextMessage = nextMessage;
         this.currentResponseState = currentResponseState;
     }
 
-    public ServiceResponse(String currentIndex, String nextMessage, String currentResponseState, boolean shouldSwitchToNextForm) {
+    public ServiceResponse(String currentIndex, XMessagePayload nextMessage, String currentResponseState, boolean shouldSwitchToNextForm) {
         this.currentIndex = currentIndex;
         this.nextMessage = nextMessage;
         this.currentResponseState = currentResponseState;
@@ -23,7 +25,7 @@ public class ServiceResponse {
         return currentIndex;
     }
 
-    public String getNextMessage() {
+    public XMessagePayload getNextMessage() {
         return nextMessage;
     }
 

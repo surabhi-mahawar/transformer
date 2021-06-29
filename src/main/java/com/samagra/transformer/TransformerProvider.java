@@ -2,6 +2,7 @@ package com.samagra.transformer;
 
 import lombok.*;
 import messagerosa.core.model.XMessage;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -16,9 +17,9 @@ public abstract class TransformerProvider {
     XMessage finalState;
 
 
-    public abstract XMessage transform(XMessage xMessage) throws Exception;
+    public abstract Mono<XMessage> transform(XMessage xMessage) throws Exception;
 
-    public abstract List<XMessage> transformToMany(XMessage xMessage);
+    public abstract Mono<List<XMessage>> transformToMany(XMessage xMessage);
 
 }
 

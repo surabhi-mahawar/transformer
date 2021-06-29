@@ -14,8 +14,6 @@ import com.samagra.transformer.odk.persistance.FormsDao;
 import com.samagra.transformer.odk.persistance.JsonDB;
 import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
-import com.samagra.transformer.pt.MissionPrerna;
-import com.samagra.transformer.pt.SakshamSamiksha;
 import com.samagra.transformer.pt.skills.CandidateApproval;
 import com.samagra.transformer.pt.skills.EmployerRegistration;
 import com.samagra.transformer.samagra.LeaveManager;
@@ -23,7 +21,6 @@ import com.samagra.transformer.samagra.SamagraOrgForm;
 import com.samagra.transformer.samagra.TemplateServiceUtils;
 import com.samagra.transformer.publisher.CommonProducer;
 import com.uci.utils.CampaignService;
-import io.fusionauth.domain.Application;
 import io.fusionauth.domain.User;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
@@ -41,15 +38,17 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import reactor.core.publisher.Mono;
 
 import javax.sql.DataSource;
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.management.MemoryUsage;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static messagerosa.core.model.XMessage.MessageState.NOT_SENT;
 import static messagerosa.core.model.XMessage.MessageType.HSM;
@@ -92,18 +91,47 @@ public class ODKTransformer extends TransformerProvider {
 
         XMessage xMessage = XMessageParser.parse(new ByteArrayInputStream(message.getBytes()));
         if (xMessage.getMessageType() == XMessage.MessageType.BROADCAST_TEXT) {
-            ArrayList<XMessage> messages = (ArrayList<XMessage>) this.transformToMany(xMessage);
-            for (XMessage msg : messages) {
-                kafkaProducer.send("outbound", msg.toXML());
-            }
+//            ArrayList<XMessage> messages = (ArrayList<XMessage>) this.
+
+
+            this.transformToMany(xMessage).subscribe(new Consumer<List<XMessage>>() {
+
+                @Override
+                public void accept(List<XMessage> messages) {
+                    messages = (ArrayList<XMessage>) messages;
+                    for (XMessage msg : messages) {
+
+                        try {
+                            kafkaProducer.send("outbound", msg.toXML());
+                        } catch (JsonProcessingException e) {
+                            e.printStackTrace();
+                        } catch (JAXBException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            });
+
         } else {
-            XMessage transformedMessage = this.transform(xMessage);
-            if (transformedMessage != null) {
-                kafkaProducer.send("outbound", transformedMessage.toXML());
-                long endTime = System.nanoTime();
-                long duration = (endTime - startTime);
-                log.error("Total time spent in processing form: " + duration / 1000000);
-            }
+            this.transform(xMessage).subscribe(new Consumer<XMessage>() {
+                @Override
+                public void accept(XMessage transformedMessage) {
+                    if (transformedMessage != null) {
+                        try {
+                            kafkaProducer.send("outbound", transformedMessage.toXML());
+                            long endTime = System.nanoTime();
+                            long duration = (endTime - startTime);
+                            log.error("Total time spent in processing form: " + duration / 1000000);
+                        } catch (JsonProcessingException e) {
+                            e.printStackTrace();
+                        } catch (JAXBException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+                }
+            });
+
         }
     }
 
@@ -144,153 +172,185 @@ public class ODKTransformer extends TransformerProvider {
 
 
     @Override
-    public XMessage transform(XMessage xMessage) throws Exception {
-        JsonNode campaign = campaignService.getCampaignFromNameTransformer(xMessage.getApp());
-        if (campaign != null) {
-            String formID = getFormID(campaign);
-            String formPath = getFormPath(formID);
-            boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
-            boolean isPrefilled = false;
+    public Mono<XMessage> transform(XMessage xMessage) throws Exception {
+//        JsonNode campaign =
+        return campaignService.getCampaignFromNameTransformer(xMessage.getApp()).flatMap(new Function<JsonNode, Mono<? extends XMessage>>() {
+            @Override
+            public Mono<XMessage> apply(JsonNode campaign) {
+                if (campaign != null) {
+                    String formID = getFormID(campaign);
+                    String formPath = getFormPath(formID);
+                    boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
+                    boolean isPrefilled = false;
 
-            // Switch from-to
-            switchFromTo(xMessage);
+                    // Switch from-to
+                    switchFromTo(xMessage);
 
-            // Get details of user from database
-            FormManagerParams previousMeta = getPreviousMetadata(xMessage, formID);
+                    // Get details of user from database
+                    FormManagerParams previousMeta = getPreviousMetadata(xMessage, formID);
 
-            boolean isApprovalFlow = false;
-            User employee = null;
-
-
-            // TODO Make a distinction between Form and MenuManager based on Campaign Configuration.
-            if (isSamagraBot(formID)) {
-                isPrefilled = true;
-                employee = UserService.findByPhoneAndCampaign(xMessage.getTo().getUserID(), campaign);
-                if (xMessage.getPayload() != null) {
-                    isApprovalFlow = approvalFlow(employee, xMessage.getPayload().getText(), xMessage);
-                }
-
-                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-                    LeaveManager.builder().user(employee).build().updateLeaves(0);
-                    SamagraOrgForm orgForm = SamagraOrgForm.builder().user(employee).build();
-                    String instanceXML = orgForm.getInitialValue();
-                    log.info("Current InstanceXML :: " + instanceXML);
-                    previousMeta.instanceXMlPrevious = instanceXML;
-                }
-
-                if (previousMeta.currentAnswer.equals("#")) {
-                    //Update leaves
-                    SamagraOrgForm orgForm = SamagraOrgForm.builder().build();
-                    orgForm.setUser(employee);
-                    orgForm.parse(previousMeta.instanceXMlPrevious);
-                    previousMeta.instanceXMlPrevious = orgForm.updateLeaves().replaceAll("__", "_");
-                }
-            }
+                    boolean isApprovalFlow = false;
+                    User employee = null;
 
 
-            if (isSakshamSamikshaBot(formID)) {
-                isPrefilled = true;
-                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-                    previousMeta.currentAnswer = "*";
-                    ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
+                    // TODO Make a distinction between Form and MenuManager based on Campaign Configuration.
+                    if (isSamagraBot(formID)) {
+                        isPrefilled = true;
+                        employee = UserService.findByPhoneAndCampaign(xMessage.getTo().getUserID(), campaign);
+                        if (xMessage.getPayload() != null) {
+                            isApprovalFlow = approvalFlow(employee, xMessage.getPayload().getText(), xMessage);
+                        }
+
+                        if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                            LeaveManager.builder().user(employee).build().updateLeaves(0);
+                            SamagraOrgForm orgForm = SamagraOrgForm.builder().user(employee).build();
+                            String instanceXML = orgForm.getInitialValue();
+                            log.info("Current InstanceXML :: " + instanceXML);
+                            previousMeta.instanceXMlPrevious = instanceXML;
+                        }
+
+                        if (previousMeta.currentAnswer.equals("#")) {
+                            //Update leaves
+                            SamagraOrgForm orgForm = SamagraOrgForm.builder().build();
+                            orgForm.setUser(employee);
+                            orgForm.parse(previousMeta.instanceXMlPrevious);
+                            previousMeta.instanceXMlPrevious = orgForm.updateLeaves().replaceAll("__", "_");
+                        }
+                    }
+
+
+                    if (isSakshamSamikshaBot(formID)) {
+                        isPrefilled = true;
+                        if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                            previousMeta.currentAnswer = "*";
+                            ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
 //                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
 //                    ss.parse(response.currentResponseState);
 //                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
-                }
+                        }
 //                if (previousMeta.currentAnswer.equals("#")) {
 //                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
 //                    ss.parse(previousMeta.instanceXMlPrevious);
 //                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
 //                }
-            }
-
-            if (!isApprovalFlow) {
-
-                ServiceResponse response;
-                MenuManager mm;
-                if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-                    previousMeta.currentAnswer = "*";
-                    mm = new MenuManager(null, null, null, formPath, false);
-                    if(formID.equals("Rozgar-Saathi-MVP-EmpReg-Vac-Chatbot4")){
-                        response = mm.start();
-                        EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
-                        ss.parse(response.currentResponseState);
-                        String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
-                        mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
                     }
-                    response = mm.start();
 
-                } else {
-                    mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, false);
-                    response = mm.start();
-                }
+                    if (!isApprovalFlow) {
 
-                if (mm.isGlobal() && response.currentIndex.contains("eof")) {
-                    String nextBotID = mm.getNextBotID(response.currentIndex);
-                    String nextFormID = campaignService.getFirstFormByBotID(nextBotID);
-                    MenuManager mm2 = new MenuManager(null, null, null, getFormPath(nextFormID), false);
-                    response = mm2.start();
-                }
-
-                // Create new xMessage from response
-                XMessage nextMessage = getMessageFromResponse(xMessage, response);
-
-                // Update database with new fields.
-                appendNewResponse(formID, xMessage, response);
-                replaceUserState(formID, xMessage, response);
-
-                XMessage cloneMessage = getClone(nextMessage);
-
-                if (!isSamagraBot(formID) && isEndOfForm(response)) {
-                    new UploadService().submit(response.currentResponseState, restTemplate, customRestTemplate);
-                }
-
-                if (isSamagraBot(formID) && !previousMeta.currentAnswer.equals("#")) {
-                    SamagraOrgForm orgForm = null;
-                    orgForm = SamagraOrgForm.builder().build();
-                    orgForm.parse(response.currentResponseState);
-                    if (isEndOfForm(response)) {
-                        new UploadService().submit(response.currentResponseState, restTemplate, customRestTemplate);
-                        if (response.currentIndex.contains("eof_leave_applied_message")) {
-                            // Send message to manager
-
-                            // Check for program construct.
-                            String construct = UserService.getProgramConstruct(employee);
-                            Boolean isAssociate = UserService.isAssociate(employee);
-                            if (construct.equals("2") && isAssociate) {
-                                User coordinator = UserService.getProgramCoordinator(employee);
-                                sendMessageToManagerForApproval(employee, cloneMessage, orgForm, coordinator);
-                            } else {
-                                User manager = UserService.getManager(employee);
-                                sendMessageToManagerForApproval(employee, cloneMessage, orgForm, manager);
-                                oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), orgForm.getStartDate(), "3");
+                        final ServiceResponse[] response = new ServiceResponse[1];
+                        MenuManager mm;
+                        if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                            previousMeta.currentAnswer = "*";
+                            mm = new MenuManager(null, null, null, formPath, false);
+                            if (formID.equals("Rozgar-Saathi-MVP-EmpReg-Vac-Chatbot4")) {
+                                response[0] = mm.start();
+                                EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
+                                ss.parse(response[0].currentResponseState);
+                                String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
+                                mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
                             }
-                        } else if (response.currentIndex.contains("eof_air_ticket_applied_message_one_way")) {
-                            sendMessageForFlightOneWayToAdmin(orgForm, cloneMessage, employee);
-                        } else if (response.currentIndex.contains("eof_air_ticket_applied_message_two_way")) {
-                            sendMessageForFlightTwoWayToAdmin(orgForm, cloneMessage, employee);
-                        } else if (response.currentIndex.contains("eof_air_ticket_amendment_note")) {
-                        } else if (response.currentIndex.contains("eof_air_ticket_cancellation_note")) {
-                            sendCancellationMessageToAdmin(orgForm, cloneMessage, employee);
-                        } else if (response.currentIndex.contains("eof_missed_flight_note")) {
-                            sendMissedFlightMessageToAdmin(orgForm, cloneMessage, employee);
-                        } else if (response.currentIndex.contains("eof_train_ticket_applied_message_one_way")) {
-                            sendOneWayMessageForTrainToAdmin(orgForm, cloneMessage, employee);
-                        } else if (response.currentIndex.contains("eof_train_ticket_applied_message_two_way")) {
-                            sendTwoWayMessageForTrainToAdmin(orgForm, cloneMessage, employee);
-                        } else if (response.currentIndex.contains("eof_train_ticket_cancellation_note")) {
-                            sendTrainCancellationMessageToAdmin(orgForm, cloneMessage, employee);
-                        } else if (response.currentIndex.contains("eof_train_missed_note")) {
-                            sendTrainMissedMessageToAdmin(orgForm, cloneMessage, employee);
+                            response[0] = mm.start();
+
                         } else {
-                            log.info("Unable to find any any endOfForm cased that were mentioned.");
+                            mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, false);
+                            response[0] = mm.start();
                         }
+
+                        if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
+                            String nextBotID = mm.getNextBotID(response[0].currentIndex);
+//                    String nextFormID =
+                            User finalEmployee = employee;
+                            return campaignService.getFirstFormByBotID(nextBotID).map(new Function<String, XMessage>() {
+                                                                                   @Override
+                                                                                   public XMessage apply(String nextFormID) {
+                                                                                       MenuManager mm2 = new MenuManager(null, null, null, getFormPath(nextFormID), false);
+                                                                                       response[0] = mm2.start();
+                                                                                       try {
+                                                                                           return decodeXMessage(xMessage, response[0], formID, previousMeta, finalEmployee);
+                                                                                       } catch (Exception e) {
+                                                                                           return null;
+                                                                                       }
+                                                                                   }
+                                                                               }
+
+                            );
+
+                        } else {
+                            try {
+                                return Mono.just(decodeXMessage(xMessage, response[0], formID, previousMeta, employee));
+                            } catch (Exception e) {
+
+                                e.printStackTrace();
+                                return null;
+                            }
+                        }
+
+                        // Create new xMessage from response
+
                     }
                 }
-                return nextMessage;
+                return null;
+            }
+        });
+
+    }
+
+    private XMessage decodeXMessage(XMessage xMessage, ServiceResponse response, String formID, FormManagerParams previousMeta, User employee) throws Exception {
+        XMessage nextMessage = getMessageFromResponse(xMessage, response);
+
+        // Update database with new fields.
+        appendNewResponse(formID, xMessage, response);
+        replaceUserState(formID, xMessage, response);
+
+        XMessage cloneMessage = getClone(nextMessage);
+
+        if (!isSamagraBot(formID) && isEndOfForm(response)) {
+            new UploadService().submit(response.currentResponseState, restTemplate, customRestTemplate);
+        }
+
+        if (isSamagraBot(formID) && !previousMeta.currentAnswer.equals("#")) {
+            SamagraOrgForm orgForm = null;
+            orgForm = SamagraOrgForm.builder().build();
+            orgForm.parse(response.currentResponseState);
+            if (isEndOfForm(response)) {
+                new UploadService().submit(response.currentResponseState, restTemplate, customRestTemplate);
+                if (response.currentIndex.contains("eof_leave_applied_message")) {
+                    // Send message to manager
+
+                    // Check for program construct.
+                    String construct = UserService.getProgramConstruct(employee);
+                    Boolean isAssociate = UserService.isAssociate(employee);
+                    if (construct.equals("2") && isAssociate) {
+                        User coordinator = UserService.getProgramCoordinator(employee);
+                        sendMessageToManagerForApproval(employee, cloneMessage, orgForm, coordinator);
+                    } else {
+                        User manager = UserService.getManager(employee);
+                        sendMessageToManagerForApproval(employee, cloneMessage, orgForm, manager);
+                        oneTimeSampleTask(employee.fullName, (String) employee.data.get("engagement"), orgForm.getStartDate(), "3");
+                    }
+                } else if (response.currentIndex.contains("eof_air_ticket_applied_message_one_way")) {
+                    sendMessageForFlightOneWayToAdmin(orgForm, cloneMessage, employee);
+                } else if (response.currentIndex.contains("eof_air_ticket_applied_message_two_way")) {
+                    sendMessageForFlightTwoWayToAdmin(orgForm, cloneMessage, employee);
+                } else if (response.currentIndex.contains("eof_air_ticket_amendment_note")) {
+                } else if (response.currentIndex.contains("eof_air_ticket_cancellation_note")) {
+                    sendCancellationMessageToAdmin(orgForm, cloneMessage, employee);
+                } else if (response.currentIndex.contains("eof_missed_flight_note")) {
+                    sendMissedFlightMessageToAdmin(orgForm, cloneMessage, employee);
+                } else if (response.currentIndex.contains("eof_train_ticket_applied_message_one_way")) {
+                    sendOneWayMessageForTrainToAdmin(orgForm, cloneMessage, employee);
+                } else if (response.currentIndex.contains("eof_train_ticket_applied_message_two_way")) {
+                    sendTwoWayMessageForTrainToAdmin(orgForm, cloneMessage, employee);
+                } else if (response.currentIndex.contains("eof_train_ticket_cancellation_note")) {
+                    sendTrainCancellationMessageToAdmin(orgForm, cloneMessage, employee);
+                } else if (response.currentIndex.contains("eof_train_missed_note")) {
+                    sendTrainMissedMessageToAdmin(orgForm, cloneMessage, employee);
+                } else {
+                    log.info("Unable to find any any endOfForm cased that were mentioned.");
+                }
             }
         }
-        return null;
+        return nextMessage;
     }
 
     private boolean isEndOfForm(ServiceResponse response) {
@@ -742,53 +802,56 @@ public class ODKTransformer extends TransformerProvider {
     }
 
     @Override
-    public List<XMessage> transformToMany(XMessage xMessage) {
+    public Mono<List<XMessage>> transformToMany(XMessage xMessage) {
 
         ArrayList<XMessage> messages = new ArrayList<>();
 
         // Get All Users with Data.
-        JsonNode campaign = campaignService.getCampaignFromNameTransformer(xMessage.getCampaign());
-        String campaignID = campaign.get("id").asText();
-        JSONArray users = UserService.getUsersFromFederatedServers(campaignID);
-        String formID = getFormID(campaign);
-        String formPath = getFormPath(formID);
-        JsonNode firstTransformer = campaign.findValues("transformers").get(0).get(0);
-        ArrayNode hiddenFields = (ArrayNode) firstTransformer.findValue("hiddenFields");
+        return campaignService.getCampaignFromNameTransformer(xMessage.getCampaign()).map(new Function<JsonNode, List<XMessage>>() {
+            @Override
+            public List<XMessage> apply(JsonNode campaign) {
+                String campaignID = campaign.get("id").asText();
+                JSONArray users = UserService.getUsersFromFederatedServers(campaignID);
+                String formID = getFormID(campaign);
+                String formPath = getFormPath(formID);
+                JsonNode firstTransformer = campaign.findValues("transformers").get(0).get(0);
+                ArrayNode hiddenFields = (ArrayNode) firstTransformer.findValue("hiddenFields");
 
-        for(int i=34; i<users.length(); i++){
-            String userPhone = ((JSONObject) users.get(i)).getString("whatsapp_mobile_number");
-            ServiceResponse response = new MenuManager(null, null, null, formPath, false).start();
-            CandidateApproval ss = CandidateApproval.builder().applicationID(campaignID).phone(userPhone).build();
-            ss.parse(response.currentResponseState);
-            String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updateHiddenFields(hiddenFields, (JSONObject) users.get(i)).getXML();
-            MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
-            response = mm.start();
+                for (int i = 34; i < users.length(); i++) {
+                    String userPhone = ((JSONObject) users.get(i)).getString("whatsapp_mobile_number");
+                    ServiceResponse response = new MenuManager(null, null, null, formPath, false).start();
+                    CandidateApproval ss = CandidateApproval.builder().applicationID(campaignID).phone(userPhone).build();
+                    ss.parse(response.currentResponseState);
+                    String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updateHiddenFields(hiddenFields, (JSONObject) users.get(i)).getXML();
+                    MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
+                    response = mm.start();
 
-            // Create new xMessage from response
-            XMessage x = getMessageFromResponse(xMessage, response);
-            XMessage nextMessage = getClone(x);
+                    // Create new xMessage from response
+                    XMessage x = getMessageFromResponse(xMessage, response);
+                    XMessage nextMessage = getClone(x);
 
-            // Update user info
-            SenderReceiverInfo to = nextMessage.getTo();
-            to.setUserID(userPhone);
-            nextMessage.setTo(to);
+                    // Update user info
+                    SenderReceiverInfo to = nextMessage.getTo();
+                    to.setUserID(userPhone);
+                    nextMessage.setTo(to);
 
-            nextMessage.setMessageState(NOT_SENT);
-            nextMessage.setMessageType(HSM);
+                    nextMessage.setMessageState(NOT_SENT);
+                    nextMessage.setMessageType(HSM);
 
-            // Update database with new fields.
-            appendNewResponse(formID, nextMessage, response);
-            replaceUserState(formID, nextMessage, response);
-            messages.add(nextMessage);
-        }
-        return messages;
+                    // Update database with new fields.
+                    appendNewResponse(formID, nextMessage, response);
+                    replaceUserState(formID, nextMessage, response);
+                    messages.add(nextMessage);
+                }
+                return messages;
+            }
+        });
+
     }
 
     private XMessage getMessageFromResponse(XMessage xMessage, ServiceResponse response) {
         // Add payload to the response
-        XMessagePayload payload = XMessagePayload.builder()
-                .text(response.getNextMessage())
-                .build();
+        XMessagePayload payload = response.getNextMessage();
         xMessage.setPayload(payload);
 
         return xMessage;
