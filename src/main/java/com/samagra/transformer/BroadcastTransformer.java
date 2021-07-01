@@ -5,13 +5,13 @@ import com.samagra.transformer.User.UserService;
 import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
 import com.samagra.transformer.publisher.CommonProducer;
+import com.uci.dao.repository.XMessageRepository;
 import com.uci.utils.CampaignService;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
-import messagerosa.dao.XMessageRepo;
 import messagerosa.xml.XMessageParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -30,7 +30,7 @@ import java.util.function.Consumer;
 public class BroadcastTransformer extends TransformerProvider {
 
     @Autowired
-    public XMessageRepo xmsgRepo;
+    public XMessageRepository xmsgRepo;
 
     @Autowired
     public CommonProducer kafkaProducer;

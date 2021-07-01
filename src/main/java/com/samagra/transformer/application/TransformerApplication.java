@@ -38,8 +38,8 @@ import java.util.Map;
 @EnableAsync
 @EnableCaching
 @ComponentScan(basePackages = {"com.samagra.transformer", "messagerosa","com.github", "com.uci.*"})
-@EnableJpaRepositories(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
-@EntityScan(basePackages = {"messagerosa.dao", "com.samagra.transformer.odk.entity", "com.samagra.transformer", "com.samagra.transformer.odk"})
+@EnableJpaRepositories(basePackages = {"com.uci.dao.repository", "com.samagra.transformer.odk.entity", "com.samagra.transformer"})
+@EntityScan(basePackages = {"com.uci.dao.models", "com.samagra.transformer.odk.entity", "com.samagra.transformer", "com.samagra.transformer.odk"})
 @PropertySource("application-messagerosa.properties")
 @PropertySource("application.properties")
 @SpringBootApplication()

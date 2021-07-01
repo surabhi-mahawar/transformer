@@ -4,9 +4,9 @@ import com.samagra.transformer.TransformerProvider;
 import com.samagra.transformer.odk.repository.MessageRepository;
 import com.samagra.transformer.odk.repository.StateRepository;
 import com.samagra.transformer.publisher.CommonProducer;
+import com.uci.dao.repository.XMessageRepository;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.XMessage;
-import messagerosa.dao.XMessageRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
@@ -18,7 +18,7 @@ import java.util.List;
 public class SamagraEOFTransformer extends TransformerProvider {
 
     @Autowired
-    public XMessageRepo xmsgRepo;
+    public XMessageRepository xmsgRepo;
 
     @Autowired
     public CommonProducer kafkaProducer;
