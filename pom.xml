@@ -93,7 +93,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <optional>true</optional>
+            <version>1.18.12</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -193,7 +193,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
-            <version>${version.spring.boot}</version>
         </dependency>
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
