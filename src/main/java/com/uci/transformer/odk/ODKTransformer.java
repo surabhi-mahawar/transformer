@@ -14,15 +14,14 @@ import com.uci.transformer.odk.persistance.FormsDao;
 import com.uci.transformer.odk.persistance.JsonDB;
 import com.uci.transformer.odk.repository.MessageRepository;
 import com.uci.transformer.odk.repository.StateRepository;
-import com.uci.transformer.pt.skills.CandidateApproval;
+import com.uci.transformer.odk.utilities.FormUpdation;
 import com.uci.transformer.pt.skills.EmployerRegistration;
-import com.uci.transformer.samagra.LeaveManager;
 import com.uci.transformer.samagra.SamagraOrgForm;
 import com.uci.transformer.samagra.TemplateServiceUtils;
 import com.uci.utils.CampaignService;
 import com.uci.utils.CommonProducer;
 import io.fusionauth.domain.User;
-import lombok.*;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
@@ -45,7 +44,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -715,7 +716,8 @@ public class ODKTransformer extends TransformerProvider {
                 for (int i = 34; i < users.length(); i++) {
                     String userPhone = ((JSONObject) users.get(i)).getString("whatsapp_mobile_number");
                     ServiceResponse response = new MenuManager(null, null, null, formPath, false).start();
-                    CandidateApproval ss = CandidateApproval.builder().applicationID(campaignID).phone(userPhone).build();
+                    FormUpdation ss = FormUpdation.builder().applicationID(campaignID).phone(userPhone).build();
+                    ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
                     ss.parse(response.currentResponseState);
                     String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updateHiddenFields(hiddenFields, (JSONObject) users.get(i)).getXML();
                     MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);

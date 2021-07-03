@@ -1,16 +1,18 @@
-package com.uci.transformer.pt.skills;
+package com.uci.transformer.odk.utilities;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.jayway.jsonpath.JsonPath;
-import com.uci.transformer.samagra.MapEntryConverter;
 import com.thoughtworks.xstream.XStream;
+import com.uci.transformer.samagra.MapEntryConverter;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.web.client.RestTemplate;
 
+import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -20,19 +22,20 @@ import static java.util.UUID.randomUUID;
 @Builder
 @Getter
 @Setter
-public class CandidateApproval {
+@Slf4j
+public class FormUpdation {
     RestTemplate restTemplate;
     String applicationID;
     String phone;
     Map<String, Object> instanceData;
 
-    public CandidateApproval updateAdapterProperties(String channel, String provider){
+    public FormUpdation updateAdapterProperties(String channel, String provider){
         updateParams("channel", channel);
         updateParams("provider", provider);
         return this;
     }
 
-    public CandidateApproval updateHiddenFields(ArrayNode hiddenFields, JSONObject user) {
+    public FormUpdation updateHiddenFields(ArrayNode hiddenFields, JSONObject user) {
         UUID instanceID = randomUUID();
         HashMap<String, String> fields = new HashMap<>();
         for(int i=0; i<hiddenFields.size(); i++){
@@ -44,8 +47,35 @@ public class CandidateApproval {
         return this;
     }
 
+
+    public boolean hashMapper(Map<String, Object> stringObjectMap, String destinationKey, String destinationValue) throws ParseException {
+        boolean entryUpdated = false;
+        for (Map.Entry<String, Object> entry : stringObjectMap.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            if (value instanceof String) {
+                if (key.equals(destinationKey)) {
+                    stringObjectMap.put(key, destinationValue);
+                    entryUpdated = true;
+                }
+            } else if (value instanceof Map) {
+                Map<String, Object> subMap = (Map<String, Object>) value;
+                hashMapper(subMap, destinationKey, destinationValue);
+            } else {
+                throw new IllegalArgumentException(String.valueOf(value));
+            }
+        }
+
+        return entryUpdated;
+    }
+
     public void updateParams(String key, String value) {
-        ((Map<String, Object>) this.instanceData.get("intro_group")).put(key, value);
+        try {
+           boolean result =  hashMapper(this.instanceData,key,value);
+           if(!result) log.error("Could not find key "+ key);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
     }
 
     public String getXML(){
