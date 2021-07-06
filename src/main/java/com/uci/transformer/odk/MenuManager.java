@@ -583,7 +583,7 @@ public class MenuManager {
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
 
-                    log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
+//                    log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
                     choices = getChoices(choices);
                     //Check this
                     return XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).build();

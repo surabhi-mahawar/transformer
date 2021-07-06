@@ -232,6 +232,7 @@ public class ODKTransformer extends TransformerProvider {
                             response[0] = mm.start();
                         }
 
+
                         if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
                             String nextBotID = mm.getNextBotID(response[0].currentIndex);
 //                    String nextFormID =
