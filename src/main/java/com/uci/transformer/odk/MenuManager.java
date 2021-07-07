@@ -208,7 +208,7 @@ public class MenuManager {
 
                 formController.stepToNextEvent();
                 nextQuestion =  createView(formController.getModel().getEvent(), "");
-                log.info(String.format("Current question is %s", nextQuestion));
+                log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), nextQuestion.getButtonChoices().size()));
 
                 if (instanceXML != null) {
                     if (!udpatedInstanceXML.equals(instanceXML) || saveStatus.getSaveStatus() == ANSWER_OK) {
@@ -574,6 +574,10 @@ public class MenuManager {
                 // Check for rendered Types
                 ArrayList<ButtonChoice> choices = new ArrayList<>();
                 try {
+                    if (formController.getModel().getEvent() == FormEntryController.EVENT_REPEAT) {
+                        formController.stepToNextEvent();
+                        return createView(formController.stepToNextEvent(), previousPrompt);
+                    }
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_GROUP) {
                         formController.stepToNextEvent();
                     }
