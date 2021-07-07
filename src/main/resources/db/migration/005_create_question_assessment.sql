@@ -3,7 +3,7 @@ CREATE table question
     id              uuid DEFAULT uuid_generate_v4 (),
     form_id         VARCHAR(100) NOT NULL,
     form_version    VARCHAR(10),
-    xPath           VARCHAR(500) NOT NULL,
+    x_path          VARCHAR(500) NOT NULL,
     question_type   VARCHAR(500) NOT NULL,
     meta            JSONB,
     created         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -12,7 +12,7 @@ CREATE table question
 );
 
 CREATE INDEX idx_form ON question(form_id, form_version);
-CREATE INDEX idx_xPath ON question(xPath);
+CREATE INDEX idx_xPath ON question(x_path);
 CREATE INDEX idx_ques_type ON question(question_type);
 
 CREATE table assessment

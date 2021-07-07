@@ -1,10 +1,7 @@
 package com.uci.transformer.odk.entity;
 
 import com.vladmihalcea.hibernate.type.json.JsonType;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.*;
 
 import javax.persistence.*;
@@ -28,14 +25,18 @@ import java.util.UUID;
 })
 public class Question {
 
-    enum QuestionType {
+    public enum QuestionType {
         SINGLE_SELECT,
         MULTI_SELECT,
-        STRING
+        STRING;
+
+        public String toString() {
+            return this.name();
+        }
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     @Column(nullable = false, name = "form_id")
@@ -44,10 +45,11 @@ public class Question {
     @Column(name = "form_version")
     private String formVersion;
 
-    @Column(name = "xPath")
-    private String xPath;
+    @Column(name = "x_path")
+    private String XPath;
 
     @Column(name = "question_type")
+    @Enumerated(EnumType.STRING)
     private QuestionType questionType;
 
     @Type(type = "jsonb")

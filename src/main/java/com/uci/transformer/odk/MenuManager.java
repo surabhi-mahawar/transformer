@@ -1,5 +1,7 @@
 package com.uci.transformer.odk;
 
+import com.uci.transformer.odk.entity.Question;
+import com.uci.transformer.odk.repository.QuestionRepository;
 import lombok.*;
 import lombok.extern.java.Log;
 import messagerosa.core.model.ButtonChoice;
@@ -23,6 +25,7 @@ import org.javarosa.model.xform.XFormsModule;
 import org.javarosa.xform.parse.XFormParser;
 import org.javarosa.xform.util.XFormUtils;
 import org.javarosa.xpath.XPathTypeMismatchException;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.*;
 import java.nio.file.FileSystems;
@@ -54,6 +57,7 @@ public class MenuManager {
     String formID;
     Boolean isSpecialResponse;
     Boolean isPrefilled;
+    QuestionRepository questionRepo;
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
@@ -65,7 +69,7 @@ public class MenuManager {
         this.formID = formID;
     }
 
-    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled) {
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
         this.xpath = xpath;
         this.answer = answer;
         this.instanceXML = instanceXML;
@@ -73,15 +77,15 @@ public class MenuManager {
         this.isSpecialResponse = false;
         this.isPrefilled = isPrefilled;
         this.formID = formID;
+        this.questionRepo = questionRepo;
     }
 
     public boolean isGlobal() {
         return this.formPath.contains("Global Form");
     }
 
-    public String getNextBotID(String xPathName){
+    public String getNextBotID(String xPathName) {
         return xPathName.split("__")[1];
-        //question./data/degital_content[1]/eof_cbse_selection[1]
     }
 
     protected static class FECWrapper {
@@ -189,7 +193,7 @@ public class MenuManager {
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
         } else if (answer != null && answer.equals("*")) {
-            if(!isPrefilled) instanceXML = null;
+            if (!isPrefilled) instanceXML = null;
             xpath = null;
             answer = null;
             return start();
@@ -207,7 +211,7 @@ public class MenuManager {
                 }
 
                 formController.stepToNextEvent();
-                nextQuestion =  createView(formController.getModel().getEvent(), "");
+                nextQuestion = createView(formController.getModel().getEvent(), "");
                 log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), nextQuestion.getButtonChoices().size()));
 
                 if (instanceXML != null) {
@@ -241,7 +245,18 @@ public class MenuManager {
                 e.printStackTrace();
             }
         }
-        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML);
+
+        // check if currentPath is persisted in the DB. If not, insert it with all the things.
+        String formVersion = formController.getModel().getForm().getInstance().formVersion;
+        if (questionRepo.findQuestionByXPathAndFormIDAndFormVersion(currentPath, formID, formVersion).size() == 0) {
+            Question question = new Question();
+            question.setQuestionType(Question.QuestionType.STRING);
+            question.setFormID(formID);
+            question.setFormVersion(formVersion);
+            question.setXPath(currentPath);
+            questionRepo.save(question);
+        }
+        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion);
     }
 
     private boolean isDynamicQuestion() {
@@ -298,7 +313,7 @@ public class MenuManager {
                                 break;
                             }
                         }
-                        if(!found){ //Checking for labels with indexes as part of the text only
+                        if (!found) { //Checking for labels with indexes as part of the text only
                             for (int i = 0; i < items.size(); i++) {
                                 if (value.equals(items.get(i).getLabelInnerText().split(" ")[0]) ||
                                         value.equals(items.get(i).getLabelInnerText().split(". ")[0])
@@ -316,10 +331,10 @@ public class MenuManager {
                 } else {
                     try {
                         TreeElement t = formController.getModel().getForm().getMainInstance().resolveReference(formIndex.getReference());
-                        try{
+                        try {
                             IAnswerData answerData = new IntegerData(Integer.parseInt(value));
                             saveStatus = formController.answerQuestion(formIndex, answerData, true);
-                        }catch(Exception e){
+                        } catch (Exception e) {
                             IAnswerData answerData = new StringData(value);
                             saveStatus = formController.answerQuestion(formIndex, answerData, true);
                         }
@@ -595,7 +610,8 @@ public class MenuManager {
                     log.info("Non Question data type");
                     formController.stepToNextEvent();
                     String currentQuestionString = renderQuestion(formController);
-                    if (previousPrompt != null && previousPrompt != "") return XMessagePayload.builder().text(previousPrompt + currentQuestionString).build();
+                    if (previousPrompt != null && previousPrompt != "")
+                        return XMessagePayload.builder().text(previousPrompt + currentQuestionString).build();
                     XMessagePayload nextQuestionString = createView(formController.stepToNextEvent(), "");
                     return XMessagePayload.builder().text(currentQuestionString + nextQuestionString.getText()).build();
                 }

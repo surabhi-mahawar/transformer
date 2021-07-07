@@ -1,10 +1,7 @@
 package com.uci.transformer.odk.entity;
 
 import com.vladmihalcea.hibernate.type.json.JsonType;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.*;
 
 import javax.persistence.*;
@@ -19,6 +16,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Entity
 @NoArgsConstructor
+@Builder
 @Table(name = "assessment")
 @TypeDefs({
         @TypeDef(name = "json", typeClass = JsonType.class),
@@ -27,7 +25,7 @@ import java.util.UUID;
 public class Assessment {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     @ManyToOne

@@ -124,7 +124,8 @@ public class FormManager {
             nextQuestion = new XMessagePayload();
             e.printStackTrace();
         }
-        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML);
+        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML,
+                formController.getModel().getForm().getInstance().formVersion);
     }
 
     public String addResponseToForm(FormIndex formIndex, String value) throws IOException {

@@ -8,11 +8,14 @@ import com.github.kagkarlsson.scheduler.task.*;
 import com.github.kagkarlsson.scheduler.task.helper.OneTimeTask;
 import com.uci.transformer.TransformerProvider;
 import com.uci.transformer.User.UserService;
+import com.uci.transformer.odk.entity.Assessment;
 import com.uci.transformer.odk.entity.GupshupMessageEntity;
 import com.uci.transformer.odk.entity.GupshupStateEntity;
 import com.uci.transformer.odk.persistance.FormsDao;
 import com.uci.transformer.odk.persistance.JsonDB;
+import com.uci.transformer.odk.repository.AssessmentRepository;
 import com.uci.transformer.odk.repository.MessageRepository;
+import com.uci.transformer.odk.repository.QuestionRepository;
 import com.uci.transformer.odk.repository.StateRepository;
 import com.uci.transformer.odk.utilities.FormUpdation;
 import com.uci.transformer.pt.skills.EmployerRegistration;
@@ -62,6 +65,12 @@ public class ODKTransformer extends TransformerProvider {
 
     @Autowired
     public CommonProducer kafkaProducer;
+
+    @Autowired
+    QuestionRepository questionRepo;
+
+    @Autowired
+    AssessmentRepository assessmentRepo;
 
     @Autowired
     private StateRepository stateRepo;
@@ -136,11 +145,6 @@ public class ODKTransformer extends TransformerProvider {
         }
     }
 
-    // Listen to topic "Forms"
-
-    // Gets the message => Calls transform() =>  Calls xMessage.completeTransform() =>  send it to inbound-unprocessed
-
-
     private FormManagerParams getPreviousMetadata(XMessage message, String formID) {
         String prevPath = null;
         String prevXMl = null;
@@ -194,18 +198,28 @@ public class ODKTransformer extends TransformerProvider {
                     MenuManager mm;
                     if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
                         previousMeta.currentAnswer = "*";
-                        mm = new MenuManager(null, null, null, formPath, formID, false);
+                        mm = new MenuManager(null, null, null, formPath, formID, false, questionRepo);
                         response[0] = mm.start();
                         EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
                         ss.parse(response[0].currentResponseState);
                         String instanceXMlPrevious = XML_PREFIX + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
-                        mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true);
+                        mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
                         response[0] = mm.start();
                     } else {
                         mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
-                                previousMeta.instanceXMlPrevious, formPath, formID, false);
+                                previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
                         response[0] = mm.start();
                     }
+
+                    // Save answerData => PreviousQuestion + CurrentAnswer
+                    Assessment assessment = Assessment.builder()
+                            .question(questionRepo.findQuestionByXPathAndFormIDAndFormVersion(previousMeta.previousPath, formID, response[0].formVersion).get(0))
+                            .answer(previousMeta.currentAnswer)
+                            .botID(UUID.fromString(campaign.findValue("id").asText()))
+                            .build();
+
+                    assessmentRepo.save(assessment);
+
 
                     if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
                         String nextBotID = mm.getNextBotID(response[0].currentIndex);
@@ -216,7 +230,7 @@ public class ODKTransformer extends TransformerProvider {
                                          public XMessage apply(String nextFormID) {
                                              MenuManager mm2 = new MenuManager(null,
                                                      null, null, getFormPath(nextFormID),
-                                                     nextFormID, false);
+                                                     nextFormID, false, questionRepo);
                                              response[0] = mm2.start();
                                              return decodeXMessage(xMessage, response[0], formID);
                                          }
@@ -300,12 +314,12 @@ public class ODKTransformer extends TransformerProvider {
 
                 for (int i = 34; i < users.length(); i++) {
                     String userPhone = ((JSONObject) users.get(i)).getString("whatsapp_mobile_number");
-                    ServiceResponse response = new MenuManager(null, null, null, formPath, formID, false).start();
+                    ServiceResponse response = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
                     FormUpdation ss = FormUpdation.builder().applicationID(campaignID).phone(userPhone).build();
                     ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
                     ss.parse(response.currentResponseState);
                     String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updateHiddenFields(hiddenFields, (JSONObject) users.get(i)).getXML();
-                    MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true);
+                    MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
                     response = mm.start();
 
                     // Create new xMessage from response
