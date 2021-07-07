@@ -197,12 +197,23 @@ public class ODKTransformer extends TransformerProvider {
                     if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
                         previousMeta.currentAnswer = "*";
                         mm = new MenuManager(null, null, null, formPath, false);
-                        if (formID.equals("Rozgar-Saathi-MVP-EmpReg-Vac-Chatbot4")) {
+                        if (!formID.equals("Rozgar-Saathi-MVP-EmpReg-Vac-Chatbot4")) {
+                            ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, false).start();
+                            FormUpdation ss = FormUpdation.builder().build();
+                            ss.parse(serviceResponse.currentResponseState);
+                            ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
+                            String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                                   ss.getXML();
+                            log.debug("Instance value >> "+ instanceXMlPrevious);
+                            mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
+                            response[0]=mm.start();
+                        } else {
                             response[0] = mm.start();
                             EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
                             ss.parse(response[0].currentResponseState);
                             String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
                             mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
+
                         }
                         response[0] = mm.start();
 
@@ -242,7 +253,7 @@ public class ODKTransformer extends TransformerProvider {
                 return null;
             }
         }).doOnError(throwable -> {
-            log.error(throwable.getMessage());
+            log.error("Error in api" + throwable.getMessage());
         });
 
     }
