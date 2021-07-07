@@ -34,6 +34,7 @@ public class Assessment {
     @JoinColumn(name = "question")
     private Question question;
 
+    // Has to be encrypted.
     @Column(name = "answer")
     private String answer;
 
