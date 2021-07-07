@@ -173,101 +173,76 @@ public class ODKTransformer extends TransformerProvider {
 
     @Override
     public Mono<XMessage> transform(XMessage xMessage) throws Exception {
-//        JsonNode campaign =
         return campaignService.getCampaignFromNameTransformer(xMessage.getApp()).flatMap(new Function<JsonNode, Mono<? extends XMessage>>() {
             @Override
             public Mono<XMessage> apply(JsonNode campaign) {
                 if (campaign != null) {
                     String formID = getFormID(campaign);
+                    if (formID.equals("")) {
+                        log.error("Unable to find form ID from Conversation Logic");
+                        return Mono.just(null);
+                    }
                     String formPath = getFormPath(formID);
                     boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
-                    boolean isPrefilled = false;
-
                     // Switch from-to
                     switchFromTo(xMessage);
 
                     // Get details of user from database
                     FormManagerParams previousMeta = getPreviousMetadata(xMessage, formID);
 
-                    boolean isApprovalFlow = false;
                     User employee = null;
 
-
-                    // TODO Make a distinction between Form and MenuManager based on Campaign Configuration.
-
-                    if (isSakshamSamikshaBot(formID)) {
-                        isPrefilled = true;
-                        if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-                            previousMeta.currentAnswer = "*";
-                            ServiceResponse response = new MenuManager(null, null, null, formPath, isPrefilled).start();
-//                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
-//                    ss.parse(response.currentResponseState);
-//                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
+                    final ServiceResponse[] response = new ServiceResponse[1];
+                    MenuManager mm;
+                    if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                        previousMeta.currentAnswer = "*";
+                        mm = new MenuManager(null, null, null, formPath, false);
+                        if (formID.equals("Rozgar-Saathi-MVP-EmpReg-Vac-Chatbot4")) {
+                            response[0] = mm.start();
+                            EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
+                            ss.parse(response[0].currentResponseState);
+                            String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
+                            mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
                         }
-//                if (previousMeta.currentAnswer.equals("#")) {
-//                    SakshamSamiksha ss = SakshamSamiksha.builder().applicationID(campaign.id.toString()).phone(xMessage.getTo().getUserID()).build();
-//                    ss.parse(previousMeta.instanceXMlPrevious);
-//                    previousMeta.instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.getInitialValue().replaceAll("__", "_");
-//                }
+                        response[0] = mm.start();
+
+                    } else {
+                        mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, false);
+                        response[0] = mm.start();
                     }
 
-                    if (!isApprovalFlow) {
 
-                        final ServiceResponse[] response = new ServiceResponse[1];
-                        MenuManager mm;
-                        if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-                            previousMeta.currentAnswer = "*";
-                            mm = new MenuManager(null, null, null, formPath, false);
-                            if (formID.equals("Rozgar-Saathi-MVP-EmpReg-Vac-Chatbot4")) {
-                                response[0] = mm.start();
-                                EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
-                                ss.parse(response[0].currentResponseState);
-                                String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
-                                mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
-                            }
-                            response[0] = mm.start();
+                    if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
+                        String nextBotID = mm.getNextBotID(response[0].currentIndex);
+                        User finalEmployee = employee;
+                        return campaignService.getFirstFormByBotID(nextBotID).map(new Function<String, XMessage>() {
+                                                                                      @Override
+                                                                                      public XMessage apply(String nextFormID) {
+                                                                                          MenuManager mm2 = new MenuManager(null, null, null, getFormPath(nextFormID), false);
+                                                                                          response[0] = mm2.start();
+                                                                                          try {
+                                                                                              return decodeXMessage(xMessage, response[0], formID, previousMeta, finalEmployee);
+                                                                                          } catch (Exception e) {
+                                                                                              return null;
+                                                                                          }
+                                                                                      }
+                                                                                  }
 
-                        } else {
-                            mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, false);
-                            response[0] = mm.start();
+                        );
+
+                    } else {
+                        try {
+                            return Mono.just(decodeXMessage(xMessage, response[0], formID, previousMeta, employee));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            return null;
                         }
-
-
-                        if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
-                            String nextBotID = mm.getNextBotID(response[0].currentIndex);
-//                    String nextFormID =
-                            User finalEmployee = employee;
-                            return campaignService.getFirstFormByBotID(nextBotID).map(new Function<String, XMessage>() {
-                                                                                   @Override
-                                                                                   public XMessage apply(String nextFormID) {
-                                                                                       MenuManager mm2 = new MenuManager(null, null, null, getFormPath(nextFormID), false);
-                                                                                       response[0] = mm2.start();
-                                                                                       try {
-                                                                                           return decodeXMessage(xMessage, response[0], formID, previousMeta, finalEmployee);
-                                                                                       } catch (Exception e) {
-                                                                                           return null;
-                                                                                       }
-                                                                                   }
-                                                                               }
-
-                            );
-
-                        } else {
-                            try {
-                                return Mono.just(decodeXMessage(xMessage, response[0], formID, previousMeta, employee));
-                            } catch (Exception e) {
-
-                                e.printStackTrace();
-                                return null;
-                            }
-                        }
-
-                        // Create new xMessage from response
-
                     }
                 }
                 return null;
             }
+        }).doOnError(throwable -> {
+            log.error(throwable.getMessage());
         });
 
     }
