@@ -1,9 +1,6 @@
 package com.uci.transformer.odk;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import lombok.extern.java.Log;
 import messagerosa.core.model.ButtonChoice;
 import messagerosa.core.model.XMessagePayload;
@@ -39,6 +36,7 @@ import static org.javarosa.form.api.FormEntryController.ANSWER_OK;
 @AllArgsConstructor
 @Getter
 @Setter
+@Builder
 class SaveStatus {
     String instanceXML;
     int saveStatus;
@@ -53,26 +51,28 @@ public class MenuManager {
     String instanceXML;
     String formPath;
     String initialInstanceXML;
+    String formID;
     Boolean isSpecialResponse;
     Boolean isPrefilled;
 
-
-    public MenuManager(String xpath, String answer, String instanceXML, String formPath) {
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
         this.answer = answer;
         this.instanceXML = instanceXML;
         this.formPath = formPath;
         this.isSpecialResponse = false;
         this.isPrefilled = false;
+        this.formID = formID;
     }
 
-    public MenuManager(String xpath, String answer, String instanceXML, String formPath, Boolean isPrefilled) {
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled) {
         this.xpath = xpath;
         this.answer = answer;
         this.instanceXML = instanceXML;
         this.formPath = formPath;
         this.isSpecialResponse = false;
         this.isPrefilled = isPrefilled;
+        this.formID = formID;
     }
 
     public boolean isGlobal() {

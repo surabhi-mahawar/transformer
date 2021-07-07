@@ -58,6 +58,7 @@ import static messagerosa.core.model.XMessage.MessageType.HSM;
 public class ODKTransformer extends TransformerProvider {
 
     private static final String SMS_BROADCAST_IDENTIFIER = "Broadcast";
+    public static final String XML_PREFIX = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 
     @Autowired
     public CommonProducer kafkaProducer;
@@ -184,73 +185,51 @@ public class ODKTransformer extends TransformerProvider {
                     }
                     String formPath = getFormPath(formID);
                     boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
-                    // Switch from-to
                     switchFromTo(xMessage);
 
                     // Get details of user from database
                     FormManagerParams previousMeta = getPreviousMetadata(xMessage, formID);
 
-                    User employee = null;
-
                     final ServiceResponse[] response = new ServiceResponse[1];
                     MenuManager mm;
                     if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
                         previousMeta.currentAnswer = "*";
-                        mm = new MenuManager(null, null, null, formPath, false);
-                        if (!formID.equals("Rozgar-Saathi-MVP-EmpReg-Vac-Chatbot4")) {
-                            ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, false).start();
-                            FormUpdation ss = FormUpdation.builder().build();
-                            ss.parse(serviceResponse.currentResponseState);
-                            ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
-                            String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-                                   ss.getXML();
-                            log.debug("Instance value >> "+ instanceXMlPrevious);
-                            mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
-                            response[0]=mm.start();
-                        } else {
-                            response[0] = mm.start();
-                            EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
-                            ss.parse(response[0].currentResponseState);
-                            String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
-                            mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
-
-                        }
+                        mm = new MenuManager(null, null, null, formPath, formID, false);
                         response[0] = mm.start();
-
+                        EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
+                        ss.parse(response[0].currentResponseState);
+                        String instanceXMlPrevious = XML_PREFIX + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
+                        mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true);
+                        response[0] = mm.start();
                     } else {
-                        mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer, previousMeta.instanceXMlPrevious, formPath, false);
+                        mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
+                                previousMeta.instanceXMlPrevious, formPath, formID, false);
                         response[0] = mm.start();
                     }
-
 
                     if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
                         String nextBotID = mm.getNextBotID(response[0].currentIndex);
-                        User finalEmployee = employee;
-                        return campaignService.getFirstFormByBotID(nextBotID).map(new Function<String, XMessage>() {
-                                                                                      @Override
-                                                                                      public XMessage apply(String nextFormID) {
-                                                                                          MenuManager mm2 = new MenuManager(null, null, null, getFormPath(nextFormID), false);
-                                                                                          response[0] = mm2.start();
-                                                                                          try {
-                                                                                              return decodeXMessage(xMessage, response[0], formID);
-                                                                                          } catch (Exception e) {
-                                                                                              return null;
-                                                                                          }
-                                                                                      }
-                                                                                  }
-
-                        );
+                        return campaignService
+                                .getFirstFormByBotID(nextBotID)
+                                .map(new Function<String, XMessage>() {
+                                         @Override
+                                         public XMessage apply(String nextFormID) {
+                                             MenuManager mm2 = new MenuManager(null,
+                                                     null, null, getFormPath(nextFormID),
+                                                     nextFormID, false);
+                                             response[0] = mm2.start();
+                                             return decodeXMessage(xMessage, response[0], formID);
+                                         }
+                                     }
+                                );
 
                     } else {
-                        try {
-                            return Mono.just(decodeXMessage(xMessage, response[0], formID));
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            return null;
-                        }
+                        return Mono.just(decodeXMessage(xMessage, response[0], formID));
                     }
+                }else{
+                    log.error("Could not find Bot");
+                    return Mono.just(null);
                 }
-                return null;
             }
         }).doOnError(throwable -> {
             log.error("Error in api" + throwable.getMessage());
@@ -258,7 +237,7 @@ public class ODKTransformer extends TransformerProvider {
 
     }
 
-    private XMessage decodeXMessage(XMessage xMessage, ServiceResponse response, String formID) throws Exception {
+    private XMessage decodeXMessage(XMessage xMessage, ServiceResponse response, String formID) {
         XMessage nextMessage = getMessageFromResponse(xMessage, response);
 
         // Update database with new fields.
@@ -276,7 +255,6 @@ public class ODKTransformer extends TransformerProvider {
         return response.getCurrentIndex().equals("endOfForm") || response.currentIndex.contains("eof");
     }
 
-
     private String getFormID(JsonNode campaign) {
         try {
             return campaign.findValue("formID").asText();
@@ -284,8 +262,6 @@ public class ODKTransformer extends TransformerProvider {
             return "";
         }
     }
-
-
 
     @Nullable
     private XMessage getClone(XMessage nextMessage) {
@@ -305,18 +281,6 @@ public class ODKTransformer extends TransformerProvider {
         xMessage.setTo(from);
     }
 
-    private void sendSingle(XMessage nextMessage) {
-        try {
-            log.error("SendSingle");
-            log.error(nextMessage.toXML());
-            log.error("________________________________________");
-            kafkaProducer.send("outbound", nextMessage.toXML());
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        } catch (JAXBException e) {
-            e.printStackTrace();
-        }
-    }
 
     @Override
     public Mono<List<XMessage>> transformToMany(XMessage xMessage) {
@@ -336,12 +300,12 @@ public class ODKTransformer extends TransformerProvider {
 
                 for (int i = 34; i < users.length(); i++) {
                     String userPhone = ((JSONObject) users.get(i)).getString("whatsapp_mobile_number");
-                    ServiceResponse response = new MenuManager(null, null, null, formPath, false).start();
+                    ServiceResponse response = new MenuManager(null, null, null, formPath, formID, false).start();
                     FormUpdation ss = FormUpdation.builder().applicationID(campaignID).phone(userPhone).build();
                     ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
                     ss.parse(response.currentResponseState);
                     String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updateHiddenFields(hiddenFields, (JSONObject) users.get(i)).getXML();
-                    MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, true);
+                    MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true);
                     response = mm.start();
 
                     // Create new xMessage from response
@@ -371,7 +335,6 @@ public class ODKTransformer extends TransformerProvider {
         // Add payload to the response
         XMessagePayload payload = response.getNextMessage();
         xMessage.setPayload(payload);
-
         return xMessage;
     }
 
