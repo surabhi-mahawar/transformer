@@ -11,6 +11,7 @@ import com.uci.transformer.User.UserService;
 import com.uci.transformer.odk.entity.Assessment;
 import com.uci.transformer.odk.entity.GupshupMessageEntity;
 import com.uci.transformer.odk.entity.GupshupStateEntity;
+import com.uci.transformer.odk.entity.Question;
 import com.uci.transformer.odk.persistance.FormsDao;
 import com.uci.transformer.odk.persistance.JsonDB;
 import com.uci.transformer.odk.repository.AssessmentRepository;
@@ -198,13 +199,15 @@ public class ODKTransformer extends TransformerProvider {
                     MenuManager mm;
                     if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
                         previousMeta.currentAnswer = "*";
-                        mm = new MenuManager(null, null, null, formPath, formID, false, questionRepo);
-                        response[0] = mm.start();
-                        EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
-                        ss.parse(response[0].currentResponseState);
-                        String instanceXMlPrevious = XML_PREFIX + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
-                        mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
-                        response[0] = mm.start();
+                        ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID,false,questionRepo).start();
+                        FormUpdation ss = FormUpdation.builder().build();
+                        ss.parse(serviceResponse.currentResponseState);
+                        ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
+                        String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                                ss.getXML();
+                        log.debug("Instance value >> "+ instanceXMlPrevious);
+                        mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID,true,questionRepo);
+                        response[0]=mm.start();
                     } else {
                         mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
                                 previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
@@ -212,14 +215,19 @@ public class ODKTransformer extends TransformerProvider {
                     }
 
                     // Save answerData => PreviousQuestion + CurrentAnswer
-                    Assessment assessment = Assessment.builder()
-                            .question(questionRepo.findQuestionByXPathAndFormIDAndFormVersion(previousMeta.previousPath, formID, response[0].formVersion).get(0))
-                            .answer(previousMeta.currentAnswer)
-                            .botID(UUID.fromString(campaign.findValue("id").asText()))
-                            .build();
+                    List<Question> questionList = questionRepo.findQuestionByXPathAndFormIDAndFormVersion(previousMeta.previousPath,
+                            formID, response[0].formVersion);
+                    if (questionList != null && questionList.size() > 0) {
+                        Assessment assessment = Assessment.builder()
+                                .question(questionList.get(0))
+                                        .answer(previousMeta.currentAnswer)
+                                .botID(UUID.fromString(campaign.findValue("id").asText()))
+                                .build();
 
-                    assessmentRepo.save(assessment);
-
+                        assessmentRepo.save(assessment);
+                    }else{
+                        log.error("No question asked previously, error of DB misconfiguration. Please delete your questions");
+                    }
 
                     if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
                         String nextBotID = mm.getNextBotID(response[0].currentIndex);
