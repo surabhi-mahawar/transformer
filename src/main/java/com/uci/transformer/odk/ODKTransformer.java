@@ -3,9 +3,6 @@ package com.uci.transformer.odk;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.github.kagkarlsson.scheduler.Scheduler;
-import com.github.kagkarlsson.scheduler.task.*;
-import com.github.kagkarlsson.scheduler.task.helper.OneTimeTask;
 import com.uci.transformer.TransformerProvider;
 import com.uci.transformer.User.UserService;
 import com.uci.transformer.odk.entity.Assessment;
@@ -19,24 +16,20 @@ import com.uci.transformer.odk.repository.MessageRepository;
 import com.uci.transformer.odk.repository.QuestionRepository;
 import com.uci.transformer.odk.repository.StateRepository;
 import com.uci.transformer.odk.utilities.FormUpdation;
-import com.uci.transformer.pt.skills.EmployerRegistration;
-import com.uci.transformer.samagra.SamagraOrgForm;
-import com.uci.transformer.samagra.TemplateServiceUtils;
 import com.uci.utils.CampaignService;
 import com.uci.utils.CommonProducer;
-import io.fusionauth.domain.User;
-import lombok.SneakyThrows;
+import com.uci.transformer.telemetry.AssessmentTelemetryBuilder;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
 import messagerosa.xml.XMessageParser;
-import okhttp3.*;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -45,9 +38,6 @@ import reactor.core.publisher.Mono;
 import javax.sql.DataSource;
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -92,6 +82,10 @@ public class ODKTransformer extends TransformerProvider {
 
     @Autowired
     CampaignService campaignService;
+
+    @Value("${producer.id}")
+    private String producerID;
+
 
 
     // Listen to all ODK based transformers
@@ -223,7 +217,15 @@ public class ODKTransformer extends TransformerProvider {
                                         .answer(previousMeta.currentAnswer)
                                 .botID(UUID.fromString(campaign.findValue("id").asText()))
                                 .build();
-
+                        String telemetryEvent = new AssessmentTelemetryBuilder().build(
+                                "",xMessage.getChannel(),xMessage.getProvider(),producerID,"",
+                                assessment.getQuestion(),
+                                assessment,0);
+                        try {
+                            kafkaProducer.send("uci.telemetry",telemetryEvent);
+                        } catch (JsonProcessingException e) {
+                            e.printStackTrace();
+                        }
                         assessmentRepo.save(assessment);
                     }else{
                         log.error("No question asked previously, error of DB misconfiguration. Please delete your questions");
