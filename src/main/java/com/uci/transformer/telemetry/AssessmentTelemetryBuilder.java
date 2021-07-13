@@ -1,5 +1,6 @@
 package com.uci.transformer.telemetry;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uci.transformer.odk.entity.Assessment;
 import com.uci.transformer.odk.entity.Question;
 import com.uci.utils.telemetry.dto.*;
@@ -33,18 +34,29 @@ public class AssessmentTelemetryBuilder {
         Map<String, Object> map1 = new HashMap<>();
         map1.put("ConversationOwner", conversationOwnerID);
         Map<String, Object> map2 = new HashMap<>();
-        map2.put("Conversation", assessment.getBotID());
+        map2.put("Conversation", assessment.getBotID().toString());
         cdata.add(map1);
         cdata.add(map2);
         Map<String, String> rollup = new HashMap<>();
         rollup.put("l1", "ConversationOwner");
         rollup.put("l2", "Conversation");
         String channelName = (botOrg.equalsIgnoreCase("Anonymous")) ? DIKSHA_ORG : botOrg;
-        Context context = Context.builder().channel(channelName).env(channel + "." + provider).
-                pdata(Producer.builder().id("prod.uci.diksha")
+        String userID = "";
+        try{
+            userID = assessment.getUserID().toString();
+        }catch (Exception e){}
+        Context context = Context.builder()
+                .channel(channelName)
+                .env(channel + "." + provider)
+                .pdata(Producer.builder()
+                        .id("prod.uci.diksha")
                         .pid(producerID).ver(QUESTION_TELEMETRY_IMPL_VERSION)
-                        .build()).did(assessment.getUserID().toString())
-                .cdata(cdata).rollup(rollup).build();
+                        .build()
+                )
+                .did(userID)
+                .cdata(cdata)
+                .rollup(rollup)
+                .build();
 
         Map<String, String> questionRollup = new HashMap<>();
         questionRollup.put("l1", "BotOwnerID");
@@ -61,8 +73,8 @@ public class AssessmentTelemetryBuilder {
         resValues.add(value1);
         edata.put("duration", duration);
         Map<String, Object> itemDetails = new HashMap<>();
-        itemDetails.put("botID", assessment.getBotID());
-        itemDetails.put("userID", assessment.getUserID().toString());
+        itemDetails.put("botID", assessment.getBotID().toString());
+        itemDetails.put("userID", userID.toString());
         itemDetails.put("id", question.getId().toString());
         itemDetails.put("type", question.getQuestionType().name());
         itemDetails.put("meta", question.getMeta());
@@ -73,8 +85,13 @@ public class AssessmentTelemetryBuilder {
                 ets(System.currentTimeMillis()).
                 ver(TELEMETRY_IMPL_VERSION).
                 mid(ASSESS_EVENT_MID)
-                .actor(Actor.builder().type(ACTOR_TYPE_USER).id(assessment.getUserID().toString()).
-                        build()).context(context).object(object).edata(edata)
+                .actor(Actor.builder()
+                        .type(ACTOR_TYPE_USER)
+                        .id(userID)
+                        .build())
+                .context(context)
+                .object(object)
+                .edata(edata)
                 .build();
         return telemetry.getTelemetryRequestData();
     }

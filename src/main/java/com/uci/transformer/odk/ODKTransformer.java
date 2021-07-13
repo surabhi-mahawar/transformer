@@ -54,6 +54,12 @@ public class ODKTransformer extends TransformerProvider {
     private static final String SMS_BROADCAST_IDENTIFIER = "Broadcast";
     public static final String XML_PREFIX = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 
+    @Value("${outbound}")
+    public String outboundTopic;
+
+    @Value("${telemetry}")
+    public String telemetryTopic;
+
     @Autowired
     public CommonProducer kafkaProducer;
 
@@ -86,10 +92,8 @@ public class ODKTransformer extends TransformerProvider {
     @Value("${producer.id}")
     private String producerID;
 
-
-
     // Listen to all ODK based transformers
-    @KafkaListener(id = "odk-transformer", topicPattern = "com.odk.*")
+    @KafkaListener(id = "${odk-transformer}", topicPattern = "com.odk.*")
     public void consumeMessage(String message) throws Exception {
         long startTime = System.nanoTime();
         log.info("Form Transformer Message: " + message);
@@ -107,7 +111,7 @@ public class ODKTransformer extends TransformerProvider {
                     for (XMessage msg : messages) {
 
                         try {
-                            kafkaProducer.send("outbound", msg.toXML());
+                            kafkaProducer.send(outboundTopic, msg.toXML());
                         } catch (JsonProcessingException e) {
                             e.printStackTrace();
                         } catch (JAXBException e) {
@@ -123,7 +127,7 @@ public class ODKTransformer extends TransformerProvider {
                 public void accept(XMessage transformedMessage) {
                     if (transformedMessage != null) {
                         try {
-                            kafkaProducer.send("outbound", transformedMessage.toXML());
+                            kafkaProducer.send(outboundTopic, transformedMessage.toXML());
                             long endTime = System.nanoTime();
                             long duration = (endTime - startTime);
                             log.error("Total time spent in processing form: " + duration / 1000000);
@@ -193,15 +197,15 @@ public class ODKTransformer extends TransformerProvider {
                     MenuManager mm;
                     if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
                         previousMeta.currentAnswer = "*";
-                        ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID,false,questionRepo).start();
+                        ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
                         FormUpdation ss = FormUpdation.builder().build();
                         ss.parse(serviceResponse.currentResponseState);
                         ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
                         String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
                                 ss.getXML();
-                        log.debug("Instance value >> "+ instanceXMlPrevious);
-                        mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID,true,questionRepo);
-                        response[0]=mm.start();
+                        log.debug("Instance value >> " + instanceXMlPrevious);
+                        mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
+                        response[0] = mm.start();
                     } else {
                         mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
                                 previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
@@ -214,20 +218,21 @@ public class ODKTransformer extends TransformerProvider {
                     if (questionList != null && questionList.size() > 0) {
                         Assessment assessment = Assessment.builder()
                                 .question(questionList.get(0))
-                                        .answer(previousMeta.currentAnswer)
+                                .answer(previousMeta.currentAnswer)
                                 .botID(UUID.fromString(campaign.findValue("id").asText()))
                                 .build();
-                        String telemetryEvent = new AssessmentTelemetryBuilder().build(
-                                "",xMessage.getChannel(),xMessage.getProvider(),producerID,"",
-                                assessment.getQuestion(),
-                                assessment,0);
+
                         try {
-                            kafkaProducer.send("uci.telemetry",telemetryEvent);
-                        } catch (JsonProcessingException e) {
+                            String telemetryEvent = new AssessmentTelemetryBuilder().build(
+                                    "", xMessage.getChannel(), xMessage.getProvider(), producerID, "",
+                                    assessment.getQuestion(),
+                                    assessment, 0);
+                            kafkaProducer.send(telemetryTopic, telemetryEvent);
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                         assessmentRepo.save(assessment);
-                    }else{
+                    } else {
                         log.error("No question asked previously, error of DB misconfiguration. Please delete your questions");
                     }
 
@@ -250,7 +255,7 @@ public class ODKTransformer extends TransformerProvider {
                     } else {
                         return Mono.just(decodeXMessage(xMessage, response[0], formID));
                     }
-                }else{
+                } else {
                     log.error("Could not find Bot");
                     return Mono.just(null);
                 }
