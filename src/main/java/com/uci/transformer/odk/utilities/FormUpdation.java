@@ -53,16 +53,12 @@ public class FormUpdation {
         for (Map.Entry<String, Object> entry : stringObjectMap.entrySet()) {
             String key = entry.getKey();
             Object value = entry.getValue();
-            if (value instanceof String) {
-                if (key.equals(destinationKey)) {
-                    stringObjectMap.put(key, destinationValue);
-                    entryUpdated = true;
-                }
-            } else if (value instanceof Map) {
+            if (key.equals(destinationKey)) {
+                stringObjectMap.put(key, destinationValue);
+                return true;
+            }else if (value instanceof Map) {
                 Map<String, Object> subMap = (Map<String, Object>) value;
                 hashMapper(subMap, destinationKey, destinationValue);
-            } else {
-                throw new IllegalArgumentException(String.valueOf(value));
             }
         }
 

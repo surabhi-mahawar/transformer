@@ -18,6 +18,7 @@ import okhttp3.*;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class UserService {
 
+    @Autowired
     private CampaignService campaignService;
 //    @Autowired
 //    @Value("${external.services.url-shortnr.baseURL}")

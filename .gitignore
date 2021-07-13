@@ -30,7 +30,6 @@ target/
 
 ### VS Code ###
 .vscode/
-src/main/resources/application.properties
 .env--
 
 .DS_Store
