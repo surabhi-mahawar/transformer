@@ -3,14 +3,12 @@ package com.uci.transformer.odk;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.github.kagkarlsson.scheduler.Scheduler;
-import com.github.kagkarlsson.scheduler.task.*;
-import com.github.kagkarlsson.scheduler.task.helper.OneTimeTask;
 import com.uci.transformer.TransformerProvider;
 import com.uci.transformer.User.UserService;
 import com.uci.transformer.odk.entity.Assessment;
 import com.uci.transformer.odk.entity.GupshupMessageEntity;
 import com.uci.transformer.odk.entity.GupshupStateEntity;
+import com.uci.transformer.odk.entity.Question;
 import com.uci.transformer.odk.persistance.FormsDao;
 import com.uci.transformer.odk.persistance.JsonDB;
 import com.uci.transformer.odk.repository.AssessmentRepository;
@@ -18,24 +16,20 @@ import com.uci.transformer.odk.repository.MessageRepository;
 import com.uci.transformer.odk.repository.QuestionRepository;
 import com.uci.transformer.odk.repository.StateRepository;
 import com.uci.transformer.odk.utilities.FormUpdation;
-import com.uci.transformer.pt.skills.EmployerRegistration;
-import com.uci.transformer.samagra.SamagraOrgForm;
-import com.uci.transformer.samagra.TemplateServiceUtils;
 import com.uci.utils.CampaignService;
 import com.uci.utils.CommonProducer;
-import io.fusionauth.domain.User;
-import lombok.SneakyThrows;
+import com.uci.transformer.telemetry.AssessmentTelemetryBuilder;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
 import messagerosa.xml.XMessageParser;
-import okhttp3.*;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -44,9 +38,6 @@ import reactor.core.publisher.Mono;
 import javax.sql.DataSource;
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -62,6 +53,12 @@ public class ODKTransformer extends TransformerProvider {
 
     private static final String SMS_BROADCAST_IDENTIFIER = "Broadcast";
     public static final String XML_PREFIX = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+
+    @Value("${outbound}")
+    public String outboundTopic;
+
+    @Value("${telemetry}")
+    public String telemetryTopic;
 
     @Autowired
     public CommonProducer kafkaProducer;
@@ -92,9 +89,11 @@ public class ODKTransformer extends TransformerProvider {
     @Autowired
     CampaignService campaignService;
 
+    @Value("${producer.id}")
+    private String producerID;
 
     // Listen to all ODK based transformers
-    @KafkaListener(id = "odk-transformer", topicPattern = "com.odk.*")
+    @KafkaListener(id = "${odk-transformer}", topicPattern = "com.odk.*")
     public void consumeMessage(String message) throws Exception {
         long startTime = System.nanoTime();
         log.info("Form Transformer Message: " + message);
@@ -112,7 +111,7 @@ public class ODKTransformer extends TransformerProvider {
                     for (XMessage msg : messages) {
 
                         try {
-                            kafkaProducer.send("outbound", msg.toXML());
+                            kafkaProducer.send(outboundTopic, msg.toXML());
                         } catch (JsonProcessingException e) {
                             e.printStackTrace();
                         } catch (JAXBException e) {
@@ -128,7 +127,7 @@ public class ODKTransformer extends TransformerProvider {
                 public void accept(XMessage transformedMessage) {
                     if (transformedMessage != null) {
                         try {
-                            kafkaProducer.send("outbound", transformedMessage.toXML());
+                            kafkaProducer.send(outboundTopic, transformedMessage.toXML());
                             long endTime = System.nanoTime();
                             long duration = (endTime - startTime);
                             log.error("Total time spent in processing form: " + duration / 1000000);
@@ -198,11 +197,13 @@ public class ODKTransformer extends TransformerProvider {
                     MenuManager mm;
                     if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
                         previousMeta.currentAnswer = "*";
-                        mm = new MenuManager(null, null, null, formPath, formID, false, questionRepo);
-                        response[0] = mm.start();
-                        EmployerRegistration ss = EmployerRegistration.builder().phone(xMessage.getTo().getUserID()).build();
-                        ss.parse(response[0].currentResponseState);
-                        String instanceXMlPrevious = XML_PREFIX + ss.updatePhoneNumber(xMessage.getTo().getUserID()).getXML();
+                        ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
+                        FormUpdation ss = FormUpdation.builder().build();
+                        ss.parse(serviceResponse.currentResponseState);
+                        ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
+                        String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                                ss.getXML();
+                        log.debug("Instance value >> " + instanceXMlPrevious);
                         mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
                         response[0] = mm.start();
                     } else {
@@ -212,14 +213,28 @@ public class ODKTransformer extends TransformerProvider {
                     }
 
                     // Save answerData => PreviousQuestion + CurrentAnswer
-                    Assessment assessment = Assessment.builder()
-                            .question(questionRepo.findQuestionByXPathAndFormIDAndFormVersion(previousMeta.previousPath, formID, response[0].formVersion).get(0))
-                            .answer(previousMeta.currentAnswer)
-                            .botID(UUID.fromString(campaign.findValue("id").asText()))
-                            .build();
+                    List<Question> questionList = questionRepo.findQuestionByXPathAndFormIDAndFormVersion(previousMeta.previousPath,
+                            formID, response[0].formVersion);
+                    if (questionList != null && questionList.size() > 0) {
+                        Assessment assessment = Assessment.builder()
+                                .question(questionList.get(0))
+                                .answer(previousMeta.currentAnswer)
+                                .botID(UUID.fromString(campaign.findValue("id").asText()))
+                                .build();
 
-                    assessmentRepo.save(assessment);
-
+                        try {
+                            String telemetryEvent = new AssessmentTelemetryBuilder().build(
+                                    "", xMessage.getChannel(), xMessage.getProvider(), producerID, "",
+                                    assessment.getQuestion(),
+                                    assessment, 0);
+                            kafkaProducer.send(telemetryTopic, telemetryEvent);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        assessmentRepo.save(assessment);
+                    } else {
+                        log.error("No question asked previously, error of DB misconfiguration. Please delete your questions");
+                    }
 
                     if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
                         String nextBotID = mm.getNextBotID(response[0].currentIndex);
@@ -240,7 +255,7 @@ public class ODKTransformer extends TransformerProvider {
                     } else {
                         return Mono.just(decodeXMessage(xMessage, response[0], formID));
                     }
-                }else{
+                } else {
                     log.error("Could not find Bot");
                     return Mono.just(null);
                 }

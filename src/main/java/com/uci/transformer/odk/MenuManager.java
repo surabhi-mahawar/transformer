@@ -1,5 +1,6 @@
 package com.uci.transformer.odk;
 
+import com.uci.transformer.odk.entity.Meta;
 import com.uci.transformer.odk.entity.Question;
 import com.uci.transformer.odk.repository.QuestionRepository;
 import lombok.*;
@@ -254,6 +255,13 @@ public class MenuManager {
             question.setFormID(formID);
             question.setFormVersion(formVersion);
             question.setXPath(currentPath);
+            ArrayList<String> choices = new ArrayList<>();
+            if(nextQuestion.getButtonChoices() != null){
+                for(ButtonChoice buttonChoice:nextQuestion.getButtonChoices()){
+                    choices.add(buttonChoice.getText());
+                }
+            }
+            question.setMeta(new Meta(nextQuestion.getText(), choices ));
             questionRepo.save(question);
         }
         return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion);
