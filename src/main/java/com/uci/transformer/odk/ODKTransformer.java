@@ -17,7 +17,7 @@ import com.uci.transformer.odk.repository.QuestionRepository;
 import com.uci.transformer.odk.repository.StateRepository;
 import com.uci.transformer.odk.utilities.FormUpdation;
 import com.uci.utils.CampaignService;
-import com.uci.utils.CommonProducer;
+import com.uci.utils.kafka.SimpleProducer;
 import com.uci.transformer.telemetry.AssessmentTelemetryBuilder;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
@@ -61,7 +61,7 @@ public class ODKTransformer extends TransformerProvider {
     public String telemetryTopic;
 
     @Autowired
-    public CommonProducer kafkaProducer;
+    public SimpleProducer kafkaProducer;
 
     @Autowired
     QuestionRepository questionRepo;
@@ -112,8 +112,6 @@ public class ODKTransformer extends TransformerProvider {
 
                         try {
                             kafkaProducer.send(outboundTopic, msg.toXML());
-                        } catch (JsonProcessingException e) {
-                            e.printStackTrace();
                         } catch (JAXBException e) {
                             e.printStackTrace();
                         }
@@ -131,8 +129,6 @@ public class ODKTransformer extends TransformerProvider {
                             long endTime = System.nanoTime();
                             long duration = (endTime - startTime);
                             log.error("Total time spent in processing form: " + duration / 1000000);
-                        } catch (JsonProcessingException e) {
-                            e.printStackTrace();
                         } catch (JAXBException e) {
                             e.printStackTrace();
                         }
@@ -247,7 +243,7 @@ public class ODKTransformer extends TransformerProvider {
                                                      null, null, getFormPath(nextFormID),
                                                      nextFormID, false, questionRepo);
                                              response[0] = mm2.start();
-                                             return decodeXMessage(xMessage, response[0], formID);
+                                             return decodeXMessage(xMessage, response[0], nextFormID);
                                          }
                                      }
                                 );

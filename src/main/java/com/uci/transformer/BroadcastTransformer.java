@@ -2,10 +2,8 @@ package com.uci.transformer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.uci.transformer.User.UserService;
-import com.uci.transformer.odk.repository.MessageRepository;
-import com.uci.transformer.odk.repository.StateRepository;
 import com.uci.utils.CampaignService;
-import com.uci.utils.CommonProducer;
+import com.uci.utils.kafka.SimpleProducer;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
@@ -29,7 +27,7 @@ import java.util.function.Consumer;
 public class BroadcastTransformer extends TransformerProvider {
 
     @Autowired
-    public CommonProducer kafkaProducer;
+    public SimpleProducer kafkaProducer;
 
 //    @Autowired
 //    private StateRepository stateRepo;
@@ -140,8 +138,6 @@ public class BroadcastTransformer extends TransformerProvider {
                     try {
                         kafkaProducer.send("broadcast", msg.toXML());
                         kafkaProducer.send("PassThrough", msg.toXML());
-                    } catch (JsonProcessingException e) {
-                        e.printStackTrace();
                     } catch (JAXBException e) {
                         e.printStackTrace();
                     }
