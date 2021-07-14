@@ -2,7 +2,7 @@ package com.uci.transformer.conversation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.uci.transformer.TransformerProvider;
-import com.uci.utils.CommonProducer;
+import com.uci.utils.kafka.SimpleProducer;
 import io.fusionauth.domain.Application;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.*;
@@ -24,7 +24,7 @@ import java.util.function.Consumer;
 public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
 
     @Autowired
-    public CommonProducer kafkaProducer;
+    public SimpleProducer kafkaProducer;
 
     // Not getting used in this one
     @Override
@@ -99,8 +99,6 @@ public class CampaignMessageMultiplexerTransformer extends TransformerProvider {
                         for (XMessage msg : transformedMessages) {
                             try {
                                 kafkaProducer.send("Form2", msg.toXML());
-                            } catch (JsonProcessingException e) {
-                                e.printStackTrace();
                             } catch (JAXBException e) {
                                 e.printStackTrace();
                             }

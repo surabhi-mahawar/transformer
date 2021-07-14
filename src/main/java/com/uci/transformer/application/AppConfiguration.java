@@ -33,7 +33,6 @@ public class AppConfiguration {
 
     @Bean
     public CampaignService getCampaignService() {
-
         WebClient webClient = WebClient.builder()
                 .baseUrl(CAMPAIGN_URL)
                 .build();
