@@ -34,6 +34,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 
 import javax.sql.DataSource;
 import javax.xml.bind.JAXBException;
@@ -234,20 +235,22 @@ public class ODKTransformer extends TransformerProvider {
 
                     if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
                         String nextBotID = mm.getNextBotID(response[0].currentIndex);
-                        return campaignService
-                                .getFirstFormByBotID(nextBotID)
-                                .map(new Function<String, XMessage>() {
-                                         @Override
-                                         public XMessage apply(String nextFormID) {
-                                             MenuManager mm2 = new MenuManager(null,
-                                                     null, null, getFormPath(nextFormID),
-                                                     nextFormID, false, questionRepo);
-                                             response[0] = mm2.start();
-                                             return decodeXMessage(xMessage, response[0], nextFormID);
-                                         }
-                                     }
-                                );
 
+                        return Mono.zip(
+                                campaignService.getFirstFormByBotID(nextBotID),
+                                campaignService.getBotNameByBotID(nextBotID)
+                        ).map(new Function<Tuple2<String, String>, XMessage>() {
+                            @Override
+                            public XMessage apply(Tuple2<String, String> result) {
+                                String nextFormID = result.getT1();
+                                String appName = result.getT2();
+                                MenuManager mm = new MenuManager(null, null, null,
+                                        getFormPath(nextFormID), nextFormID, false, questionRepo);
+                                response[0] = mm.start();
+                                xMessage.setApp(appName);
+                                return decodeXMessage(xMessage, response[0], nextFormID);
+                            }
+                        });
                     } else {
                         return Mono.just(decodeXMessage(xMessage, response[0], formID));
                     }
