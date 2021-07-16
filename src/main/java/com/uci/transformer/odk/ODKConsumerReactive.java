@@ -334,6 +334,7 @@ public class ODKConsumerReactive extends TransformerProvider {
 
         if (!message.getMessageState().equals(XMessage.MessageState.OPTED_IN)) {
             return stateRepo.findByPhoneNoAndBotFormName(message.getTo().getUserID(), formID)
+                    .defaultIfEmpty(new GupshupStateEntity())
                     .map(new Function<GupshupStateEntity, FormManagerParams>() {
                         @Override
                         public FormManagerParams apply(GupshupStateEntity stateEntity) {
@@ -529,17 +530,26 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     private Mono<GupshupStateEntity> replaceUserState(String formID, XMessage xMessage, ServiceResponse response) {
         return stateRepo.findByPhoneNoAndBotFormName(xMessage.getTo().getUserID(), formID)
+                .defaultIfEmpty(new GupshupStateEntity())
                 .map(new Function<GupshupStateEntity, Mono<GupshupStateEntity>>() {
                     @Override
                     public Mono<GupshupStateEntity> apply(GupshupStateEntity saveEntity) {
-                        if (saveEntity == null) {
-                            saveEntity = new GupshupStateEntity();
-                        }
                         saveEntity.setPhoneNo(xMessage.getTo().getUserID());
                         saveEntity.setPreviousPath(response.getCurrentIndex());
                         saveEntity.setXmlPrevious(response.getCurrentResponseState());
                         saveEntity.setBotFormName(formID);
-                        return stateRepo.save(saveEntity);
+                        return stateRepo.save(saveEntity)
+                                .doOnError(new Consumer<Throwable>() {
+                                    @Override
+                                    public void accept(Throwable throwable) {
+                                        log.error("Unable to persist state entity {}", throwable.getMessage());
+                                    }
+                                }).doOnNext(new Consumer<GupshupStateEntity>() {
+                                    @Override
+                                    public void accept(GupshupStateEntity gupshupStateEntity) {
+                                        log.info("Successfully persisted state entiry");
+                                    }
+                                });
                     }
                 }).flatMap(new Function<Mono<GupshupStateEntity>, Mono<? extends GupshupStateEntity>>() {
                     @Override
