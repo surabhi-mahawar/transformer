@@ -2,12 +2,11 @@ package com.uci.transformer.odk.repository;
 
 import com.uci.transformer.odk.entity.Assessment;
 import com.uci.transformer.odk.entity.GupshupStateEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 
 import java.util.UUID;
 
-@Repository
-public interface AssessmentRepository extends JpaRepository<Assessment, UUID> {
+public interface AssessmentRepository extends R2dbcRepository<Assessment, UUID> {
 
 }

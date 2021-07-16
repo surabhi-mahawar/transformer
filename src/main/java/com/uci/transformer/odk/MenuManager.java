@@ -3,6 +3,7 @@ package com.uci.transformer.odk;
 import com.uci.transformer.odk.entity.Meta;
 import com.uci.transformer.odk.entity.Question;
 import com.uci.transformer.odk.repository.QuestionRepository;
+import io.r2dbc.postgresql.codec.Json;
 import lombok.*;
 import lombok.extern.java.Log;
 import messagerosa.core.model.ButtonChoice;
@@ -33,6 +34,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import static org.javarosa.form.api.FormEntryController.ANSWER_OK;
 
@@ -249,22 +251,21 @@ public class MenuManager {
 
         // check if currentPath is persisted in the DB. If not, insert it with all the things.
         String formVersion = formController.getModel().getForm().getInstance().formVersion;
-        if (questionRepo.findQuestionByXPathAndFormIDAndFormVersion(currentPath, formID, formVersion).size() == 0) {
-            Question question = new Question();
-            question.setQuestionType(Question.QuestionType.STRING);
-            question.setFormID(formID);
-            question.setFormVersion(formVersion);
-            question.setXPath(currentPath);
-            ArrayList<String> choices = new ArrayList<>();
-            if(nextQuestion.getButtonChoices() != null){
-                for(ButtonChoice buttonChoice:nextQuestion.getButtonChoices()){
-                    choices.add(buttonChoice.getText());
-                }
+        Question question = new Question();
+        question.setQuestionType(Question.QuestionType.STRING);
+        question.setFormID(formID);
+        question.setFormVersion(formVersion);
+        question.setXPath(currentPath);
+        ArrayList<String> choices = new ArrayList<>();
+        if (nextQuestion.getButtonChoices() != null) {
+            for (ButtonChoice buttonChoice : nextQuestion.getButtonChoices()) {
+                choices.add(buttonChoice.getText());
             }
-            question.setMeta(new Meta(nextQuestion.getText(), choices ));
-            questionRepo.save(question);
         }
-        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion);
+
+        question.setMeta(Json.of(new Meta(nextQuestion.getText(), choices).toString()));
+
+        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question);
     }
 
     private boolean isDynamicQuestion() {

@@ -25,8 +25,6 @@ import java.util.Date;
 @Component
 public class UploadService {
 
-
-
     private static HttpHeaders getVerifyHttpHeader4() throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
