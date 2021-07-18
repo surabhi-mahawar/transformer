@@ -25,6 +25,7 @@ import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.util.FileSystemUtils;
+import reactor.blockhound.BlockHound;
 
 import javax.annotation.PostConstruct;
 import java.io.File;

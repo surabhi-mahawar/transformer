@@ -47,19 +47,36 @@ public class AppConfiguration {
         return new RestTemplate();
     }
 
+    @Value("${fusionauth.url}")
+    public String FUSIONAUTH_URL;
+
+    @Value("${fusionauth.key}")
+    public String FUSIONAUTH_KEY;
+
+    @Value("${odk.username}")
+    public String ODK_USERNAME;
+
+    @Value("${odk.password}")
+    public String ODK_PASSWORD;
+
+    @Bean
+    public FusionAuthClient getFAClient() {
+        return new FusionAuthClient(FUSIONAUTH_KEY, FUSIONAUTH_URL);
+    }
+
     @Bean
     public CampaignService getCampaignService() {
         WebClient webClient = WebClient.builder()
                 .baseUrl(CAMPAIGN_URL)
                 .build();
-        return new CampaignService(webClient);
+        return new CampaignService(webClient, getFAClient());
     }
 
     @Bean
     @Qualifier("custom")
     public RestTemplate getCustomTemplate() {
         RestTemplateBuilder builder = new RestTemplateBuilder();
-        Credentials credentials = new UsernamePasswordCredentials("test","abcd1234");
+        Credentials credentials = new UsernamePasswordCredentials(ODK_USERNAME,ODK_PASSWORD);
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, credentials);
 
@@ -78,11 +95,6 @@ public class AppConfiguration {
     private String BOOTSTRAP_SERVERS;
 
     private final String GROUP_ID = "transformer";
-
-    @Bean
-    public FusionAuthClient AuthServerConnection() {
-        return new FusionAuthClient("${authserver.apikey}", "${authserver.apiURL}");
-    }
 
     @Bean
     Map<String, Object> kafkaConsumerConfiguration() {
