@@ -428,6 +428,7 @@ public class ODKConsumerReactive extends TransformerProvider {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
         Assessment assessment = Assessment.builder()
                 .question(question)
+                .deviceID(UUID.fromString(xMessage.getTo().getDeviceID()))
                 .answer(previousMeta.currentAnswer)
                 .botID(UUID.fromString(campaign.findValue("id").asText()))
                 .build();
