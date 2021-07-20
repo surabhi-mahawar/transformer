@@ -141,8 +141,8 @@ public class AppConfiguration {
         return KafkaSender.create(kafkaSenderOptions);
     }
 
-    @Bean
-    ReactiveProducer kafkaReactiveProducer() {
-        return new ReactiveProducer();
-    }
+//    @Bean
+//    ReactiveProducer kafkaReactiveProducer() {
+//        return new ReactiveProducer();
+//    }
 }
