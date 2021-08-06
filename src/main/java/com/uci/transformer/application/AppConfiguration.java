@@ -40,6 +40,9 @@ public class AppConfiguration {
 
     @Value("${campaign.url}")
     public String CAMPAIGN_URL;
+    
+    @Value("${campaign.admin.token}")
+	public String CAMPAIGN_ADMIN_TOKEN;
 
     @Bean
     @Qualifier("rest")
@@ -68,6 +71,7 @@ public class AppConfiguration {
     public CampaignService getCampaignService() {
         WebClient webClient = WebClient.builder()
                 .baseUrl(CAMPAIGN_URL)
+                .defaultHeader("admin-token", CAMPAIGN_ADMIN_TOKEN)
                 .build();
         return new CampaignService(webClient, getFAClient());
     }
