@@ -66,6 +66,7 @@ public class WebCredentialsUtils {
 
     public URI getServerUrlFromPreferences() throws MalformedURLException, URISyntaxException {
         String downloadUrl = System.getenv("ODK_URL");
+        log.info("ODK URL ::" + downloadUrl);
         URL url = new URL(downloadUrl);
         return url.toURI();
     }
