@@ -69,6 +69,7 @@ public class AppConfiguration {
 
     @Bean
     public CampaignService getCampaignService() {
+        System.out.println("Inside getCampaignService :: " + CAMPAIGN_ADMIN_TOKEN + " :: " + CAMPAIGN_URL);
         WebClient webClient = WebClient.builder()
                 .baseUrl(CAMPAIGN_URL)
                 .defaultHeader("admin-token", CAMPAIGN_ADMIN_TOKEN)
