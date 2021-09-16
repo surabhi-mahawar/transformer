@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static com.uci.transformer.odk.utilities.FileUtils.MEDIA_SUFFIX;
 import static org.javarosa.form.api.FormEntryController.ANSWER_OK;
 
 @NoArgsConstructor
@@ -704,7 +705,7 @@ public class MenuManager {
             FormDef fd = XFormUtils.getFormFromInputStream(fis);
             return fd;
         } catch (Exception e) {
-            log.severe(e.getMessage());
+            log.severe("CP-2" + e.getMessage());
         } finally {
             IOUtils.closeQuietly(fis);
         }
@@ -723,7 +724,16 @@ public class MenuManager {
         }
         log.info("Current form path :: " + formPath);
 
-        final File formXml = new File(formPath);
+        File formXml;
+        formXml = new File(formPath);
+        if(!formXml.exists()){
+            String[] filePathParts = formPath.split("/");
+            String filePathLast = filePathParts[filePathParts.length-1];
+            log.info(filePathLast);
+            String mediaFilePath = "/tmp/forms2/" + filePathLast.split(".xml")[0] + MEDIA_SUFFIX + "/" + filePathLast;
+            log.info("Media Path ::" + mediaFilePath);
+            formXml = new File(mediaFilePath);
+        }
 
         FormDef formDef = null;
         try {
