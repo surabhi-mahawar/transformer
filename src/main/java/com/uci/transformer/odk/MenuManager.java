@@ -721,6 +721,7 @@ public class MenuManager {
             System.out.println("formPath is null");
             return null;
         }
+        log.info("Current form path :: " + formPath);
 
         final File formXml = new File(formPath);
 
@@ -729,7 +730,7 @@ public class MenuManager {
             formDef = createFormDefFromCacheOrXml(formPath, formXml);
             log.info("Got formDef");
         } catch (StackOverflowError e) {
-            System.out.println(e);
+            log.severe("CP 1" + e.getMessage());
         }
 
         if (formDef == null) {
