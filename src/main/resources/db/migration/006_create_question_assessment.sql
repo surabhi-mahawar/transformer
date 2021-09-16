@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE table question
 (
     id              uuid DEFAULT uuid_generate_v4 (),
