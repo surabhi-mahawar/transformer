@@ -531,11 +531,19 @@ public class ODKConsumerReactive extends TransformerProvider {
     }
 
     private Mono<GupshupStateEntity> replaceUserState(String formID, XMessage xMessage, ServiceResponse response) {
+        log.info("Saving State");
+        try {
+            log.info(xMessage.toXML());
+        } catch (JAXBException e) {
+            log.error("Wrong XML for xMessage");
+            e.printStackTrace();
+        }
         return stateRepo.findByPhoneNoAndBotFormName(xMessage.getTo().getUserID(), formID)
                 .defaultIfEmpty(new GupshupStateEntity())
                 .map(new Function<GupshupStateEntity, Mono<GupshupStateEntity>>() {
                     @Override
                     public Mono<GupshupStateEntity> apply(GupshupStateEntity saveEntity) {
+                        log.info("Saving the ", xMessage.getTo().getUserID());
                         saveEntity.setPhoneNo(xMessage.getTo().getUserID());
                         saveEntity.setPreviousPath(response.getCurrentIndex());
                         saveEntity.setXmlPrevious(response.getCurrentResponseState());
