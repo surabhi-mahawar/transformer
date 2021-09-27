@@ -240,8 +240,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 FormUpdation ss = FormUpdation.builder().build();
                                                 ss.parse(serviceResponse.currentResponseState);
                                                 ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
-                                                String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-                                                        ss.getXML();
+//                                                String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+//                                                        ss.getXML();
+                                                String instanceXMlPrevious = ss.getXML();
                                                 log.debug("Instance value >> " + instanceXMlPrevious);
                                                 mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
                                                 response[0] = mm.start();
@@ -426,9 +427,10 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 String formID, FormManagerParams previousMeta,
                                                 JsonNode campaign, XMessage xMessage, Question question) {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
+        UUID deviceID = xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;
         Assessment assessment = Assessment.builder()
                 .question(question)
-                .deviceID(UUID.fromString(xMessage.getTo().getDeviceID()))
+                .deviceID(deviceID)
                 .answer(previousMeta.currentAnswer)
                 .botID(UUID.fromString(campaign.findValue("id").asText()))
                 .build();
@@ -518,7 +520,7 @@ public class ODKConsumerReactive extends TransformerProvider {
     }
 
     public static String getFormPath(String formID) {
-        FormsDao dao = new FormsDao(JsonDB.getInstance().getDB());
+    	FormsDao dao = new FormsDao(JsonDB.getInstance().getDB());
         return dao.getFormsCursorForFormId(formID).getFormFilePath();
     }
 

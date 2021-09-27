@@ -5,10 +5,10 @@
 		<Property name="kafka.bootstrap.servers">${env:BOOTSTRAP_SERVERS}</Property>
 	</Properties>
 	<Appenders>
-		<Kafka name="KafkaLogAppender" topic="${kafka.topic}">
+		<customKafka name="KafkaLogAppender" topic="${kafka.topic}" syncSend="false">
 			<PatternLayout pattern="%message" />
 			<Property name="bootstrap.servers">${kafka.bootstrap.servers}</Property>
-		</Kafka>
+		</customKafka>
 
 		<Console name="stdout" target="SYSTEM_OUT">
 			<PatternLayout

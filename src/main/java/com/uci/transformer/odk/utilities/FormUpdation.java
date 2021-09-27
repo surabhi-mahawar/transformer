@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.jayway.jsonpath.JsonPath;
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.io.xml.StaxDriver;
 import com.uci.transformer.samagra.MapEntryConverter;
 import lombok.Builder;
 import lombok.Getter;
@@ -36,7 +37,7 @@ public class FormUpdation {
     }
 
     public FormUpdation updateHiddenFields(ArrayNode hiddenFields, JSONObject user) {
-        UUID instanceID = randomUUID();
+    	UUID instanceID = randomUUID();
         HashMap<String, String> fields = new HashMap<>();
         for(int i=0; i<hiddenFields.size(); i++){
             JsonNode object = hiddenFields.get(i);
@@ -75,14 +76,31 @@ public class FormUpdation {
     }
 
     public String getXML(){
-        XStream magicApi = new XStream();
-        magicApi.registerConverter(new MapEntryConverter());
+//        XStream magicApi = new XStream();
+    	XStream magicApi = new XStream(new StaxDriver()) {
+            @Override
+            protected void setupConverters() {
+            }
+        };
+        magicApi.allowTypesByWildcard(new String[] {
+            "com.your.package.**"
+        });
+    	magicApi.registerConverter(new MapEntryConverter());
         magicApi.alias("data", Map.class);
         return magicApi.toXML(this.instanceData).replaceAll("__", "_");
     }
 
     public Map<String, Object> parse(String xml) {
-        XStream magicApi = new XStream();
+    	System.out.println(xml);
+//        XStream magicApi = new XStream();
+    	XStream magicApi = new XStream(new StaxDriver()) {
+            @Override
+            protected void setupConverters() {
+            }
+        };
+        magicApi.allowTypesByWildcard(new String[] {
+            "com.your.package.**"
+        });
         magicApi.registerConverter(new MapEntryConverter());
         magicApi.alias("data", Map.class);
         this.instanceData = (Map<String, Object>) magicApi.fromXML(xml);
