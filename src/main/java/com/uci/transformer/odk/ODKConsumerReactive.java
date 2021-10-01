@@ -22,6 +22,7 @@ import com.uci.utils.kafka.SimpleProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.SenderReceiverInfo;
+import messagerosa.core.model.Transformer;
 import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
 import messagerosa.xml.XMessageParser;
@@ -46,7 +47,9 @@ import reactor.util.function.Tuple2;
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -208,7 +211,26 @@ public class ODKConsumerReactive extends TransformerProvider {
         });
 
     }
-
+    
+    private Map<String, String> getCampaignAndFormIdFromXMessage(XMessage xMessage) {
+    	Map<String, String> result = new HashMap<String, String>();
+    	String campaignID = "";
+    	String formID = "";
+    	if(xMessage.getTransformers() != null && xMessage.getTransformers().size() > 0) {
+    		Transformer t = xMessage.getTransformers().get(0);
+    		if(!t.getMetaData().isEmpty()) {
+    			Map<String, String> metaData = (Map<String, String>) t.getMetaData();
+        		formID = (String) metaData.get("currentFormID");
+        		campaignID = (String) metaData.get("campaignID");
+    		}
+    	}
+    	
+    	result.put("formID", formID);
+    	result.put("campaignID", campaignID);
+    	
+    	return result;
+    }
+    
     @Override
     public Mono<XMessage> transform(XMessage xMessage) throws Exception {
         XMessage[] finalXMsg = new XMessage[1];
@@ -217,13 +239,21 @@ public class ODKConsumerReactive extends TransformerProvider {
                 .map(new Function<JsonNode, Mono<Mono<Mono<XMessage>>>>() {
                     @Override
                     public Mono<Mono<Mono<XMessage>>> apply(JsonNode campaign) {
+                    	System.out.println("campaign:"+campaign);
                         if (campaign != null) {
-                            String formID = ODKConsumerReactive.this.getFormID(campaign);
+                        	Map<String, String> data = getCampaignAndFormIdFromXMessage(xMessage);
+                        	
+                            String formID = data.get("formID");
+                            System.out.println("formID:"+formID);
+                            
+//                            String formID = ODKConsumerReactive.this.getFormID(campaign);
+//                            System.out.println("formID:"+formID);
                             if (formID.equals("")) {
                                 log.error("Unable to find form ID from Conversation Logic");
                                 return null;
                             }
                             String formPath = getFormPath(formID);
+                            System.out.println("formID:"+formID+",path:"+formPath);
                             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
                             switchFromTo(xMessage);
 
@@ -240,8 +270,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 FormUpdation ss = FormUpdation.builder().build();
                                                 ss.parse(serviceResponse.currentResponseState);
                                                 ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
-                                                String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-                                                        ss.getXML();
+//                                                String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+//                                                        ss.getXML();
+                                                String instanceXMlPrevious = ss.getXML();
                                                 log.debug("Instance value >> " + instanceXMlPrevious);
                                                 mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
                                                 response[0] = mm.start();
@@ -426,9 +457,10 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 String formID, FormManagerParams previousMeta,
                                                 JsonNode campaign, XMessage xMessage, Question question) {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
+        UUID deviceID = xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;
         Assessment assessment = Assessment.builder()
                 .question(question)
-                .deviceID(UUID.fromString(xMessage.getTo().getDeviceID()))
+                .deviceID(deviceID)
                 .answer(previousMeta.currentAnswer)
                 .botID(UUID.fromString(campaign.findValue("id").asText()))
                 .build();
@@ -487,7 +519,9 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     private String getFormID(JsonNode campaign) {
         try {
-            return campaign.findValue("formID").asText();
+        	return "mandatory-consent-v1";
+        	// return "0763144a-9a95-4fc5-9ae2-dbf1816ec384";
+//            return campaign.findValue("formID").asText();
         } catch (Exception e) {
             return "";
         }
@@ -518,7 +552,7 @@ public class ODKConsumerReactive extends TransformerProvider {
     }
 
     public static String getFormPath(String formID) {
-        FormsDao dao = new FormsDao(JsonDB.getInstance().getDB());
+    	FormsDao dao = new FormsDao(JsonDB.getInstance().getDB());
         return dao.getFormsCursorForFormId(formID).getFormFilePath();
     }
 
