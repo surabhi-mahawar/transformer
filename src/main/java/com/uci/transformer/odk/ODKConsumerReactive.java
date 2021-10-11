@@ -249,31 +249,27 @@ public class ODKConsumerReactive extends TransformerProvider {
                 .map(new Function<JsonNode, Mono<Mono<Mono<XMessage>>>>() {
                     @Override
                     public Mono<Mono<Mono<XMessage>>> apply(JsonNode campaign) {
-                    	// System.out.println("campaign:"+campaign);
                         if (campaign != null) {
                         	Map<String, String> data = getCampaignAndFormIdFromXMessage(xMessage);
                         	
                             String formID = data.get("formID");
-                            // System.out.println("formID:"+formID);
+//                          String formID = ODKConsumerReactive.this.getFormID(campaign);
                             
-//                            String formID = ODKConsumerReactive.this.getFormID(campaign);
-//                            System.out.println("formID:"+formID);
                             if (formID.equals("")) {
                                 log.error("Unable to find form ID from Conversation Logic");
                                 return null;
                             }
                             
                             String lastFormID = getCurrentFormIDFromFile(xMessage.getFrom().getUserID(), data.get("campaignID"));
-                            System.out.println("lastFormID:"+lastFormID);
+                            log.info("Previous FormID:"+lastFormID);
                             
                             saveCurrentFormIDInFile(xMessage.getFrom().getUserID(), data.get("campaignID"), formID);
                             
                             String formPath = getFormPath(formID);
-                            System.out.println("current formID:"+formID+",path:"+formPath);
+                            log.info("current formID:"+formID+",path:"+formPath);
+                            
                             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
                             switchFromTo(xMessage);
-                            
-                            System.out.println("Result of form comparison:"+(lastFormID.equals(formID)));
 
                             // Get details of user from database
                             return getPreviousMetadata(xMessage, formID)
@@ -299,12 +295,6 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                         previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
                                                 response[0] = mm.start();
                                             }
-
-//                                            System.out.println("ques:"+response[0].question);
-//                                            System.out.println("prev ques:"+getPreviousQuestions(
-//                                                                    previousMeta.previousPath,
-//                                                                    formID,
-//                                                                    response[0].formVersion));
                                             
                                             // Save answerData => PreviousQuestion + CurrentAnswer
                                             Mono<Pair<Boolean, List<Question>>> updateQuestionAndAssessment =
@@ -399,14 +389,14 @@ public class ODKConsumerReactive extends TransformerProvider {
             
         	ObjectMapper mapper = new ObjectMapper();
         	JsonNode rootNode = mapper.readTree(bdata);
-            System.out.println("File Data Node:"+rootNode);
+            log.info("UserCurrentForm file data node:"+rootNode);
             
             if(!rootNode.isEmpty() && rootNode.get(userID) != null 
             		&& rootNode.path(userID).get(campaignID) != null) {
             	currentFormID = rootNode.path(userID).get(campaignID).asText();
             }
         } catch (IOException e) {
-        	log.info("Error in getCurrentFormIDFromFile:"+e.getMessage());
+        	log.error("Error in getCurrentFormIDFromFile:"+e.getMessage());
         }
         return currentFormID;
     }
@@ -440,13 +430,13 @@ public class ODKConsumerReactive extends TransformerProvider {
             	((ObjectNode) rootNode).put(userID, campaignNode);
             }
               
-            System.out.println("Saved File String:"+rootNode.toString());
+            log.info("Data saved in userCurrentForm file:"+rootNode.toString());
             
             FileWriter fileWriter = new FileWriter(file);
             fileWriter.write(rootNode.toString());
             fileWriter.close();
         } catch (IOException e) {
-        	log.info("Error in saveCurrentFormIDInFile:"+e.getMessage());
+        	log.error("Error in saveCurrentFormIDInFile:"+e.getMessage());
         }
     }
 	
@@ -463,7 +453,7 @@ public class ODKConsumerReactive extends TransformerProvider {
 	    	}
 	    	return file;
 		} catch (IOException e) {
-			log.info("Error in getCurrentUserJsonFile:"+e.getMessage());
+			log.error("Error in getCurrentUserJsonFile:"+e.getMessage());
 		}
 		return null;
 	}
