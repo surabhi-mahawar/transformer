@@ -1,7 +1,9 @@
 package com.uci.transformer.odk;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Maps;
 import com.uci.transformer.TransformerProvider;
 import com.uci.transformer.User.UserService;
@@ -36,7 +38,10 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.FileCopyUtils;
 import org.springframework.web.client.RestTemplate;
 import reactor.blockhound.BlockHound;
 import reactor.core.publisher.Flux;
@@ -46,6 +51,10 @@ import reactor.util.function.Tuple2;
 
 import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -239,12 +248,12 @@ public class ODKConsumerReactive extends TransformerProvider {
                 .map(new Function<JsonNode, Mono<Mono<Mono<XMessage>>>>() {
                     @Override
                     public Mono<Mono<Mono<XMessage>>> apply(JsonNode campaign) {
-                    	System.out.println("campaign:"+campaign);
+                    	// System.out.println("campaign:"+campaign);
                         if (campaign != null) {
                         	Map<String, String> data = getCampaignAndFormIdFromXMessage(xMessage);
                         	
                             String formID = data.get("formID");
-                            System.out.println("formID:"+formID);
+                            // System.out.println("formID:"+formID);
                             
 //                            String formID = ODKConsumerReactive.this.getFormID(campaign);
 //                            System.out.println("formID:"+formID);
@@ -252,10 +261,18 @@ public class ODKConsumerReactive extends TransformerProvider {
                                 log.error("Unable to find form ID from Conversation Logic");
                                 return null;
                             }
+                            
+                            String lastFormID = getCurrentFormIDFromFile(xMessage.getFrom().getUserID(), data.get("campaignID"));
+                            System.out.println("lastFormID:"+lastFormID);
+                            
+                            saveCurrentFormID(xMessage.getFrom().getUserID(), data.get("campaignID"), formID);
+                            
                             String formPath = getFormPath(formID);
-                            System.out.println("formID:"+formID+",path:"+formPath);
+                            System.out.println("current formID:"+formID+",path:"+formPath);
                             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
                             switchFromTo(xMessage);
+                            
+                            System.out.println("Result of form comparison:"+(lastFormID.equals(formID)));
 
                             // Get details of user from database
                             return getPreviousMetadata(xMessage, formID)
@@ -264,8 +281,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                         public Mono<Mono<XMessage>> apply(FormManagerParams previousMeta) {
                                             final ServiceResponse[] response = new ServiceResponse[1];
                                             MenuManager mm;
-                                            if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-                                                previousMeta.currentAnswer = "*";
+                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                                            	System.out.println("in-1");
+                                            	previousMeta.currentAnswer = "*";
                                                 ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
                                                 FormUpdation ss = FormUpdation.builder().build();
                                                 ss.parse(serviceResponse.currentResponseState);
@@ -277,11 +295,23 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
                                                 response[0] = mm.start();
                                             } else {
+                                            	System.out.println("in-2");
+                                            	System.out.println("Previous path:"+previousMeta.previousPath);
+                                            	System.out.println("current answer:"+previousMeta.currentAnswer);
+                                            	System.out.println("xml previous:"+previousMeta.instanceXMlPrevious);
+                                            	System.out.println("formPath:"+formPath);
+                                            	
                                                 mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
                                                         previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
                                                 response[0] = mm.start();
                                             }
 
+//                                            System.out.println("ques:"+response[0].question);
+//                                            System.out.println("prev ques:"+getPreviousQuestions(
+//                                                                    previousMeta.previousPath,
+//                                                                    formID,
+//                                                                    response[0].formVersion));
+                                            
                                             // Save answerData => PreviousQuestion + CurrentAnswer
                                             Mono<Pair<Boolean, List<Question>>> updateQuestionAndAssessment =
                                                     updateQuestionAndAssessment(
@@ -357,6 +387,102 @@ public class ODKConsumerReactive extends TransformerProvider {
                         });
                     }
                 });
+    }
+    
+    /**
+     * Get current form id set in file for user & campaign 
+     * 
+     * @param userID
+     * @param campaignID
+     * @return
+     */
+    private String getCurrentFormIDFromFile(String userID, String campaignID) {
+    	String currentFormID = "";
+    	Resource resource = new ClassPathResource(getJsonFilePath());
+        try {
+        	ObjectMapper mapper = new ObjectMapper();
+        	
+        	if(resource.exists()) {
+        		InputStream inputStream = resource.getInputStream();
+            	
+                byte[] bdata = FileCopyUtils.copyToByteArray(inputStream);
+                
+                JsonNode rootNode = mapper.readTree(bdata);
+                System.out.println("File Data Node:"+rootNode);
+                
+                if(!rootNode.isEmpty() && rootNode.get(userID) != null 
+                		&& rootNode.path(userID).get(campaignID) != null) {
+                	currentFormID = rootNode.path(userID).get(campaignID).asText();
+                }
+        	}
+        } catch (IOException e) {
+        	log.info(e.getMessage());
+        	e.printStackTrace();
+        }
+        return currentFormID;
+    }
+    
+    /**
+     * Save current form id in file for user & campaign
+     * 
+     * @param userID
+     * @param campaignID
+     * @param currentFormID
+     */
+    private void saveCurrentFormID(String userID, String campaignID, String currentFormID) {
+    	Resource resource = new ClassPathResource(getJsonFilePath());
+        try {
+        	ObjectMapper mapper = new ObjectMapper();
+        	
+//        	System.out.println("Resource Path: "+new ClassPathResource(getJsonFilePath()).getPath());
+//        	
+//        	ClassLoader classLoader = getClass().getClassLoader();
+//        	
+//        	String filePath = classLoader.getResource(".").getFile() + getJsonFilePath();
+//        	
+//        	System.out.println("filePath:"+filePath);
+//        	
+//    		File file = new File(filePath);
+//    		if (file.createNewFile()) {
+//    			System.out.println("new file generated");
+//    		} else {
+//    			System.out.println("not generated, already exists");
+//    		}
+        	
+        	File file = resource.getFile();
+    		
+        	InputStream inputStream = resource.getInputStream();
+        	
+            byte[] bdata = FileCopyUtils.copyToByteArray(inputStream);
+            
+            JsonNode rootNode = mapper.readTree(bdata);
+        	
+            if(rootNode.isEmpty()) {
+            	rootNode = mapper.createObjectNode();
+            }
+            
+            if(rootNode != null && !rootNode.isEmpty() && rootNode.get(userID) != null) {
+            	((ObjectNode) rootNode.path(userID)).put(campaignID, currentFormID);
+        	} else {
+            	JsonNode campaignNode = mapper.createObjectNode();
+            	((ObjectNode) campaignNode).put(campaignID, currentFormID);
+            	
+            	((ObjectNode) rootNode).put(userID, campaignNode);
+            }
+              
+            System.out.println("Saved File String:"+rootNode.toString());
+            
+            FileWriter fileWriter = new FileWriter(file);
+            fileWriter.write(rootNode.toString());
+            fileWriter.flush();
+            fileWriter.close();
+        } catch (IOException e) {
+        	e.printStackTrace();
+        }
+    }
+	
+	private String getJsonFilePath() {
+    	return "userCurrentForm.json";
     }
 
     private Mono<FormManagerParams> getPreviousMetadata(XMessage message, String formID) {
@@ -566,12 +692,12 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     private Mono<GupshupStateEntity> replaceUserState(String formID, XMessage xMessage, ServiceResponse response) {
         log.info("Saving State");
-        try {
-            log.info(xMessage.toXML());
-        } catch (JAXBException e) {
-            log.error("Wrong XML for xMessage");
-            e.printStackTrace();
-        }
+//        try {
+//            log.info(xMessage.toXML());
+//        } catch (JAXBException e) {
+//            log.error("Wrong XML for xMessage");
+//            e.printStackTrace();
+//        }
         return stateRepo.findByPhoneNoAndBotFormName(xMessage.getTo().getUserID(), formID)
                 .defaultIfEmpty(new GupshupStateEntity())
                 .map(new Function<GupshupStateEntity, Mono<GupshupStateEntity>>() {
