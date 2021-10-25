@@ -246,7 +246,6 @@ public class ODKConsumerReactive extends TransformerProvider {
     
     @Override
     public Mono<XMessage> transform(XMessage xMessage) throws Exception {
-        log.info("assesmentAnswCharStar:"+assesmentAnswCharStar);
     	XMessage[] finalXMsg = new XMessage[1];
         return campaignService
                 .getCampaignFromNameTransformer(xMessage.getApp())
