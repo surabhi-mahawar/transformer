@@ -250,20 +250,20 @@ public class ODKConsumerReactive extends TransformerProvider {
                     @Override
                     public Mono<Mono<Mono<XMessage>>> apply(JsonNode campaign) {
                         if (campaign != null) {
-                        	Map<String, String> data = getCampaignAndFormIdFromXMessage(xMessage);
-                        	
-                            String formID = data.get("formID");
-//                          String formID = ODKConsumerReactive.this.getFormID(campaign);
+//                        	Map<String, String> data = getCampaignAndFormIdFromXMessage(xMessage);
+//                        	
+//                            String formID = data.get("formID");
+                        	String formID = ODKConsumerReactive.this.getFormID(campaign);
                             
                             if (formID.equals("")) {
                                 log.error("Unable to find form ID from Conversation Logic");
                                 return null;
                             }
                             
-                            String lastFormID = getCurrentFormIDFromFile(xMessage.getFrom().getUserID(), data.get("campaignID"));
-                            log.info("Previous FormID:"+lastFormID);
-                            
-                            saveCurrentFormIDInFile(xMessage.getFrom().getUserID(), data.get("campaignID"), formID);
+//                            String lastFormID = getCurrentFormIDFromFile(xMessage.getFrom().getUserID(), data.get("campaignID"));
+//                            log.info("Previous FormID:"+lastFormID);
+//                            
+//                            saveCurrentFormIDInFile(xMessage.getFrom().getUserID(), data.get("campaignID"), formID);
                             
                             String formPath = getFormPath(formID);
                             log.info("current formID:"+formID+",path:"+formPath);
@@ -278,7 +278,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                                         public Mono<Mono<XMessage>> apply(FormManagerParams previousMeta) {
                                             final ServiceResponse[] response = new ServiceResponse[1];
                                             MenuManager mm;
-                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+                                            if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
+//                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
                                             	previousMeta.currentAnswer = "*";
                                                 ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
                                                 FormUpdation ss = FormUpdation.builder().build();
@@ -627,9 +628,7 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     private String getFormID(JsonNode campaign) {
         try {
-        	return "mandatory-consent-v1";
-        	// return "0763144a-9a95-4fc5-9ae2-dbf1816ec384";
-//            return campaign.findValue("formID").asText();
+        	return campaign.findValue("formID").asText();
         } catch (Exception e) {
             return "";
         }
