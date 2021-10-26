@@ -2,6 +2,7 @@ FROM maven:3.6.0-jdk-11-slim AS build
 ENV HOME=/home/app
 RUN mkdir -p $HOME
 WORKDIR $HOME
+ADD /libs $HOME/libs
 ADD pom.xml $HOME
 
 ADD /src $HOME/src
