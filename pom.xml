@@ -19,6 +19,11 @@
     </properties>
 
     <repositories>
+    	<repository>
+            <id>local-jars</id>
+            <name>Local Jars Repo</name>
+            <url>file://${project.basedir}/libs</url>
+        </repository>
         <repository>
             <id>jcenter</id>
             <url>https://jcenter.bintray.com </url>
