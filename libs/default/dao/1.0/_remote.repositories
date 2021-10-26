@@ -1,0 +1,4 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Mon Oct 25 15:20:51 IST 2021
+dao-1.0.jar>=
+dao-1.0.pom>=
