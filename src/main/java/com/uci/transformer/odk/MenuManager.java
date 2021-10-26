@@ -134,7 +134,7 @@ public class MenuManager {
         XMessagePayload nextQuestion;
         SaveStatus saveStatus = new SaveStatus();
 
-        if (answer != null && answer.equals(System.getenv("ASSES_ANSWER_CHAR_HASH"))) {
+        if (answer != null && answer.equals(System.getenv("ASSESSMENT_ONE_LEVEL_UP_CHAR"))) {
             this.isSpecialResponse = true;
             // Get to the note of the previous group
 
@@ -196,7 +196,7 @@ public class MenuManager {
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
-        } else if (answer != null && answer.equals(System.getenv("ASSES_ANSWER_CHAR_STAR"))) {
+        } else if (answer != null && answer.equals(System.getenv("ASSESSMENT_GOT_TO_START_CHAR"))) {
             if (!isPrefilled) instanceXML = null;
             xpath = null;
             answer = null;

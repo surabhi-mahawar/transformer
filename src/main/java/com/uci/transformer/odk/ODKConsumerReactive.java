@@ -112,8 +112,8 @@ public class ODKConsumerReactive extends TransformerProvider {
     @Value("${producer.id}")
     private String producerID;
     
-    @Value("${assesment.answer.character.star}")
-    public String assesmentAnswCharStar;
+    @Value("${assesment.character.got_to_start}")
+    public String assesGotToStartChar;
 
     @EventListener(ApplicationStartedEvent.class)
     public void onMessage() {
@@ -281,9 +281,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                         public Mono<Mono<XMessage>> apply(FormManagerParams previousMeta) {
                                             final ServiceResponse[] response = new ServiceResponse[1];
                                             MenuManager mm;
-                                            if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesmentAnswCharStar) || isStartingMessage) {
-//                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesmentAnswCharStar) || isStartingMessage) {
-                                            	previousMeta.currentAnswer = assesmentAnswCharStar;
+                                            if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGotToStartChar) || isStartingMessage) {
+//                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGotToStartChar) || isStartingMessage) {
+                                            	previousMeta.currentAnswer = assesGotToStartChar;
                                                 ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
                                                 FormUpdation ss = FormUpdation.builder().build();
                                                 ss.parse(serviceResponse.currentResponseState);
