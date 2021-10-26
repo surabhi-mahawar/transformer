@@ -111,6 +111,9 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     @Value("${producer.id}")
     private String producerID;
+    
+    @Value("${assesment.character.go_to_start}")
+    public String assesGoToStartChar;
 
     @EventListener(ApplicationStartedEvent.class)
     public void onMessage() {
@@ -243,7 +246,7 @@ public class ODKConsumerReactive extends TransformerProvider {
     
     @Override
     public Mono<XMessage> transform(XMessage xMessage) throws Exception {
-        XMessage[] finalXMsg = new XMessage[1];
+    	XMessage[] finalXMsg = new XMessage[1];
         return campaignService
                 .getCampaignFromNameTransformer(xMessage.getApp())
                 .map(new Function<JsonNode, Mono<Mono<Mono<XMessage>>>>() {
@@ -278,9 +281,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                         public Mono<Mono<XMessage>> apply(FormManagerParams previousMeta) {
                                             final ServiceResponse[] response = new ServiceResponse[1];
                                             MenuManager mm;
-                                            if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-//                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals("*") || isStartingMessage) {
-                                            	previousMeta.currentAnswer = "*";
+                                            if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
+//                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
+                                            	previousMeta.currentAnswer = assesGoToStartChar;
                                                 ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
                                                 FormUpdation ss = FormUpdation.builder().build();
                                                 ss.parse(serviceResponse.currentResponseState);

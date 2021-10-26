@@ -36,6 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import javax.annotation.PostConstruct;
+
 import static com.uci.transformer.odk.utilities.FileUtils.MEDIA_SUFFIX;
 import static org.javarosa.form.api.FormEntryController.ANSWER_OK;
 
@@ -62,6 +64,8 @@ public class MenuManager {
     Boolean isSpecialResponse;
     Boolean isPrefilled;
     QuestionRepository questionRepo;
+    String assesGoToStartChar;
+    String assesOneLevelUpChar;
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
@@ -71,6 +75,8 @@ public class MenuManager {
         this.isSpecialResponse = false;
         this.isPrefilled = false;
         this.formID = formID;
+        
+        setAssesmentCharacters();
     }
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
@@ -82,6 +88,16 @@ public class MenuManager {
         this.isPrefilled = isPrefilled;
         this.formID = formID;
         this.questionRepo = questionRepo;
+        
+        setAssesmentCharacters();
+    }
+    
+    public void setAssesmentCharacters() {
+    	String envAssesOneLevelUpChar = System.getenv("ASSESSMENT_ONE_LEVEL_UP_CHAR");
+        String envAssesGoToStartChar = System.getenv("ASSESSMENT_GO_TO_START_CHAR");
+        
+        this.assesOneLevelUpChar = envAssesOneLevelUpChar != null && !envAssesOneLevelUpChar.isEmpty() ? envAssesOneLevelUpChar : "#";
+        this.assesGoToStartChar = envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty() ? envAssesGoToStartChar : "*";
     }
 
     public boolean isGlobal() {
@@ -134,7 +150,7 @@ public class MenuManager {
         XMessagePayload nextQuestion;
         SaveStatus saveStatus = new SaveStatus();
 
-        if (answer != null && answer.equals("#")) {
+        if (answer != null && answer.equals(assesOneLevelUpChar)) {
             this.isSpecialResponse = true;
             // Get to the note of the previous group
 
@@ -196,7 +212,7 @@ public class MenuManager {
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
-        } else if (answer != null && answer.equals("*")) {
+        } else if (answer != null && answer.equals(assesGoToStartChar)) {
             if (!isPrefilled) instanceXML = null;
             xpath = null;
             answer = null;
