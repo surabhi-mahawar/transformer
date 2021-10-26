@@ -196,7 +196,7 @@ public class MenuManager {
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
-        } else if (answer != null && answer.equals(System.getenv("ASSESSMENT_GOT_TO_START_CHAR"))) {
+        } else if (answer != null && answer.equals(System.getenv("ASSESSMENT_GO_TO_START_CHAR"))) {
             if (!isPrefilled) instanceXML = null;
             xpath = null;
             answer = null;
