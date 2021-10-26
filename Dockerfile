@@ -3,7 +3,6 @@ ENV HOME=/home/app
 RUN mkdir -p $HOME
 WORKDIR $HOME
 ADD pom.xml $HOME
-RUN mvn dependency:go-offline
 
 ADD /src $HOME/src
 RUN mvn package -DskipTests=true
