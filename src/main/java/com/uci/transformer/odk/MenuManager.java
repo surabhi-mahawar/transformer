@@ -3,6 +3,7 @@ package com.uci.transformer.odk;
 import com.uci.transformer.odk.entity.Meta;
 import com.uci.transformer.odk.entity.Question;
 import com.uci.transformer.odk.repository.QuestionRepository;
+import io.r2dbc.postgresql.codec.Json;
 import lombok.*;
 import lombok.extern.java.Log;
 import messagerosa.core.model.ButtonChoice;
@@ -33,7 +34,11 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
+import javax.annotation.PostConstruct;
+
+import static com.uci.transformer.odk.utilities.FileUtils.MEDIA_SUFFIX;
 import static org.javarosa.form.api.FormEntryController.ANSWER_OK;
 
 @NoArgsConstructor
@@ -59,6 +64,8 @@ public class MenuManager {
     Boolean isSpecialResponse;
     Boolean isPrefilled;
     QuestionRepository questionRepo;
+    String assesGoToStartChar;
+    String assesOneLevelUpChar;
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
@@ -68,6 +75,8 @@ public class MenuManager {
         this.isSpecialResponse = false;
         this.isPrefilled = false;
         this.formID = formID;
+        
+        setAssesmentCharacters();
     }
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
@@ -79,6 +88,16 @@ public class MenuManager {
         this.isPrefilled = isPrefilled;
         this.formID = formID;
         this.questionRepo = questionRepo;
+        
+        setAssesmentCharacters();
+    }
+    
+    public void setAssesmentCharacters() {
+    	String envAssesOneLevelUpChar = System.getenv("ASSESSMENT_ONE_LEVEL_UP_CHAR");
+        String envAssesGoToStartChar = System.getenv("ASSESSMENT_GO_TO_START_CHAR");
+        
+        this.assesOneLevelUpChar = envAssesOneLevelUpChar != null && !envAssesOneLevelUpChar.isEmpty() ? envAssesOneLevelUpChar : "#";
+        this.assesGoToStartChar = envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty() ? envAssesGoToStartChar : "*";
     }
 
     public boolean isGlobal() {
@@ -131,7 +150,7 @@ public class MenuManager {
         XMessagePayload nextQuestion;
         SaveStatus saveStatus = new SaveStatus();
 
-        if (answer != null && answer.equals("#")) {
+        if (answer != null && answer.equals(assesOneLevelUpChar)) {
             this.isSpecialResponse = true;
             // Get to the note of the previous group
 
@@ -193,7 +212,7 @@ public class MenuManager {
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
-        } else if (answer != null && answer.equals("*")) {
+        } else if (answer != null && answer.equals(assesGoToStartChar)) {
             if (!isPrefilled) instanceXML = null;
             xpath = null;
             answer = null;
@@ -249,22 +268,21 @@ public class MenuManager {
 
         // check if currentPath is persisted in the DB. If not, insert it with all the things.
         String formVersion = formController.getModel().getForm().getInstance().formVersion;
-        if (questionRepo.findQuestionByXPathAndFormIDAndFormVersion(currentPath, formID, formVersion).size() == 0) {
-            Question question = new Question();
-            question.setQuestionType(Question.QuestionType.STRING);
-            question.setFormID(formID);
-            question.setFormVersion(formVersion);
-            question.setXPath(currentPath);
-            ArrayList<String> choices = new ArrayList<>();
-            if(nextQuestion.getButtonChoices() != null){
-                for(ButtonChoice buttonChoice:nextQuestion.getButtonChoices()){
-                    choices.add(buttonChoice.getText());
-                }
+        Question question = new Question();
+        question.setQuestionType(Question.QuestionType.STRING);
+        question.setFormID(formID);
+        question.setFormVersion(formVersion);
+        question.setXPath(currentPath);
+        ArrayList<String> choices = new ArrayList<>();
+        if (nextQuestion.getButtonChoices() != null) {
+            for (ButtonChoice buttonChoice : nextQuestion.getButtonChoices()) {
+                choices.add(buttonChoice.getText());
             }
-            question.setMeta(new Meta(nextQuestion.getText(), choices ));
-            questionRepo.save(question);
         }
-        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion);
+
+        question.setMeta(Json.of(new Meta(nextQuestion.getText(), choices).toString()));
+
+        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question);
     }
 
     private boolean isDynamicQuestion() {
@@ -703,7 +721,7 @@ public class MenuManager {
             FormDef fd = XFormUtils.getFormFromInputStream(fis);
             return fd;
         } catch (Exception e) {
-            log.severe(e.getMessage());
+            log.severe("CP-2" + e.getMessage());
         } finally {
             IOUtils.closeQuietly(fis);
         }
@@ -720,15 +738,25 @@ public class MenuManager {
             System.out.println("formPath is null");
             return null;
         }
+        log.info("Current form path :: " + formPath);
 
-        final File formXml = new File(formPath);
+        File formXml;
+        formXml = new File(formPath);
+        if(!formXml.exists()){
+            String[] filePathParts = formPath.split("/");
+            String filePathLast = filePathParts[filePathParts.length-1];
+            log.info(filePathLast);
+            String mediaFilePath = "/tmp/forms2/" + filePathLast.split(".xml")[0] + MEDIA_SUFFIX + "/" + filePathLast;
+            log.info("Media Path ::" + mediaFilePath);
+            formXml = new File(mediaFilePath);
+        }
 
         FormDef formDef = null;
         try {
             formDef = createFormDefFromCacheOrXml(formPath, formXml);
             log.info("Got formDef");
         } catch (StackOverflowError e) {
-            System.out.println(e);
+            log.severe("CP 1" + e.getMessage());
         }
 
         if (formDef == null) {

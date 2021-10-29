@@ -1,9 +1,9 @@
-package com.uci.transformer.application;
+package com.uci.transformer.controllers;
 
 
 import com.uci.transformer.odk.FormDownloader;
 import com.uci.transformer.odk.MenuManager;
-import com.uci.transformer.odk.ODKTransformer;
+import com.uci.transformer.odk.ODKConsumerReactive;
 import com.uci.transformer.odk.ServiceResponse;
 import com.uci.transformer.odk.model.Form;
 import com.uci.transformer.odk.model.FormDetails;
@@ -98,7 +98,7 @@ public class FormTransformerTestAPI {
         log.info("CurrentAnswer" +  currentAnswer);
         log.info("InstanceCurrentXML" + instanceXMlPrevious);
         log.info("botFormName" +  botFormName);
-        String formPath = ODKTransformer.getFormPath(botFormName);
+        String formPath = ODKConsumerReactive.getFormPath(botFormName);
         ServiceResponse serviceResponse = new MenuManager(previousPath, currentAnswer, instanceXMlPrevious, formPath, botFormName).start();
         System.out.println(serviceResponse.getCurrentResponseState());
         return serviceResponse;

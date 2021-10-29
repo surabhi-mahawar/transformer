@@ -93,7 +93,7 @@ public class AssessmentTelemetryBuilder {
                 .object(object)
                 .edata(edata)
                 .build();
-        return telemetry.getTelemetryRequestData();
+        return Telemetry.getTelemetryRequestData(telemetry);
     }
 
 
