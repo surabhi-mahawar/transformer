@@ -268,8 +268,10 @@ public class ODKConsumerReactive extends TransformerProvider {
 //                            
 //                            saveCurrentFormIDInFile(xMessage.getFrom().getUserID(), data.get("campaignID"), formID);
                             
+
+                            log.info("current form ID:"+formID);
                             String formPath = getFormPath(formID);
-                            log.info("current formID:"+formID+",path:"+formPath);
+                            log.info("current form path:"+formPath);
                             
                             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
                             switchFromTo(xMessage);
@@ -569,7 +571,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 String formID, FormManagerParams previousMeta,
                                                 JsonNode campaign, XMessage xMessage, Question question) {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
-        UUID deviceID = xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;
+        UUID deviceID = !xMessage.getTo().getDeviceID().isEmpty() && xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;
+        
         Assessment assessment = Assessment.builder()
                 .question(question)
                 .deviceID(deviceID)
