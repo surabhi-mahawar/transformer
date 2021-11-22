@@ -154,7 +154,6 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                     } catch (JAXBException e) {
                                                         e.printStackTrace();
                                                     }
-
                                                 }
                                             }
                                         });
@@ -593,6 +592,7 @@ public class ODKConsumerReactive extends TransformerProvider {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        assessment.setUserID(UUID.fromString("44a9df72-3d7a-4ece-94c5-98cf26307324"));
         return assessmentRepo.save(assessment)
                 .doOnError(new Consumer<Throwable>() {
                     @Override
@@ -679,12 +679,6 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     private Mono<GupshupStateEntity> replaceUserState(String formID, XMessage xMessage, ServiceResponse response) {
         log.info("Saving State");
-//        try {
-//            log.info(xMessage.toXML());
-//        } catch (JAXBException e) {
-//            log.error("Wrong XML for xMessage");
-//            e.printStackTrace();
-//        }
         return stateRepo.findByPhoneNoAndBotFormName(xMessage.getTo().getUserID(), formID)
                 .defaultIfEmpty(new GupshupStateEntity())
                 .map(new Function<GupshupStateEntity, Mono<GupshupStateEntity>>() {
@@ -704,7 +698,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                 }).doOnNext(new Consumer<GupshupStateEntity>() {
                                     @Override
                                     public void accept(GupshupStateEntity gupshupStateEntity) {
-                                        log.info("Successfully persisted state entiry");
+                                        log.info("Successfully persisted state entity");
                                     }
                                 });
                     }

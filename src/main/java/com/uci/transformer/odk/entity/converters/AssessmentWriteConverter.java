@@ -6,6 +6,7 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.WritingConverter;
 import org.springframework.data.r2dbc.mapping.OutboundRow;
 import org.springframework.data.r2dbc.mapping.SettableValue;
+import org.springframework.r2dbc.core.Parameter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -23,15 +24,15 @@ public class AssessmentWriteConverter implements Converter<Assessment, OutboundR
         LocalDateTime updatedOn = LocalDateTime.now();
 
         OutboundRow row = new OutboundRow();
-        row.put("id", SettableValue.from(java.util.UUID.randomUUID()));
-        row.put("question", SettableValue.from(assessment.getQuestion().getId()));
-        row.put("answer", SettableValue.fromOrEmpty(assessment.getAnswer(), String.class));
-        row.put("bot_id", SettableValue.fromOrEmpty(assessment.getBotID(), UUID.class));
-        row.put("user_id", SettableValue.fromOrEmpty(assessment.getUserID(), UUID.class));
-        row.put("device_id", SettableValue.fromOrEmpty(assessment.getDeviceID(), UUID.class));
-        row.put("meta", SettableValue.fromOrEmpty(assessment.getMeta(), Json.class));
-        row.put("updated", SettableValue.from(updatedOn));
-        row.put("created", SettableValue.from(createdOn));
+        row.put("id", Parameter.from(UUID.randomUUID()));
+        row.put("question", Parameter.from(assessment.getQuestion().getId()));
+        row.put("answer", Parameter.fromOrEmpty(assessment.getAnswer(), String.class));
+        row.put("bot_id", Parameter.fromOrEmpty(assessment.getBotID(), UUID.class));
+        row.put("user_id", Parameter.fromOrEmpty(assessment.getUserID(), UUID.class));
+        row.put("device_id", Parameter.fromOrEmpty(assessment.getDeviceID(), UUID.class));
+        row.put("meta", Parameter.fromOrEmpty(assessment.getMeta(), Json.class));
+        row.put("updated", Parameter.from(updatedOn));
+        row.put("created", Parameter.from(createdOn));
         return row;
     }
 }
