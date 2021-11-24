@@ -569,7 +569,7 @@ public class MenuManager {
         try {
             System.out.println("test");
             if(cleanText(getHelpText(formController)).equals("")){
-                return cleanText(getQuestionText(formController));
+                return "" + cleanText(getQuestionText(formController)) + "" + " \n";
             }else{
                 return "" + cleanText(getQuestionText(formController)) + "" + " \n" +
                         "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
