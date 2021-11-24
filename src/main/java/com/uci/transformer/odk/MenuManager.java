@@ -568,8 +568,12 @@ public class MenuManager {
     private String renderQuestion(FormEntryController formController) {
         try {
             System.out.println("test");
-            return "" + cleanText(getQuestionText(formController)) + "" + " \n" +
-                    "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
+            if(cleanText(getHelpText(formController)).equals("")){
+                return cleanText(getQuestionText(formController));
+            }else{
+                return "" + cleanText(getQuestionText(formController)) + "" + " \n" +
+                        "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
+            }
             //return "*" + cleanText(getQuestionText(formController)) + "*" + " \n" + "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
         } catch (Exception e) {
             return "";
