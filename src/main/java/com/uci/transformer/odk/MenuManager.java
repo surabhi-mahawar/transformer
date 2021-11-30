@@ -96,8 +96,8 @@ public class MenuManager {
     	String envAssesOneLevelUpChar = System.getenv("ASSESSMENT_ONE_LEVEL_UP_CHAR");
         String envAssesGoToStartChar = System.getenv("ASSESSMENT_GO_TO_START_CHAR");
         
-        this.assesOneLevelUpChar = envAssesOneLevelUpChar != null && !envAssesOneLevelUpChar.isEmpty() ? envAssesOneLevelUpChar : "#";
-        this.assesGoToStartChar = envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty() ? envAssesGoToStartChar : "*";
+        this.assesOneLevelUpChar = envAssesOneLevelUpChar == "0" || (envAssesOneLevelUpChar != null && !envAssesOneLevelUpChar.isEmpty()) ? envAssesOneLevelUpChar : "#";
+        this.assesGoToStartChar = envAssesGoToStartChar == "0" || (envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty()) ? envAssesGoToStartChar : "*";
     }
 
     public boolean isGlobal() {
