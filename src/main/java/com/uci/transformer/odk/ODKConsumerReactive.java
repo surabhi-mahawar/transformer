@@ -23,6 +23,7 @@ import com.uci.utils.CampaignService;
 import com.uci.utils.kafka.SimpleProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import messagerosa.core.model.ButtonChoice;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.Transformer;
 import messagerosa.core.model.XMessage;
@@ -274,6 +275,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                             
                             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
                             switchFromTo(xMessage);
+                            
+                            Boolean addOtherOptions = xMessage.getProvider().equals("sunbird") ? true : false;
 
                             // Get details of user from database
                             return getPreviousMetadata(xMessage, formID)
@@ -293,11 +296,11 @@ public class ODKConsumerReactive extends TransformerProvider {
 //                                                        ss.getXML();
                                                 String instanceXMlPrevious = ss.getXML();
                                                 log.debug("Instance value >> " + instanceXMlPrevious);
-                                                mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
+                                                mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo, addOtherOptions);
                                                 response[0] = mm.start();
                                             } else {
                                                 mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
-                                                        previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
+                                                        previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo, addOtherOptions);
                                                 response[0] = mm.start();
                                             }
                                             
@@ -662,6 +665,8 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     private XMessage getMessageFromResponse(XMessage xMessage, ServiceResponse response) {
         XMessagePayload payload = response.getNextMessage();
+        ArrayList<ButtonChoice> choices = payload.getButtonChoices();
+        payload.setButtonChoices(choices);
         xMessage.setPayload(payload);
         return xMessage;
     }
