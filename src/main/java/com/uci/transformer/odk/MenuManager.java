@@ -3,6 +3,8 @@ package com.uci.transformer.odk;
 import com.uci.transformer.odk.entity.Meta;
 import com.uci.transformer.odk.entity.Question;
 import com.uci.transformer.odk.repository.QuestionRepository;
+import com.uci.transformer.odk.utilities.FormUpdation;
+import com.uci.transformer.odk.utilities.Item;
 import io.r2dbc.postgresql.codec.Json;
 import lombok.*;
 import lombok.extern.java.Log;
@@ -27,16 +29,14 @@ import org.javarosa.model.xform.XFormsModule;
 import org.javarosa.xform.parse.XFormParser;
 import org.javarosa.xform.util.XFormUtils;
 import org.javarosa.xpath.XPathTypeMismatchException;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
-
-import javax.annotation.PostConstruct;
 
 import static com.uci.transformer.odk.utilities.FileUtils.MEDIA_SUFFIX;
 import static org.javarosa.form.api.FormEntryController.ANSWER_OK;
@@ -66,6 +66,9 @@ public class MenuManager {
     QuestionRepository questionRepo;
     String assesGoToStartChar;
     String assesOneLevelUpChar;
+    JSONObject user;
+    JSONObject campaign;
+    boolean shouldUpdateFormXML = false;
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
@@ -75,11 +78,23 @@ public class MenuManager {
         this.isSpecialResponse = false;
         this.isPrefilled = false;
         this.formID = formID;
-        
-        setAssesmentCharacters();
+        setAssessmentCharacters();
     }
 
-    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, JSONObject user) {
+        this.xpath = xpath;
+        this.answer = answer;
+        this.instanceXML = instanceXML;
+        this.formPath = formPath;
+        this.isSpecialResponse = false;
+        this.isPrefilled = false;
+        this.formID = formID;
+        this.user = user;
+        setAssessmentCharacters();
+    }
+
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID,
+                       Boolean isPrefilled, QuestionRepository questionRepo) {
         this.xpath = xpath;
         this.answer = answer;
         this.instanceXML = instanceXML;
@@ -88,11 +103,29 @@ public class MenuManager {
         this.isPrefilled = isPrefilled;
         this.formID = formID;
         this.questionRepo = questionRepo;
-        
-        setAssesmentCharacters();
+
+        setAssessmentCharacters();
+    }
+
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID,
+                       Boolean isPrefilled, QuestionRepository questionRepo, JSONObject user,
+                       boolean shouldUpdateFormXML, JSONObject campaign) {
+        this.xpath = xpath;
+        this.answer = answer;
+        this.instanceXML = instanceXML;
+        this.formPath = formPath;
+        this.isSpecialResponse = false;
+        this.isPrefilled = isPrefilled;
+        this.formID = formID;
+        this.questionRepo = questionRepo;
+        this.user=user;
+        this.shouldUpdateFormXML = shouldUpdateFormXML;
+        this.campaign = campaign;
+
+        setAssessmentCharacters();
     }
     
-    public void setAssesmentCharacters() {
+    public void setAssessmentCharacters() {
     	String envAssesOneLevelUpChar = System.getenv("ASSESSMENT_ONE_LEVEL_UP_CHAR");
         String envAssesGoToStartChar = System.getenv("ASSESSMENT_GO_TO_START_CHAR");
         
@@ -616,7 +649,7 @@ public class MenuManager {
                 ArrayList<ButtonChoice> choices = new ArrayList<>();
                 try {
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_REPEAT) {
-                        formController.stepToNextEvent();
+                        // formController.stepToNextEvent();
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_GROUP) {
@@ -712,14 +745,34 @@ public class MenuManager {
 
     private FormDef createFormDefFromCacheOrXml(String formPath, File formXml) {
 
-        FileInputStream fis = null;
+        InputStream fis = null;
         // no binary, read from xml
         try {
             // log.info(String.format("Attempting to load from: %s", formXml.getAbsolutePath()));
-            Path path = FileSystems.getDefault().getPath("CensusBot.xml");
-            fis = new FileInputStream(formXml);
-            FormDef fd = XFormUtils.getFormFromInputStream(fis);
-            return fd;
+            if(this.shouldUpdateFormXML) {
+                FormUpdation ss = FormUpdation.builder().formPath(formPath).build();
+                ss.init();
+
+                // Populate items - TODO fix this hardcoding with actual schema
+                try{
+                    ArrayList<Item> options = new ArrayList<>();
+                    JSONArray matchedVacancies = this.user.getJSONArray("matched");
+                    for(int i=0; i<matchedVacancies.length(); i++){
+                        String label = matchedVacancies.getJSONObject(i).getJSONObject("vacancy_detail").getString("job_role") +
+                                " at " + matchedVacancies.getJSONObject(i).getJSONObject("vacancy_detail").getJSONObject("employer_detail").getString("company_name");
+                        String value = String.valueOf(matchedVacancies.getJSONObject(i).getJSONObject("vacancy_detail").getInt("id"));
+                        options.add(Item.builder().label(label).value(value).build());
+                    }
+                    ss.addSelectOneOptions(options, "vacancies");
+                }catch(Exception e) {
+
+                }
+                fis = ss.getInputStream();
+            }else{
+                Path path = FileSystems.getDefault().getPath("CensusBot.xml");
+                fis = new FileInputStream(formXml);
+            }
+            return XFormUtils.getFormFromInputStream(fis);
         } catch (Exception e) {
             log.severe("CP-2" + e.getMessage());
         } finally {
