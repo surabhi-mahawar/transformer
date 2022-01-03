@@ -8,6 +8,7 @@ import lombok.*;
 import lombok.extern.java.Log;
 import messagerosa.core.model.ButtonChoice;
 import messagerosa.core.model.XMessagePayload;
+
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.javarosa.core.model.*;
 import org.javarosa.core.model.data.IAnswerData;
@@ -106,7 +107,11 @@ public class MenuManager {
         this.formID = formID;
         this.questionRepo = questionRepo;
         this.addOherOption = addOherOption;
+<<<<<<< Updated upstream
         log.info("addOherOption value: "+this.addOherOption);
+=======
+        
+>>>>>>> Stashed changes
         setAssesmentCharacters();
     }
     
@@ -167,6 +172,7 @@ public class MenuManager {
         String udpatedInstanceXML = "";
         XMessagePayload nextQuestion;
         SaveStatus saveStatus = new SaveStatus();
+<<<<<<< Updated upstream
 
         log.info("answer: "+answer);
 //        Boolean isGoBack = false;
@@ -217,6 +223,10 @@ public class MenuManager {
 //        } catch (RuntimeException e) {
 //        	log.info("run time exception");
 //        }
+=======
+        
+        addOherOption = true;
+>>>>>>> Stashed changes
         
         if (answer != null && answer.equals(assesOneLevelUpChar)) {
             this.isSpecialResponse = true;
@@ -280,9 +290,14 @@ public class MenuManager {
             nextQuestion = createView(formController.getModel().getEvent(), "");
             /* If addOherOption is enabled */
             if(addOherOption) {
+<<<<<<< Updated upstream
             	log.info("question text: "+nextQuestion.getText());
             	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
             	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formDepth));
+=======
+            	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
+            	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formController.getModel().getFormIndex()));
+>>>>>>> Stashed changes
             }
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
@@ -308,9 +323,14 @@ public class MenuManager {
                 nextQuestion = createView(formController.getModel().getEvent(), "");
                 /* If addOherOption is enabled */
                 if(addOherOption) {
+<<<<<<< Updated upstream
                 	log.info("question text: "+nextQuestion.getText());
                 	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
                 	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formDepth));
+=======
+                	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
+                	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formController.getModel().getFormIndex()));
+>>>>>>> Stashed changes
                 }
                 log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), (nextQuestion.getButtonChoices() != null ? nextQuestion.getButtonChoices().size() : 0)));
 
@@ -345,7 +365,7 @@ public class MenuManager {
                 e.printStackTrace();
             }
         }
-
+        
         // check if currentPath is persisted in the DB. If not, insert it with all the things.
         String formVersion = formController.getModel().getForm().getInstance().formVersion;
         Question question = new Question();
@@ -362,6 +382,9 @@ public class MenuManager {
         
         question.setMeta(Json.of(new Meta(nextQuestion.getText(), choices).toString()));
 
+//        log.info("Next XPath:"+currentPath+", FormIndex:"+model.getFormIndex()+", Form event: "+getEvent(formController)
+//		+", Is beginning:"+model.getFormIndex().isBeginningOfFormIndex());
+        
         return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question);
     }
     
@@ -371,6 +394,7 @@ public class MenuManager {
      * @param formDepth
      * @return
      */
+<<<<<<< Updated upstream
     private ArrayList<ButtonChoice> getButtonChoicesWithOtherOptions(ArrayList<ButtonChoice> choices, Integer formDepth) {
     	if(choices == null) 
         	choices = new ArrayList();
@@ -424,6 +448,43 @@ public class MenuManager {
      	
      	 return choices;
     }
+=======
+    private ArrayList<ButtonChoice> getButtonChoicesWithOtherOptions(ArrayList<ButtonChoice> choices,
+			FormIndex formIndex) {
+		Integer localIndex = formIndex.getLocalIndex();
+		Integer lastIndex = 0;
+		
+        while (formIndex != null) {
+        	lastIndex = formIndex.getLocalIndex();
+            formIndex = formIndex.getNextLevel();
+        }
+		log.info("formIndex: "+formIndex+", localIndex: " + localIndex + 
+				", lastIndex: " + lastIndex);
+		
+		if (choices == null)
+			choices = new ArrayList();
+
+		/* Go Back Button */
+		if (localIndex > 0) {
+			ButtonChoice c1 = new ButtonChoice();
+			c1.setKey(assesOneLevelUpChar);
+			c1.setText(assesOneLevelUpChar + " " + goBackText);
+			c1.setBackmenu(true);
+			choices.add(c1);
+		}
+
+		/* Go To Main Menu Button*/
+		if (localIndex > 0 && lastIndex > 0) {
+			ButtonChoice c2 = new ButtonChoice();
+			c2.setKey(assesGoToStartChar);
+			c2.setText(assesGoToStartChar + " " + goToMainMenuText);
+			c2.setBackmenu(true);
+			choices.add(c2);
+		}
+
+		return choices;
+	}
+>>>>>>> Stashed changes
 
     private boolean isDynamicQuestion() {
         try {
