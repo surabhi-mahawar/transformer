@@ -327,14 +327,23 @@ public class MenuManager {
     private ArrayList<ButtonChoice> getButtonChoicesWithOtherOptions(ArrayList<ButtonChoice> choices,
 			FormIndex formIndex) {
 		Integer localIndex = formIndex.getLocalIndex();
-		Integer lastIndex = 0;
+		Integer instanceIndex = formIndex.getInstanceIndex();
+		FormIndex formIndex2 = formIndex.getNextLevel();
+		Integer nextIndex = formIndex2.getLocalIndex();
 		
-        while (formIndex != null) {
-        	lastIndex = formIndex.getLocalIndex();
-            formIndex = formIndex.getNextLevel();
-        }
-		log.info("formIndex: "+formIndex+", localIndex: " + localIndex + 
-				", lastIndex: " + lastIndex);
+//		FormIndex formIndex3 = formIndex;
+//		Integer counter = 1;
+//		while(formIndex3 != null) {
+//			log.info("counter: "+counter+", formIndex3: "+formIndex3);
+//			formIndex3 = formIndex3.getNextLevel();
+//			counter++;
+//		}
+		
+        log.info("formIndex: "+formIndex+", formIndex2: "+formIndex2+", localIndex: " + localIndex + 
+				", nextIndex: " + nextIndex + ", instanceIndex: "+instanceIndex
+				+ ", formDepth: "+formIndex.getDepth()+", LocalReference: "+formIndex.getLocalReference()
+				+ ", Terminal: "+formIndex.getTerminal() + ", Is beginning:"+formIndex.isBeginningOfFormIndex() 
+				+", Is End:"+formIndex.isEndOfFormIndex() + ", in form: "+formIndex.isInForm());
 		
 		if (choices == null)
 			choices = new ArrayList();
@@ -349,7 +358,7 @@ public class MenuManager {
 		}
 
 		/* Go To Main Menu Button*/
-		if (localIndex > 0 && lastIndex > 0) {
+		if (localIndex > 0 && nextIndex > 0) {
 			ButtonChoice c2 = new ButtonChoice();
 			c2.setKey(assesGoToStartChar);
 			c2.setText(assesGoToStartChar + " " + goToMainMenuText);
