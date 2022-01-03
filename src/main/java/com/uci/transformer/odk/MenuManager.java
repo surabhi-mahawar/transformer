@@ -67,7 +67,7 @@ public class MenuManager {
     QuestionRepository questionRepo;
     String assesGoToStartChar;
     String assesOneLevelUpChar;
-    Boolean addOherOption = false;
+    Boolean addOtherOption = false;
     Integer formDepth;
     String goBackText = "Go Back";
     String goToMainMenuText = "Main Menu";
@@ -97,7 +97,7 @@ public class MenuManager {
         setAssesmentCharacters();
     }
     
-    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo, Boolean addOherOption) {
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo, Boolean addOtherOption) {
         this.xpath = xpath;
         this.answer = answer;
         this.instanceXML = instanceXML;
@@ -106,12 +106,8 @@ public class MenuManager {
         this.isPrefilled = isPrefilled;
         this.formID = formID;
         this.questionRepo = questionRepo;
-        this.addOherOption = addOherOption;
-<<<<<<< Updated upstream
-        log.info("addOherOption value: "+this.addOherOption);
-=======
+        this.addOtherOption = addOtherOption;
         
->>>>>>> Stashed changes
         setAssesmentCharacters();
     }
     
@@ -172,62 +168,8 @@ public class MenuManager {
         String udpatedInstanceXML = "";
         XMessagePayload nextQuestion;
         SaveStatus saveStatus = new SaveStatus();
-<<<<<<< Updated upstream
-
-        log.info("answer: "+answer);
-//        Boolean isGoBack = false;
-//        Boolean isGoToMainMenu = false;
-        FormIndex formIndex2 = formController.getModel().getFormIndex();
-        formDepth = 2;
-//        while(formIndex2.isInForm()) {
-//        	formIndex2 = formController.getModel().decrementIndex(formIndex2);
-//    		log.info("formIndex2: "+formIndex2);
-//        	log.info("formIndex2 terminal: "+formIndex2.isTerminal());
-//        	log.info("formIndex2 beginning: "+formIndex2.isBeginningOfFormIndex());
-//        	if(!formIndex2.isTerminal() && !formIndex2.isBeginningOfFormIndex()) {
-//        		formDepth++;
-//        	}
-//        }
-    
-        addOherOption = true;
-        formDepth = formController.getModel().getFormIndex().getDepth();
         
-        log.info("form depth: "+formDepth);
-        
-        /* If addOherOption is enabled then
-         * Check if selected option is "Go Back" or "Go To Main Menu" 
-         **/
-//        try {
-////        	addOherOption = true;
-//       	 	if(addOherOption && formController.getModel().getQuestionPrompt() != null 
-//            		&& formController.getModel().getQuestionPrompt().getQuestion() != null) {
-//            	List<SelectChoice> choices = getChoicesWithOtherOptions(formController.getModel().getQuestionPrompt().getQuestion().getChoices(), formDepth);
-//            	
-//            	Integer selected = Integer.valueOf(answer)-1;
-//             	if(choices.get(Integer.valueOf(selected)) != null) {
-//             		SelectChoice selectedChoice = choices.get(selected);
-//             		String[] strArray = selectedChoice.getLabelInnerText().split(" ");
-//             		String text = "";
-//             		for(int j = 1; j< strArray.length; j++) {
-//             			text += " "+strArray[j];
-//             		}
-//             		text = text.trim().toLowerCase();
-//             		log.info("text: "+text);
-//             		if(text.equals(goBackText.toLowerCase())) {
-//             			isGoBack = true;
-//             		} else if(text.equals(goToMainMenuText.toLowerCase())) {
-//             			isGoToMainMenu = true;
-//             		}
-//             	}
-//       	 	}
-//        } catch (RuntimeException e) {
-//        	log.info("run time exception");
-//        }
-=======
-        
-        addOherOption = true;
->>>>>>> Stashed changes
-        
+//        addOtherOption = true;
         if (answer != null && answer.equals(assesOneLevelUpChar)) {
             this.isSpecialResponse = true;
             // Get to the note of the previous group
@@ -289,15 +231,9 @@ public class MenuManager {
 
             nextQuestion = createView(formController.getModel().getEvent(), "");
             /* If addOherOption is enabled */
-            if(addOherOption) {
-<<<<<<< Updated upstream
-            	log.info("question text: "+nextQuestion.getText());
-            	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
-            	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formDepth));
-=======
+            if(addOtherOption) {
             	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
             	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formController.getModel().getFormIndex()));
->>>>>>> Stashed changes
             }
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
@@ -322,15 +258,9 @@ public class MenuManager {
                 formController.stepToNextEvent();
                 nextQuestion = createView(formController.getModel().getEvent(), "");
                 /* If addOherOption is enabled */
-                if(addOherOption) {
-<<<<<<< Updated upstream
-                	log.info("question text: "+nextQuestion.getText());
-                	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
-                	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formDepth));
-=======
+                if(addOtherOption) {
                 	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
                 	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formController.getModel().getFormIndex()));
->>>>>>> Stashed changes
                 }
                 log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), (nextQuestion.getButtonChoices() != null ? nextQuestion.getButtonChoices().size() : 0)));
 
@@ -394,61 +324,6 @@ public class MenuManager {
      * @param formDepth
      * @return
      */
-<<<<<<< Updated upstream
-    private ArrayList<ButtonChoice> getButtonChoicesWithOtherOptions(ArrayList<ButtonChoice> choices, Integer formDepth) {
-    	if(choices == null) 
-        	choices = new ArrayList();
-        
-   	 	int index = choices.size();
-        log.info("button choices size:" +index);
-        
-        if(formDepth > 1) {
-        	ButtonChoice c1 = new ButtonChoice();
-            index += 1;
-        	c1.setKey(assesOneLevelUpChar);
-        	c1.setText(assesOneLevelUpChar+" "+goBackText);
-        	c1.setBackmenu(true);
-        	choices.add(c1);
-        }
-        
-    	if(formDepth > 1) {
-    		ButtonChoice c2 = new ButtonChoice();
-            index += 1;
-        	c2.setKey(assesGoToStartChar);
-        	c2.setText(assesGoToStartChar+" "+goToMainMenuText);
-        	c2.setBackmenu(true);
-        	choices.add(c2);
-    	}
-    	
-    	return choices;
-    }
-    /**
-     * Add "Go Back" & "Go To Main Menu" to question select choices
-     * @param choices
-     * @param formDepth
-     * @return choices
-     */
-    private List<SelectChoice> getChoicesWithOtherOptions(List<SelectChoice> choices, Integer formDepth) {
-    	 if(choices == null)
-     		choices = new ArrayList<>();
-    	 
-     	 int index = choices.size();
-         log.info("select choices size:" +index);
-         if(formDepth > 1) {
-        	 index += 1;
-             SelectChoice c1 = new SelectChoice(String.valueOf(index), String.valueOf(index)+" "+goBackText, String.valueOf(index), false);
-         	 choices.add(c1);
-         }
-     	
-     	 if(formDepth > 1) {
-     		index += 1;
-        	 SelectChoice c2 = new SelectChoice(String.valueOf(index), String.valueOf(index)+" "+goToMainMenuText, String.valueOf(index), false);
-        	 choices.add(c2);
-     	 }
-     	
-     	 return choices;
-    }
-=======
     private ArrayList<ButtonChoice> getButtonChoicesWithOtherOptions(ArrayList<ButtonChoice> choices,
 			FormIndex formIndex) {
 		Integer localIndex = formIndex.getLocalIndex();
@@ -484,7 +359,6 @@ public class MenuManager {
 
 		return choices;
 	}
->>>>>>> Stashed changes
 
     private boolean isDynamicQuestion() {
         try {
