@@ -665,8 +665,6 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     private XMessage getMessageFromResponse(XMessage xMessage, ServiceResponse response) {
         XMessagePayload payload = response.getNextMessage();
-        ArrayList<ButtonChoice> choices = payload.getButtonChoices();
-        payload.setButtonChoices(choices);
         xMessage.setPayload(payload);
         return xMessage;
     }
