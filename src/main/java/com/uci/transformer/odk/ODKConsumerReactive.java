@@ -296,13 +296,14 @@ public class ODKConsumerReactive extends TransformerProvider {
 //                                                        ss.getXML();
                                                 String instanceXMlPrevious = ss.getXML();
                                                 log.debug("Instance value >> " + instanceXMlPrevious);
-                                                mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo, addOtherOptions);
+                                                mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
                                                 response[0] = mm.start();
                                             } else {
                                                 mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
-                                                        previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo, addOtherOptions);
+                                                        previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
                                                 response[0] = mm.start();
                                             }
+                                            
                                             
                                             // Save answerData => PreviousQuestion + CurrentAnswer
                                             Mono<Pair<Boolean, List<Question>>> updateQuestionAndAssessment =
@@ -666,6 +667,7 @@ public class ODKConsumerReactive extends TransformerProvider {
     private XMessage getMessageFromResponse(XMessage xMessage, ServiceResponse response) {
         XMessagePayload payload = response.getNextMessage();
         xMessage.setPayload(payload);
+        xMessage.setConversationLevel(response.getConversationLevel());
         return xMessage;
     }
 

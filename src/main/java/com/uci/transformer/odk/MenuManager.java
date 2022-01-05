@@ -34,7 +34,9 @@ import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import javax.annotation.PostConstruct;
@@ -67,10 +69,7 @@ public class MenuManager {
     QuestionRepository questionRepo;
     String assesGoToStartChar;
     String assesOneLevelUpChar;
-    Boolean addOtherOption = false;
     Integer formDepth;
-    String goBackText = "Go Back";
-    String goToMainMenuText = "Main Menu";
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
@@ -93,20 +92,6 @@ public class MenuManager {
         this.isPrefilled = isPrefilled;
         this.formID = formID;
         this.questionRepo = questionRepo;
-        
-        setAssesmentCharacters();
-    }
-    
-    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo, Boolean addOtherOption) {
-        this.xpath = xpath;
-        this.answer = answer;
-        this.instanceXML = instanceXML;
-        this.formPath = formPath;
-        this.isSpecialResponse = false;
-        this.isPrefilled = isPrefilled;
-        this.formID = formID;
-        this.questionRepo = questionRepo;
-        this.addOtherOption = addOtherOption;
         
         setAssesmentCharacters();
     }
@@ -169,7 +154,6 @@ public class MenuManager {
         XMessagePayload nextQuestion;
         SaveStatus saveStatus = new SaveStatus();
         
-//        addOtherOption = true;
         if (answer != null && answer.equals(assesOneLevelUpChar)) {
             this.isSpecialResponse = true;
             // Get to the note of the previous group
@@ -230,11 +214,6 @@ public class MenuManager {
             }
 
             nextQuestion = createView(formController.getModel().getEvent(), "");
-            /* If addOherOption is enabled */
-            if(addOtherOption) {
-            	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
-            	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formController.getModel().getFormIndex()));
-            }
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
 
         } else if (answer != null && answer.equals(assesGoToStartChar)) {
@@ -257,11 +236,6 @@ public class MenuManager {
 
                 formController.stepToNextEvent();
                 nextQuestion = createView(formController.getModel().getEvent(), "");
-                /* If addOherOption is enabled */
-                if(addOtherOption) {
-                	ArrayList<ButtonChoice> choices2 = nextQuestion.getButtonChoices();
-                	nextQuestion.setButtonChoices(getButtonChoicesWithOtherOptions(choices2, formController.getModel().getFormIndex()));
-                }
                 log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), (nextQuestion.getButtonChoices() != null ? nextQuestion.getButtonChoices().size() : 0)));
 
                 if (instanceXML != null) {
@@ -312,63 +286,19 @@ public class MenuManager {
         
         question.setMeta(Json.of(new Meta(nextQuestion.getText(), choices).toString()));
 
-//        log.info("Next XPath:"+currentPath+", FormIndex:"+model.getFormIndex()+", Form event: "+getEvent(formController)
-//		+", Is beginning:"+model.getFormIndex().isBeginningOfFormIndex());
+        FormIndex formIndex = formController.getModel().getFormIndex();
+        ArrayList<Integer> conversationLevel = new ArrayList();
+		
+        Integer previousIndex = formIndex.getLocalIndex();
+		conversationLevel.add(previousIndex);
+		if(formIndex.getNextLevel() != null) {
+			Integer nextIndex = formIndex.getNextLevel().getLocalIndex();
+			conversationLevel.add(nextIndex);
+		}
         
-        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question);
+		return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question, conversationLevel);
     }
     
-    /**
-     * Add "Go Back" & "Go To Main Menu" to question button choices
-     * @param choices
-     * @param formDepth
-     * @return
-     */
-    private ArrayList<ButtonChoice> getButtonChoicesWithOtherOptions(ArrayList<ButtonChoice> choices,
-			FormIndex formIndex) {
-		Integer localIndex = formIndex.getLocalIndex();
-		Integer instanceIndex = formIndex.getInstanceIndex();
-		FormIndex formIndex2 = formIndex.getNextLevel();
-		Integer nextIndex = formIndex2.getLocalIndex();
-		
-//		FormIndex formIndex3 = formIndex;
-//		Integer counter = 1;
-//		while(formIndex3 != null) {
-//			log.info("counter: "+counter+", formIndex3: "+formIndex3);
-//			formIndex3 = formIndex3.getNextLevel();
-//			counter++;
-//		}
-		
-        log.info("formIndex: "+formIndex+", formIndex2: "+formIndex2+", localIndex: " + localIndex + 
-				", nextIndex: " + nextIndex + ", instanceIndex: "+instanceIndex
-				+ ", formDepth: "+formIndex.getDepth()+", LocalReference: "+formIndex.getLocalReference()
-				+ ", Terminal: "+formIndex.getTerminal() + ", Is beginning:"+formIndex.isBeginningOfFormIndex() 
-				+", Is End:"+formIndex.isEndOfFormIndex() + ", in form: "+formIndex.isInForm());
-		
-		if (choices == null)
-			choices = new ArrayList();
-
-		/* Go Back Button */
-		if (localIndex > 0) {
-			ButtonChoice c1 = new ButtonChoice();
-			c1.setKey(assesOneLevelUpChar);
-			c1.setText(assesOneLevelUpChar + " " + goBackText);
-			c1.setBackmenu(true);
-			choices.add(c1);
-		}
-
-		/* Go To Main Menu Button*/
-		if (localIndex > 0 && nextIndex > 0) {
-			ButtonChoice c2 = new ButtonChoice();
-			c2.setKey(assesGoToStartChar);
-			c2.setText(assesGoToStartChar + " " + goToMainMenuText);
-			c2.setBackmenu(true);
-			choices.add(c2);
-		}
-
-		return choices;
-	}
-
     private boolean isDynamicQuestion() {
         try {
             return formController.getModel().getEvent() == 4 &&
