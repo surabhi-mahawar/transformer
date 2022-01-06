@@ -146,7 +146,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                                             	Span childSpan = createChildSpan("broadcastMessageToKafka", currentContext, rootSpan); 
                                                 kafkaProducer.send(outboundTopic, msg.toXML());
                                                 childSpan.end();
-                                                rootSpan.end();                                            } catch (JAXBException e) {
+                                                rootSpan.end();  
+					    } catch (JAXBException e) {                                          } catch (JAXBException e) {
                                                 e.printStackTrace();
                                             }
                                         }
@@ -346,9 +347,10 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                     );
                                             childSpan4.end();
 
-                                            if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
-                                            	Span childSpan5 = createChildSpan("getBotNameByBotID&getFirstFormByBotID", currentContext, parentSpan);
-                                            	String nextBotID = mm.getNextBotID(response[0].currentIndex);
+                                            /* If form contains eof__, then process next bot by id addded with eof__bot_id, else process message */
+                                            if (response[0].currentIndex.contains("eof__")) {    
+						Span childSpan5 = createChildSpan("getBotNameByBotID&getFirstFormByBotID", currentContext, parentSpan);                                            	
+						String nextBotID = mm.getNextBotID(response[0].currentIndex);
 
                                                 return Mono.zip(
                                                         campaignService.getBotNameByBotID(nextBotID),
@@ -370,8 +372,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                         FormUpdation ss = FormUpdation.builder().build();
                                                         ss.parse(serviceResponse.currentResponseState);
                                                         ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
-                                                        String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-                                                                ss.getXML();
+//                                                        String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+//                                                                ss.getXML();
+                                                        String instanceXMlPrevious = ss.getXML();
                                                         log.debug("Instance value >> " + instanceXMlPrevious);
                                                         Span childSpan7 = createChildSpan("MenuManagerStartProcessForXMLNextForm", currentContext, parentSpan);
                                                         MenuManager mm2 = new MenuManager(null, null,
