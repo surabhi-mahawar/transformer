@@ -147,7 +147,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 kafkaProducer.send(outboundTopic, msg.toXML());
                                                 childSpan.end();
                                                 rootSpan.end();  
-					    } catch (JAXBException e) {                                          } catch (JAXBException e) {
+                                            } catch (JAXBException e) {
                                                 e.printStackTrace();
                                             }
                                         }
