@@ -23,6 +23,7 @@ import com.uci.utils.CampaignService;
 import com.uci.utils.kafka.SimpleProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import messagerosa.core.model.ButtonChoice;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.Transformer;
 import messagerosa.core.model.XMessage;
@@ -274,6 +275,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                             
                             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
                             switchFromTo(xMessage);
+                            
+                            Boolean addOtherOptions = xMessage.getProvider().equals("sunbird") ? true : false;
 
                             // Get details of user from database
                             return getPreviousMetadata(xMessage, formID)
@@ -300,6 +303,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                         previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
                                                 response[0] = mm.start();
                                             }
+                                            
                                             
                                             // Save answerData => PreviousQuestion + CurrentAnswer
                                             Mono<Pair<Boolean, List<Question>>> updateQuestionAndAssessment =
@@ -663,6 +667,7 @@ public class ODKConsumerReactive extends TransformerProvider {
     private XMessage getMessageFromResponse(XMessage xMessage, ServiceResponse response) {
         XMessagePayload payload = response.getNextMessage();
         xMessage.setPayload(payload);
+        xMessage.setConversationLevel(response.getConversationLevel());
         return xMessage;
     }
 
