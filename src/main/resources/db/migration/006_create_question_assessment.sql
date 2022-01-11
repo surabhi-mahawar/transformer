@@ -37,3 +37,4 @@ CREATE table assessment
 CREATE INDEX idx_assessment_bot_id ON assessment(bot_id);
 CREATE INDEX idx_assessment_user_id ON assessment(user_id);
 CREATE INDEX idx_assessment_device_id ON assessment(device_id);
+
