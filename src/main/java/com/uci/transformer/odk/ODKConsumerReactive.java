@@ -115,6 +115,9 @@ public class ODKConsumerReactive extends TransformerProvider {
     
     @Value("${assesment.character.go_to_start}")
     public String assesGoToStartChar;
+    
+    @Value("${transformer-integrity-test}")
+    public String integrityTestTopic;
 
     @EventListener(ApplicationStartedEvent.class)
     public void onMessage() {
@@ -134,6 +137,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                         for (XMessage msg : messages) {
                                             try {
                                                 kafkaProducer.send(outboundTopic, msg.toXML());
+                                                kafkaProducer.send(integrityTestTopic, msg.toXML());
                                             } catch (JAXBException e) {
                                                 e.printStackTrace();
                                             }
@@ -149,6 +153,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 if (transformedMessage != null) {
                                                     try {
                                                         kafkaProducer.send(outboundTopic, transformedMessage.toXML());
+                                                        kafkaProducer.send(integrityTestTopic, msg.toXML());
                                                         long endTime = System.nanoTime();
                                                         long duration = (endTime - startTime);
                                                         log.error("Total time spent in processing form: " + duration / 1000000);
