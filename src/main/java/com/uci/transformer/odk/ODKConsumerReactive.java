@@ -577,12 +577,23 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 JsonNode campaign, XMessage xMessage, Question question) {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
         UUID deviceID = !xMessage.getTo().getDeviceID().isEmpty() && xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;
+        UUID userID;
+        if(!xMessage.getTo().getUserID().isEmpty() && xMessage.getTo().getUserID() != null && xMessage.getTo().getUserID() != "") {
+        	try {
+        		userID = UUID.fromString(xMessage.getTo().getUserID());
+        	} catch (IllegalArgumentException e) {
+        		userID =  UUID.nameUUIDFromBytes(xMessage.getTo().getUserID().getBytes());
+        	}
+        } else {
+        	userID = null;
+        }
         
         Assessment assessment = Assessment.builder()
                 .question(question)
                 .deviceID(deviceID)
                 .answer(previousMeta.currentAnswer)
                 .botID(UUID.fromString(campaign.findValue("id").asText()))
+                .userID(userID)
                 .build();
         try {
             String telemetryEvent = new AssessmentTelemetryBuilder()
