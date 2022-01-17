@@ -29,6 +29,7 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import messagerosa.core.model.ButtonChoice;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.Transformer;
 import messagerosa.core.model.XMessage;
@@ -283,6 +284,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                             
                             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
                             switchFromTo(xMessage);
+                            
+                            Boolean addOtherOptions = xMessage.getProvider().equals("sunbird") ? true : false;
 
                             // Get details of user from database
                             return getPreviousMetadata(xMessage, formID)
@@ -310,6 +313,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                         previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
                                                 response[0] = mm.start();
                                             }
+                                            
                                             
                                             // Save answerData => PreviousQuestion + CurrentAnswer
                                             Mono<Pair<Boolean, List<Question>>> updateQuestionAndAssessment =
@@ -582,12 +586,23 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 JsonNode campaign, XMessage xMessage, Question question) {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
         UUID deviceID = !xMessage.getTo().getDeviceID().isEmpty() && xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;
+        UUID userID;
+        if(!xMessage.getTo().getUserID().isEmpty() && xMessage.getTo().getUserID() != null && xMessage.getTo().getUserID() != "") {
+        	try {
+        		userID = UUID.fromString(xMessage.getTo().getUserID());
+        	} catch (IllegalArgumentException e) {
+        		userID =  UUID.nameUUIDFromBytes(xMessage.getTo().getUserID().getBytes());
+        	}
+        } else {
+        	userID = null;
+        }
         
         Assessment assessment = Assessment.builder()
                 .question(question)
                 .deviceID(deviceID)
                 .answer(previousMeta.currentAnswer)
                 .botID(UUID.fromString(campaign.findValue("id").asText()))
+                .userID(userID)
                 .build();
         try {
             String telemetryEvent = new AssessmentTelemetryBuilder()
@@ -672,6 +687,7 @@ public class ODKConsumerReactive extends TransformerProvider {
     private XMessage getMessageFromResponse(XMessage xMessage, ServiceResponse response) {
         XMessagePayload payload = response.getNextMessage();
         xMessage.setPayload(payload);
+        xMessage.setConversationLevel(response.getConversationLevel());
         return xMessage;
     }
 

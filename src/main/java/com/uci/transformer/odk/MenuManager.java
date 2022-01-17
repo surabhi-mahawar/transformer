@@ -8,6 +8,7 @@ import lombok.*;
 import lombok.extern.java.Log;
 import messagerosa.core.model.ButtonChoice;
 import messagerosa.core.model.XMessagePayload;
+
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.javarosa.core.model.*;
 import org.javarosa.core.model.data.IAnswerData;
@@ -33,7 +34,9 @@ import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import javax.annotation.PostConstruct;
@@ -66,6 +69,7 @@ public class MenuManager {
     QuestionRepository questionRepo;
     String assesGoToStartChar;
     String assesOneLevelUpChar;
+    Integer formDepth;
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
@@ -149,7 +153,7 @@ public class MenuManager {
         String udpatedInstanceXML = "";
         XMessagePayload nextQuestion;
         SaveStatus saveStatus = new SaveStatus();
-
+        
         if (answer != null && answer.equals(assesOneLevelUpChar)) {
             this.isSpecialResponse = true;
             // Get to the note of the previous group
@@ -232,7 +236,7 @@ public class MenuManager {
 
                 formController.stepToNextEvent();
                 nextQuestion = createView(formController.getModel().getEvent(), "");
-                log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), nextQuestion.getButtonChoices().size()));
+                log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), (nextQuestion.getButtonChoices() != null ? nextQuestion.getButtonChoices().size() : 0)));
 
                 if (instanceXML != null) {
                     if (!udpatedInstanceXML.equals(instanceXML) || saveStatus.getSaveStatus() == ANSWER_OK) {
@@ -265,7 +269,7 @@ public class MenuManager {
                 e.printStackTrace();
             }
         }
-
+        
         // check if currentPath is persisted in the DB. If not, insert it with all the things.
         String formVersion = formController.getModel().getForm().getInstance().formVersion;
         Question question = new Question();
@@ -279,12 +283,22 @@ public class MenuManager {
                 choices.add(buttonChoice.getText());
             }
         }
-
+        
         question.setMeta(Json.of(new Meta(nextQuestion.getText(), choices).toString()));
 
-        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question);
+        FormIndex formIndex = formController.getModel().getFormIndex();
+        ArrayList<Integer> conversationLevel = new ArrayList();
+		
+        Integer previousIndex = formIndex.getLocalIndex();
+		conversationLevel.add(previousIndex);
+		if(formIndex.getNextLevel() != null) {
+			Integer nextIndex = formIndex.getNextLevel().getLocalIndex();
+			conversationLevel.add(nextIndex);
+		}
+        
+		return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question, conversationLevel);
     }
-
+    
     private boolean isDynamicQuestion() {
         try {
             return formController.getModel().getEvent() == 4 &&
