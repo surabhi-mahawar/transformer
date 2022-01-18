@@ -285,7 +285,6 @@ public class UserService {
                 user.put("is_registered", "no");
                 return user;
             }
-
         } catch (IOException e) {
             e.printStackTrace();
         }

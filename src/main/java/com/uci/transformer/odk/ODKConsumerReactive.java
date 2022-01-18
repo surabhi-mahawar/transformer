@@ -261,10 +261,7 @@ public class ODKConsumerReactive extends TransformerProvider {
 
                             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
 
-                            JSONObject user = UserService.getUserByPhoneFromFederatedServers(
-                                    campaign.findValue("id").asText(),
-                                    xMessage.getFrom().getUserID()
-                            );
+
                             switchFromTo(xMessage);
 
                             // Get details of user from database
@@ -276,6 +273,10 @@ public class ODKConsumerReactive extends TransformerProvider {
                                             MenuManager mm;
                                             ObjectMapper mapper = new ObjectMapper();
                                             JSONObject camp = null;
+                                            JSONObject user = UserService.getUserByPhoneFromFederatedServers(
+                                                    campaign.findValue("id").asText(),
+                                                    xMessage.getTo().getUserID()
+                                            );
                                             try {
                                                 camp = new JSONObject(mapper.writeValueAsString(campaign));
                                             } catch (JsonProcessingException e) {
@@ -294,6 +295,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 FormInstanceUpdation ss = FormInstanceUpdation.builder().build();
                                                 ss.parse(serviceResponse.currentResponseState);
                                                 ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
+                                                ss.updateParams("phone_number", xMessage.getTo().getUserID());
                                                 String instanceXMlPrevious = ss.updateHiddenFields(hiddenFields, (JSONObject) user).getXML();
                                                 mm = new MenuManager(null, null, instanceXMlPrevious,
                                                         formPath, formID);

@@ -39,6 +39,8 @@ public class FormInstanceUpdation {
     }
 
     public FormInstanceUpdation updateHiddenFields(ArrayNode hiddenFields, JSONObject user) {
+        if(user == null) return this;
+        if(hiddenFields == null) return this;
     	UUID instanceID = randomUUID();
         HashMap<String, String> fields = new HashMap<>();
         for(int i=0; i<hiddenFields.size(); i++){

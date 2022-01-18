@@ -265,7 +265,7 @@ public class MenuManager {
 
                 formController.stepToNextEvent();
                 nextQuestion = createView(formController.getModel().getEvent(), "");
-                log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), nextQuestion.getButtonChoices().size()));
+                // log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), nextQuestion.getButtonChoices().size()));
 
                 if (instanceXML != null) {
                     if (!udpatedInstanceXML.equals(instanceXML) || saveStatus.getSaveStatus() == ANSWER_OK) {
@@ -757,19 +757,18 @@ public class MenuManager {
                 try{
                     ArrayList<Item> options = new ArrayList<>();
                     JSONArray matchedVacancies = this.user.getJSONArray("matched");
-                    for(int i=0; i<matchedVacancies.length(); i++){
-                        String label = matchedVacancies.getJSONObject(i).getJSONObject("vacancy_detail").getString("job_role") +
-                                " at " + matchedVacancies.getJSONObject(i).getJSONObject("vacancy_detail").getJSONObject("employer_detail").getString("company_name");
-                        String value = String.valueOf(matchedVacancies.getJSONObject(i).getJSONObject("vacancy_detail").getInt("id"));
-                        options.add(Item.builder().label(label).value(value).build());
+                    if(matchedVacancies.length() > 0){
+                        for(int i=0; i<matchedVacancies.length(); i++){
+                            String label = matchedVacancies.getJSONObject(i).getJSONObject("vacancy_detail").getString("job_role") +
+                                    " at " + matchedVacancies.getJSONObject(i).getJSONObject("vacancy_detail").getJSONObject("employer_detail").getString("company_name");
+                            String value = String.valueOf(matchedVacancies.getJSONObject(i).getJSONObject("vacancy_detail").getInt("id"));
+                            options.add(Item.builder().label(label).value(value).build());
+                        }
+                        ss.addSelectOneOptions(options, "vacancies");
                     }
-                    ss.addSelectOneOptions(options, "vacancies");
-                }catch(Exception e) {
-
-                }
+                }catch(Exception e) {}
                 fis = ss.getInputStream();
             }else{
-                Path path = FileSystems.getDefault().getPath("CensusBot.xml");
                 fis = new FileInputStream(formXml);
             }
             return XFormUtils.getFormFromInputStream(fis);
