@@ -36,6 +36,11 @@ public class UserService {
 //    @Autowired
 //    @Value("${external.services.url-shortnr.baseURL}")
     private static String shortnrBaseURL = "http://localhost:9999";
+    static OkHttpClient client = new OkHttpClient().newBuilder()
+            .connectTimeout(90, TimeUnit.SECONDS)
+            .writeTimeout(90, TimeUnit.SECONDS)
+            .readTimeout(90, TimeUnit.SECONDS)
+            .build();
 
     public static User findByEmail(String email) {
         FusionAuthClient staticClient = new FusionAuthClient("c0VY85LRCYnsk64xrjdXNVFFJ3ziTJ91r08Cm0Pcjbc", "http://134.209.150.161:9011");
@@ -246,10 +251,40 @@ public class UserService {
         Request request = new Request.Builder()
                 .url(baseURL)
                 .addHeader("Content-Type", "application/json")
+                .addHeader("admin-token", "EXnYOvDx4KFqcQkdXqI38MHgFvnJcxMS")
                 .build();
         try {
             Response response = client.newCall(request).execute();
-            return (new JSONObject(response.body().string())).getJSONArray("data");
+            JSONObject users = new JSONObject(response.body().string());
+            return users.getJSONObject("result").getJSONArray("data");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static JSONObject getUserByPhoneFromFederatedServers(String campaignID, String phone){
+
+        String baseURL = shortnrBaseURL + "/admin/v1/bot/getFederatedUsersByPhone/" + campaignID + "/" + phone;
+
+        MediaType mediaType = MediaType.parse("application/json");
+        Request request = new Request.Builder()
+                .url(baseURL)
+                .addHeader("Content-Type", "application/json")
+                .addHeader("admin-token", "EXnYOvDx4KFqcQkdXqI38MHgFvnJcxMS")
+                .build();
+        try {
+            Response response = client.newCall(request).execute();
+            JSONObject users = new JSONObject(response.body().string());
+            try{
+                JSONObject user = users.getJSONObject("result").getJSONObject("data").getJSONObject("user");
+                user.put("is_registered", "yes");
+                return user;
+            }catch (Exception e){
+                JSONObject user = new JSONObject();
+                user.put("is_registered", "no");
+                return user;
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }

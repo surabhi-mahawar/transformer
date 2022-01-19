@@ -77,7 +77,7 @@ public class AssessmentTelemetryBuilder {
         itemDetails.put("userID", userID.toString());
         itemDetails.put("id", question.getId().toString());
         itemDetails.put("type", question.getQuestionType().name());
-        itemDetails.put("meta", question.getMeta());
+        itemDetails.put("meta", question.getMeta().asString());
         edata.put("item", itemDetails);
         edata.put("resValues", resValues);
         Telemetry telemetry = Telemetry.builder().

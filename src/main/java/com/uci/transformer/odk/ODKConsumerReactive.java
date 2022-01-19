@@ -1,10 +1,12 @@
 package com.uci.transformer.odk;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.collect.Maps;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
 import com.uci.transformer.TransformerProvider;
 import com.uci.transformer.User.UserService;
 import com.uci.transformer.odk.entity.Assessment;
@@ -17,7 +19,7 @@ import com.uci.transformer.odk.repository.AssessmentRepository;
 import com.uci.transformer.odk.repository.MessageRepository;
 import com.uci.transformer.odk.repository.QuestionRepository;
 import com.uci.transformer.odk.repository.StateRepository;
-import com.uci.transformer.odk.utilities.FormUpdation;
+import com.uci.transformer.odk.utilities.FormInstanceUpdation;
 import com.uci.transformer.telemetry.AssessmentTelemetryBuilder;
 import com.uci.utils.CampaignService;
 import com.uci.utils.kafka.SimpleProducer;
@@ -38,12 +40,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.client.RestTemplate;
-import reactor.blockhound.BlockHound;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.ReceiverRecord;
@@ -194,7 +193,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                 for (int i = 34; i < users.length(); i++) {
                     String userPhone = ((JSONObject) users.get(i)).getString("whatsapp_mobile_number");
                     ServiceResponse response = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
-                    FormUpdation ss = FormUpdation.builder().applicationID(campaignID).phone(userPhone).build();
+                    FormInstanceUpdation ss = FormInstanceUpdation.builder().applicationID(campaignID).phone(userPhone).build();
                     ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
                     ss.parse(response.currentResponseState);
                     String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updateHiddenFields(hiddenFields, (JSONObject) users.get(i)).getXML();
@@ -252,27 +251,17 @@ public class ODKConsumerReactive extends TransformerProvider {
                     @Override
                     public Mono<Mono<Mono<XMessage>>> apply(JsonNode campaign) {
                         if (campaign != null) {
-//                        	Map<String, String> data = getCampaignAndFormIdFromXMessage(xMessage);
-//                        	
-//                            String formID = data.get("formID");
                         	String formID = ODKConsumerReactive.this.getFormID(campaign);
                             
                             if (formID.equals("")) {
                                 log.error("Unable to find form ID from Conversation Logic");
                                 return null;
                             }
-                            
-//                            String lastFormID = getCurrentFormIDFromFile(xMessage.getFrom().getUserID(), data.get("campaignID"));
-//                            log.info("Previous FormID:"+lastFormID);
-//                            
-//                            saveCurrentFormIDInFile(xMessage.getFrom().getUserID(), data.get("campaignID"), formID);
-                            
-
-                            log.info("current form ID:"+formID);
                             String formPath = getFormPath(formID);
-                            log.info("current form path:"+formPath);
-                            
+
                             boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
+
+
                             switchFromTo(xMessage);
 
                             // Get details of user from database
@@ -282,22 +271,68 @@ public class ODKConsumerReactive extends TransformerProvider {
                                         public Mono<Mono<XMessage>> apply(FormManagerParams previousMeta) {
                                             final ServiceResponse[] response = new ServiceResponse[1];
                                             MenuManager mm;
+                                            ObjectMapper mapper = new ObjectMapper();
+                                            JSONObject camp = null;
+                                            JSONObject user = UserService.getUserByPhoneFromFederatedServers(
+                                                    campaign.findValue("id").asText(),
+                                                    xMessage.getTo().getUserID()
+                                            );
+                                            try {
+                                                camp = new JSONObject(mapper.writeValueAsString(campaign));
+                                            } catch (JsonProcessingException e) {
+                                                e.printStackTrace();
+                                            }
+                                            JsonNode firstTransformer = campaign.findValues("transformers").get(0).get(0);
+                                            ArrayNode hiddenFields = (ArrayNode) firstTransformer.findValue("hiddenFields");
                                             if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
 //                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
                                             	previousMeta.currentAnswer = assesGoToStartChar;
-                                                ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
-                                                FormUpdation ss = FormUpdation.builder().build();
+
+
+                                                ServiceResponse serviceResponse = new MenuManager(null,
+                                                        null, null, formPath, formID, false,
+                                                        questionRepo).start();
+                                                FormInstanceUpdation ss = FormInstanceUpdation.builder().build();
                                                 ss.parse(serviceResponse.currentResponseState);
                                                 ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
-//                                                String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-//                                                        ss.getXML();
-                                                String instanceXMlPrevious = ss.getXML();
-                                                log.debug("Instance value >> " + instanceXMlPrevious);
-                                                mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
+                                                ss.updateParams("phone_number", xMessage.getTo().getUserID());
+                                                String instanceXMlPrevious = ss.updateHiddenFields(hiddenFields, (JSONObject) user).getXML();
+                                                mm = new MenuManager(null, null, instanceXMlPrevious,
+                                                        formPath, formID);
                                                 response[0] = mm.start();
                                             } else {
-                                                mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
-                                                        previousMeta.instanceXMlPrevious, formPath, formID, false, questionRepo);
+                                                String instanceXMlPrevious = "";
+                                                FormInstanceUpdation ss = FormInstanceUpdation.builder().build();
+                                                if(previousMeta.previousPath.equals("question./data/group_matched_vacancies[1]/initial_interest[1]")){
+                                                    ss.parse(previousMeta.instanceXMlPrevious);
+                                                    ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
+
+                                                    JSONObject vacancyDetails = null;
+                                                    for(int j=0; j<user.getJSONArray("matched").length(); j++){
+                                                        String vacancyID = String.valueOf(user.getJSONArray("matched").getJSONObject(j).getJSONObject("vacancy_detail").getInt("id"));
+                                                        if(previousMeta.currentAnswer.equals(vacancyID)){
+                                                            vacancyDetails = user.getJSONArray("matched").getJSONObject(j).getJSONObject("vacancy_detail");
+                                                        }
+                                                    }
+                                                    ss.updateHiddenFields(hiddenFields, user);
+                                                    int idToBeDeleted = -1;
+                                                    for (int i=0; i< hiddenFields.size(); i++){
+                                                        JsonNode object = hiddenFields.get(i);
+                                                        String userField = object.findValue("name").asText();
+                                                        if(userField.equals("candidate_id")){
+                                                            idToBeDeleted = i;
+                                                        }
+                                                    }
+                                                    if(idToBeDeleted > -1) hiddenFields.remove(idToBeDeleted);
+                                                    instanceXMlPrevious = instanceXMlPrevious + ss.updateHiddenFields(hiddenFields, (JSONObject) vacancyDetails).getXML();
+                                                    mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
+                                                            instanceXMlPrevious, formPath, formID,
+                                                            false, questionRepo, user, true, camp);
+                                                }else{
+                                                    mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
+                                                            previousMeta.instanceXMlPrevious, formPath, formID,
+                                                            false, questionRepo, user, true, camp);
+                                                }
                                                 response[0] = mm.start();
                                             }
                                             
@@ -333,7 +368,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                                 getFormPath(nextFormID), nextFormID,
                                                                 false, questionRepo)
                                                                 .start();
-                                                        FormUpdation ss = FormUpdation.builder().build();
+                                                        FormInstanceUpdation ss = FormInstanceUpdation.builder().build();
                                                         ss.parse(serviceResponse.currentResponseState);
                                                         ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
                                                         String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
