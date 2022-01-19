@@ -20,13 +20,17 @@ import com.uci.transformer.odk.repository.StateRepository;
 import com.uci.transformer.odk.utilities.FormUpdation;
 import com.uci.transformer.telemetry.AssessmentTelemetryBuilder;
 import com.uci.utils.CampaignService;
+import com.uci.utils.kafka.RecordProducer;
 import com.uci.utils.kafka.SimpleProducer;
+import com.uci.utils.kafka.adapter.TextMapGetterAdapter;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapGetter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.ButtonChoice;
@@ -36,6 +40,8 @@ import messagerosa.core.model.XMessage;
 import messagerosa.core.model.XMessagePayload;
 import messagerosa.xml.XMessageParser;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Headers;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
@@ -63,6 +69,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -91,7 +98,10 @@ public class ODKConsumerReactive extends TransformerProvider {
     public String telemetryTopic;
 
     @Autowired
-    public SimpleProducer kafkaProducer;
+    public RecordProducer kafkaProducer;
+    
+    @Autowired
+    public SimpleProducer simpleKafkaProducer;
 
     @Autowired
     QuestionRepository questionRepo;
@@ -128,11 +138,14 @@ public class ODKConsumerReactive extends TransformerProvider {
     @EventListener(ApplicationStartedEvent.class)
     public void onMessage() {
         reactiveKafkaReceiver
-                .doOnNext(new Consumer<ReceiverRecord<String, String>>() {
+                .doOnNext(new Consumer<ConsumerRecord<String, String>>() {
                     @Override
-                    public void accept(ReceiverRecord<String, String> stringMessage) {
+                    public void accept(ConsumerRecord<String, String> stringMessage) {
                         final long startTime = System.nanoTime();
-                        try {
+                        Context extractedContext = GlobalOpenTelemetry.getPropagators().getTextMapPropagator().extract(Context.current(), stringMessage.headers(), TextMapGetterAdapter.getter);
+                        log.info("Opentelemetry extracted context : "+extractedContext);
+                        
+                		try (Scope scope = extractedContext.makeCurrent()) {
                         	XMessage msg = XMessageParser.parse(new ByteArrayInputStream(stringMessage.value().getBytes()));
                             logTimeTaken(startTime, 1);
                             if (msg.getMessageType() == XMessage.MessageType.BROADCAST_TEXT) {
@@ -142,7 +155,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                         messages = (ArrayList<XMessage>) messages;
                                         for (XMessage msg : messages) {
                                             try {
-                                            	kafkaProducer.send(outboundTopic, msg.toXML());
+                                            	kafkaProducer.send(outboundTopic, msg.toXML(), Context.current());
                                             } catch (JAXBException e) {
                                                 e.printStackTrace();
                                             }
@@ -157,7 +170,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 logTimeTaken(startTime, 2);
                                                 if (transformedMessage != null) {
                                                     try {
-                                                    	kafkaProducer.send(outboundTopic, transformedMessage.toXML());
+                                                    	kafkaProducer.send(outboundTopic, transformedMessage.toXML(), Context.current());
                                                         long endTime = System.nanoTime();
                                                         long duration = (endTime - startTime);
                                                         log.error("Total time spent in processing form: " + duration / 1000000);
@@ -614,7 +627,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                             assessment.getQuestion(),
                             assessment,
                             0);
-            kafkaProducer.send(telemetryTopic, telemetryEvent);
+            simpleKafkaProducer.send(telemetryTopic, telemetryEvent);
         } catch (Exception e) {
             e.printStackTrace();
         }
