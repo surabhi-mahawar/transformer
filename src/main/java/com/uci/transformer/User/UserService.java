@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
@@ -34,8 +35,9 @@ public class UserService {
     @Autowired
     private CampaignService campaignService;
 //    @Autowired
-//    @Value("${external.services.url-shortnr.baseURL}")
-    private static String shortnrBaseURL = "http://localhost:9999";
+    @Value("${campaign.url}")
+    private static String shortnrBaseURL;
+    
     static OkHttpClient client = new OkHttpClient().newBuilder()
             .connectTimeout(90, TimeUnit.SECONDS)
             .writeTimeout(90, TimeUnit.SECONDS)
@@ -211,8 +213,7 @@ public class UserService {
     public List<String> getUsersPhoneFromFederatedServers(String campaignName){
 
         Application currentApplication = campaignService.getCampaignFromNameESamwad(campaignName);
-
-        String baseURL = shortnrBaseURL + "/getAllUsers";
+        String baseURL = System.getenv("CAMPAIGN_URL") + "/getAllUsers";
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(90, TimeUnit.SECONDS)
                 .writeTimeout(90, TimeUnit.SECONDS)
@@ -265,7 +266,9 @@ public class UserService {
 
     public static JSONObject getUserByPhoneFromFederatedServers(String campaignID, String phone){
 
-        String baseURL = shortnrBaseURL + "/admin/v1/bot/getFederatedUsersByPhone/" + campaignID + "/" + phone;
+    	log.info("all: "+System.getenv("CAMPAIGN_URL"));
+        
+        String baseURL = System.getenv("CAMPAIGN_URL") + "/admin/v1/bot/getFederatedUsersByPhone/" + campaignID + "/" + phone;
 
         MediaType mediaType = MediaType.parse("application/json");
         Request request = new Request.Builder()
