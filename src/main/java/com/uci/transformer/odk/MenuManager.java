@@ -184,6 +184,7 @@ public class MenuManager {
         SaveStatus saveStatus = new SaveStatus();
 
         if (answer != null && answer.equals(assesOneLevelUpChar)) {
+        	log.info("levelup-1");
             this.isSpecialResponse = true;
             // Get to the note of the previous group
 
@@ -194,6 +195,7 @@ public class MenuManager {
             formController.stepToPreviousEvent();
             // Check for a dynamic question with select and skip 2 questions answer the level
             if (isDynamicQuestion()) {
+            	log.info("levelup-2");
                 setBlankAnswer();
                 formController.stepToPreviousEvent();
                 SelectOneData s = (SelectOneData) formController.getModel().getForm().getMainInstance().resolveReference(formController.getModel().getFormIndex().getReference()).getValue();
@@ -210,40 +212,63 @@ public class MenuManager {
                 return start();
 
             } else {
+            	log.info("levelup-3");
                 try {
+                	log.info("levelup-4");
                     // Skip if it is a note
-                    if (isIntro())
-                        formController.stepToPreviousEvent();
+                    if (isIntro()) {
+                    	formController.stepToPreviousEvent();
+                    	log.info("levelup-5");
+                    }
+                        
                     formController.getModel().getQuestionPrompt();
                 } catch (Exception e) {
+                	log.info("levelup-6");
                     formController.stepToPreviousEvent();
                 }
 
+                log.info("levelup-7");
                 // If question if part of a group of just one question, skip that too to the the start of the group.
                 formController.stepToPreviousEvent();
                 try {
                     // Skip if it is a note
-                    if (isIntro())
-                        formController.stepToPreviousEvent();
+                    if (isIntro()) {
+                    	formController.stepToPreviousEvent();
+                    	log.info("levelup-8");
+                    }
+                        
 
                     // Skip a non question TODO: Should remove all non questions. Right now doing only for one.
                     if (formController.getModel().getEvent() != FormEntryController.EVENT_GROUP) {
-                        formController.getModel().getQuestionPrompt();
+                    	log.info("levelup-9");
+                    	formController.getModel().getQuestionPrompt();
                         formController.stepToNextEvent();
                     }
                 } catch (Exception e) {
+                	log.info("levelup-10");
                     formController.stepToPreviousEvent();
                 }
             }
 
             try {
+            	log.info("levelup-11");
                 udpatedInstanceXML = getCurrentInstance();
             } catch (IOException e) {
+            	log.info("levelup-12");
                 e.printStackTrace();
             }
 
+            log.info("levelup-13");
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
+            
+            if(getXPath(formController, formController.getModel().getFormIndex()).contains("eof") 
+            		|| getXPath(formController, formController.getModel().getFormIndex()).equals("question./data/already_registered[1]")) {
+            	 if (!isPrefilled) instanceXML = null;
+                 xpath = null;
+                 answer = null;
+                 return start();
+            }
 
         } else if (answer != null && answer.equals(assesGoToStartChar)) {
             if (!isPrefilled) instanceXML = null;
@@ -299,6 +324,7 @@ public class MenuManager {
             }
         }
 
+        log.info("levelup-14");
         // check if currentPath is persisted in the DB. If not, insert it with all the things.
         String formVersion = formController.getModel().getForm().getInstance().formVersion;
         Question question = new Question();
@@ -313,6 +339,7 @@ public class MenuManager {
             }
         }
 
+        log.info("nextQuestiontext: "+nextQuestion.getText());
         question.setMeta(Json.of(new Meta(nextQuestion.getText(), choices).toString()));
 
         return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question);
@@ -634,6 +661,7 @@ public class MenuManager {
      * @return newly created View
      */
     private XMessagePayload createView(int event, String previousPrompt) {
+    	log.info("previousPrompt: "+previousPrompt);
         log.info("xPath: " + getXPath(formController, formController.getModel().getFormIndex()));
         log.info("Event: " + getEvent(formController));
 
@@ -645,27 +673,34 @@ public class MenuManager {
             case FormEntryController.EVENT_QUESTION:
             case FormEntryController.EVENT_GROUP:
             case FormEntryController.EVENT_REPEAT:
+            	log.info("event repeat - 1");
                 // Check for rendered Types
                 ArrayList<ButtonChoice> choices = new ArrayList<>();
                 try {
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_REPEAT) {
-                        // formController.stepToNextEvent();
+                    	log.info("event repeat - 2");
+                    	// formController.stepToNextEvent();
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_GROUP) {
-                        formController.stepToNextEvent();
+                    	log.info("event repeat - 3");
+                    	formController.stepToNextEvent();
                     }
                     // Check for note and add
                     if (isIntro() && !isQuestionChoiceType(formController)) {
+                    	log.info("event repeat - 4");
                         previousPrompt = renderQuestion(formController);
+                        log.info("found previousPrompt: "+previousPrompt);
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
 
 //                    log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
                     choices = getChoices(choices);
                     //Check this
+                    log.info("previousPrompt:"+previousPrompt+", renderQuestion: "+renderQuestion(formController)+", choices: "+choices);
                     return XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).build();
                 } catch (Exception e) {
+                	log.info("event repeat - 5");
                     log.info("Non Question data type");
                     formController.stepToNextEvent();
                     String currentQuestionString = renderQuestion(formController);
