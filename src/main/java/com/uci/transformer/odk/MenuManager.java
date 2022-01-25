@@ -299,6 +299,44 @@ public class MenuManager {
 		return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question, conversationLevel);
     }
     
+    /**
+     * Get Question XMessage Payload with text & button choices from question xPath
+     * 
+     * @return XMessagePayload
+     */
+    public XMessagePayload getQuestionPayload() {
+    	new XFormsModule().registerModule();
+        FECWrapper fecWrapper = loadForm(formPath, xpath); // If instance load from instance (If form is filled load new)
+        formController = fecWrapper.controller;
+        
+        /* Previous Question */
+        ArrayList<ButtonChoice> choices = new ArrayList();
+        choices = getChoices(choices);
+        String questionText = renderQuestion(formController);
+        
+        XMessagePayload payload = XMessagePayload.builder()
+        								.text(questionText)
+        								.buttonChoices(choices)
+        								.build();
+        return payload;
+    }
+    
+    /**
+     * Get Question Object with xPath
+     * 
+     * @return Question
+     */
+    public Question getQuestion() {
+    	String formVersion = formController.getModel().getForm().getInstance().formVersion;
+        Question question = new Question();
+        question.setQuestionType(Question.QuestionType.STRING);
+        question.setFormID(formID);
+        question.setFormVersion(formVersion);
+        question.setXPath(xpath);
+        
+        return question;
+    }
+    
     private boolean isDynamicQuestion() {
         try {
             return formController.getModel().getEvent() == 4 &&
