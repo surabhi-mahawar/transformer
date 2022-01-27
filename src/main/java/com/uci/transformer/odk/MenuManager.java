@@ -176,6 +176,7 @@ public class MenuManager {
 
     public ServiceResponse start() {
         new XFormsModule().registerModule();
+        
         FECWrapper fecWrapper = loadForm(formPath, xpath); // If instance load from instance (If form is filled load new)
         formController = fecWrapper.controller;
         String currentPath = "";
@@ -184,7 +185,14 @@ public class MenuManager {
         SaveStatus saveStatus = new SaveStatus();
 
         if (answer != null && answer.equals(assesOneLevelUpChar)) {
-        	log.info("levelup-1");
+        	/* for level one up character, if last message xpath contains eof, restart the bot */
+            if(xpath.contains("eof")) {
+            	 if (!isPrefilled) instanceXML = null;
+                 xpath = null;
+                 answer = null;
+                 return start();
+            }
+        	
             this.isSpecialResponse = true;
             // Get to the note of the previous group
 
@@ -195,7 +203,6 @@ public class MenuManager {
             formController.stepToPreviousEvent();
             // Check for a dynamic question with select and skip 2 questions answer the level
             if (isDynamicQuestion()) {
-            	log.info("levelup-2");
                 setBlankAnswer();
                 formController.stepToPreviousEvent();
                 SelectOneData s = (SelectOneData) formController.getModel().getForm().getMainInstance().resolveReference(formController.getModel().getFormIndex().getReference()).getValue();
@@ -212,64 +219,44 @@ public class MenuManager {
                 return start();
 
             } else {
-            	log.info("levelup-3");
                 try {
-                	log.info("levelup-4");
-                    // Skip if it is a note
+                	// Skip if it is a note
                     if (isIntro()) {
                     	formController.stepToPreviousEvent();
-                    	log.info("levelup-5");
                     }
                         
                     formController.getModel().getQuestionPrompt();
                 } catch (Exception e) {
-                	log.info("levelup-6");
                     formController.stepToPreviousEvent();
                 }
 
-                log.info("levelup-7");
                 // If question if part of a group of just one question, skip that too to the the start of the group.
                 formController.stepToPreviousEvent();
                 try {
                     // Skip if it is a note
                     if (isIntro()) {
                     	formController.stepToPreviousEvent();
-                    	log.info("levelup-8");
                     }
                         
 
                     // Skip a non question TODO: Should remove all non questions. Right now doing only for one.
                     if (formController.getModel().getEvent() != FormEntryController.EVENT_GROUP) {
-                    	log.info("levelup-9");
                     	formController.getModel().getQuestionPrompt();
                         formController.stepToNextEvent();
                     }
                 } catch (Exception e) {
-                	log.info("levelup-10");
                     formController.stepToPreviousEvent();
                 }
             }
 
             try {
-            	log.info("levelup-11");
                 udpatedInstanceXML = getCurrentInstance();
             } catch (IOException e) {
-            	log.info("levelup-12");
-                e.printStackTrace();
+            	e.printStackTrace();
             }
 
-            log.info("levelup-13");
             nextQuestion = createView(formController.getModel().getEvent(), "");
             currentPath = getXPath(formController, formController.getModel().getFormIndex());
-            
-            if(getXPath(formController, formController.getModel().getFormIndex()).contains("eof") 
-            		|| getXPath(formController, formController.getModel().getFormIndex()).equals("question./data/already_registered[1]")) {
-            	 if (!isPrefilled) instanceXML = null;
-                 xpath = null;
-                 answer = null;
-                 return start();
-            }
-
         } else if (answer != null && answer.equals(assesGoToStartChar)) {
             if (!isPrefilled) instanceXML = null;
             xpath = null;
@@ -324,7 +311,6 @@ public class MenuManager {
             }
         }
 
-        log.info("levelup-14");
         // check if currentPath is persisted in the DB. If not, insert it with all the things.
         String formVersion = formController.getModel().getForm().getInstance().formVersion;
         Question question = new Question();
@@ -339,7 +325,6 @@ public class MenuManager {
             }
         }
 
-        log.info("nextQuestiontext: "+nextQuestion.getText());
         question.setMeta(Json.of(new Meta(nextQuestion.getText(), choices).toString()));
 
         return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question);

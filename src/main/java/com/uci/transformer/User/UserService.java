@@ -242,7 +242,7 @@ public class UserService {
 
     public static JSONArray getUsersFromFederatedServers(String campaignID){
 
-        String baseURL = shortnrBaseURL + "/admin/v1/bot/getAllUsers/" + campaignID;
+        String baseURL = System.getenv("CAMPAIGN_URL") + "/admin/v1/bot/getAllUsers/" + campaignID;
         OkHttpClient client = new OkHttpClient().newBuilder()
                 .connectTimeout(90, TimeUnit.SECONDS)
                 .writeTimeout(90, TimeUnit.SECONDS)
@@ -280,6 +280,7 @@ public class UserService {
             Response response = client.newCall(request).execute();
             JSONObject users = new JSONObject(response.body().string());
             try{
+            	log.info("campaignID: "+campaignID+", phone: "+phone+", users data: "+users.getJSONObject("result"));
                 JSONObject user = users.getJSONObject("result").getJSONObject("data").getJSONObject("user");
                 user.put("is_registered", "yes");
                 return user;
