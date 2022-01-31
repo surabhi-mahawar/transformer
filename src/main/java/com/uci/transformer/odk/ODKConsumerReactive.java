@@ -115,6 +115,10 @@ public class ODKConsumerReactive extends TransformerProvider {
     
     @Value("${assesment.character.go_to_start}")
     public String assesGoToStartChar;
+    
+    public MenuManager menuManager;
+    
+    public Boolean isStartingMessage;
 
     @EventListener(ApplicationStartedEvent.class)
     public void onMessage() {
@@ -273,7 +277,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                             String formPath = getFormPath(formID);
                             log.info("current form path:"+formPath);
                             
-                            boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
+                            isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
                             switchFromTo(xMessage);
                             
                             Boolean addOtherOptions = xMessage.getProvider().equals("sunbird") ? true : false;
@@ -312,13 +316,12 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 response[0] = mm.start();
                                             }
                                             
+                                            menuManager = new MenuManager(answer, instanceXMlPrevious, formPath, formID, prefilled, questionRepo);
+                                            
                                             /* Previous Question Data */
-                                            XMessagePayload prevQuestionPayload = null;
                                             Question prevQuestion = null;
                                             if(!isStartingMessage) {
-    											MenuManager mm1 = new MenuManager(previousMeta.previousPath, answer, instanceXMlPrevious, formPath, formID, prefilled, questionRepo);
-                                                prevQuestionPayload = mm1.getQuestionPayload();
-                                                prevQuestion = mm1.getQuestion();
+                                            	prevQuestion = menuManager.getQuestionFromXPath(previousMeta.previousPath);
                                             }
                                             
                                             // Save answerData => PreviousQuestion + CurrentAnswer
@@ -333,7 +336,6 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                             campaign,
                                                             xMessage,
                                                             response[0].question,
-                                                            prevQuestionPayload, 
                                                             prevQuestion
                                                     );
 
@@ -538,14 +540,15 @@ public class ODKConsumerReactive extends TransformerProvider {
     @NotNull
     private Mono<Pair<Boolean, List<Question>>> updateQuestionAndAssessment(FormManagerParams previousMeta,
                                                                             Mono<Pair<Boolean, List<Question>>> previousQuestions, String formID,
-                                                                            JsonNode campaign, XMessage xMessage, Question question, XMessagePayload prevQuestionPayload, Question prevQuestion) {
+                                                                            JsonNode campaign, XMessage xMessage, Question question, Question prevQuestion) {
         return previousQuestions
                 .doOnNext(new Consumer<Pair<Boolean, List<Question>>>() {
                     @Override
                     public void accept(Pair<Boolean, List<Question>> existingQuestionStatus) {
                         if (existingQuestionStatus.getLeft()) {
+                        	log.info("Found Question id: "+existingQuestionStatus.getRight().get(0).getId()+", xPath: "+existingQuestionStatus.getRight().get(0).getXPath());
                         	saveAssessmentData(
-                                    existingQuestionStatus, formID, previousMeta, campaign, xMessage, null, prevQuestionPayload, prevQuestion).subscribe(new Consumer<Assessment>() {
+                                    existingQuestionStatus, formID, previousMeta, campaign, xMessage, null).subscribe(new Consumer<Assessment>() {
                                 @Override
                                 public void accept(Assessment assessment) {
                                     log.info("Assessment Saved Successfully {}", assessment.getId());
@@ -563,7 +566,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                 public void accept(Question question) {
                                 	log.info("Question Saved Successfully, id: "+question.getId()+", xPath: "+question.getXPath());
                                 	saveAssessmentData(
-                                            existingQuestionStatus, formID, previousMeta, campaign, xMessage, question, prevQuestionPayload, prevQuestion).subscribe(new Consumer<Assessment>() {
+                                            existingQuestionStatus, formID, previousMeta, campaign, xMessage, question).subscribe(new Consumer<Assessment>() {
                                         @Override
                                         public void accept(Assessment assessment) {
                                             log.info("Assessment Saved Successfully {}", assessment.getId());
@@ -577,7 +580,7 @@ public class ODKConsumerReactive extends TransformerProvider {
     }
 
     private Mono<Pair<Boolean, List<Question>>> getPreviousQuestions(String previousPath, String formID, String formVersion) {
-        return questionRepo
+    	return questionRepo
                 .findQuestionByXPathAndFormIDAndFormVersion(previousPath, formID, formVersion)
                 .collectList()
                 .flatMap(new Function<List<Question>, Mono<Pair<Boolean, List<Question>>>>() {
@@ -598,8 +601,7 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     private Mono<Assessment> saveAssessmentData(Pair<Boolean, List<Question>> existingQuestionStatus,
                                                 String formID, FormManagerParams previousMeta,
-                                                JsonNode campaign, XMessage xMessage, Question question, 
-                                                XMessagePayload prevQuestionPayload, Question prevQuestion) {
+                                                JsonNode campaign, XMessage xMessage, Question question) {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
         
         UUID deviceID = !xMessage.getTo().getDeviceID().isEmpty() && xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;
@@ -622,16 +624,15 @@ public class ODKConsumerReactive extends TransformerProvider {
                 .userID(userID)
                 .build();
         try {
-        	if(prevQuestionPayload != null && prevQuestion != null 
-        			&& (prevQuestion.getId() == null || prevQuestion.getId().toString().isEmpty()) ) {
-        		for(Question questionItem: existingQuestionStatus.getRight()) {
-                	if(questionItem.getXPath().equals(prevQuestion.getXPath())) {
-                		log.info("found previous question id: "+questionItem.getId()+", xpath: "+questionItem.getXPath());
-                		prevQuestion.setId(questionItem.getId());
-                		break;
-                	}
-                }
+        	if(question != null) {
+        		log.info("In saveAssessmentData, question id: "+question.getId()+", question xpath: "+question.getXPath());
+        	}else {
+            	log.info("In saveAssessmentData, Question empty: "+question);
+            }
+        	
+        	if(question != null && !isStartingMessage) {
         		
+        		XMessagePayload questionPayload = menuManager.getQuestionPayloadFromXPath(question.getXPath());
         		String telemetryEvent = new AssessmentTelemetryBuilder()
                         .build("",
                                 xMessage.getChannel(),
@@ -640,8 +641,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                 "",
                                 assessment.getQuestion(),
                                 assessment,
-                                prevQuestionPayload,
-                                prevQuestion,
+                                questionPayload,
                                 0);
                 System.out.println(telemetryEvent);
                 kafkaProducer.send(telemetryTopic, telemetryEvent);

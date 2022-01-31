@@ -37,8 +37,8 @@ public class AssessmentTelemetryBuilder {
 	// Survey/Questionnaire"
 
 	public String build(String botOrg, String channel, String provider, String producerID, String conversationOwnerID,
-			Question question, Assessment assessment, XMessagePayload prevQuestionPayload, Question prevQuestion, long duration) {
-		String questionType = getQuestionType(prevQuestionPayload.getButtonChoices());
+			Question question, Assessment assessment, XMessagePayload questionPayload, long duration) {
+		String questionType = getQuestionType(questionPayload.getButtonChoices());
 		
 		//Context Cdata
 		List<Map<String, Object>> cdata = new ArrayList<>();
@@ -92,16 +92,16 @@ public class AssessmentTelemetryBuilder {
 		Map<String, Object> itemDetails = new HashMap<>();
 		itemDetails.put("botID", assessment.getBotID().toString());
 		itemDetails.put("userID", userID.toString());
-		itemDetails.put("id", (prevQuestion.getId() != null ? prevQuestion.getId().toString() : ""));
+		itemDetails.put("id", (question.getId() != null ? question.getId().toString() : ""));
 		itemDetails.put("type", questionType);
 		itemDetails.put("mmc", new ArrayList());
 		itemDetails.put("mc", new ArrayList());
 		itemDetails.put("exlength", 0.0);
 		itemDetails.put("maxscore", 1.0);
-		itemDetails.put("title", prevQuestionPayload.getText());
+		itemDetails.put("title", questionPayload.getText());
 		itemDetails.put("uri", "");
 		itemDetails.put("desc", "");
-		itemDetails.put("params", getItemParams(questionType, prevQuestionPayload.getButtonChoices()));
+		itemDetails.put("params", getItemParams(questionType, questionPayload.getButtonChoices()));
 		
 		/* Set Meta */
 //		ObjectMapper mapper = new ObjectMapper();
@@ -118,7 +118,7 @@ public class AssessmentTelemetryBuilder {
 		Map<String, Object> edata = new HashMap<>();
 		edata.put("duration", 0.0);
 		edata.put("item", itemDetails);
-		edata.put("resvalues", getEdataResValues(prevQuestionPayload.getButtonChoices(), assessment.getAnswer()));
+		edata.put("resvalues", getEdataResValues(questionPayload.getButtonChoices(), assessment.getAnswer()));
 		edata.put("score", 1.0);
 		edata.put("pass", "Yes");
 		edata.put("index", 1.0);
@@ -217,6 +217,11 @@ public class AssessmentTelemetryBuilder {
 					values.add(map2);
 					break;
 				}
+			}
+			if(values.isEmpty()) {
+				Map<String, String> value1 = new HashMap<>();
+				value1.put("ans1", answer);
+				values.add(value1);
 			}
 		} else {
 			Map<String, String> value1 = new HashMap<>();

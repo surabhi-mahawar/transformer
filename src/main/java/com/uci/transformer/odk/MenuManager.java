@@ -96,6 +96,19 @@ public class MenuManager {
         setAssesmentCharacters();
     }
     
+    public MenuManager(String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
+        this.xpath = null;
+        this.answer = answer;
+        this.instanceXML = instanceXML;
+        this.formPath = formPath;
+        this.isSpecialResponse = false;
+        this.isPrefilled = isPrefilled;
+        this.formID = formID;
+        this.questionRepo = questionRepo;
+        
+        setAssesmentCharacters();
+    }
+    
     public void setAssesmentCharacters() {
     	String envAssesOneLevelUpChar = System.getenv("ASSESSMENT_ONE_LEVEL_UP_CHAR");
         String envAssesGoToStartChar = System.getenv("ASSESSMENT_GO_TO_START_CHAR");
@@ -304,9 +317,9 @@ public class MenuManager {
      * 
      * @return XMessagePayload
      */
-    public XMessagePayload getQuestionPayload() {
+    public XMessagePayload getQuestionPayloadFromXPath(String xpathStr) {
     	new XFormsModule().registerModule();
-        FECWrapper fecWrapper = loadForm(formPath, xpath); // If instance load from instance (If form is filled load new)
+        FECWrapper fecWrapper = loadForm(formPath, xpathStr); // If instance load from instance (If form is filled load new)
         formController = fecWrapper.controller;
         
         /* Previous Question */
@@ -326,13 +339,17 @@ public class MenuManager {
      * 
      * @return Question
      */
-    public Question getQuestion() {
+    public Question getQuestionFromXPath(String xpathStr) {
+    	new XFormsModule().registerModule();
+        FECWrapper fecWrapper = loadForm(formPath, xpathStr); // If instance load from instance (If form is filled load new)
+        formController = fecWrapper.controller;
+        
     	String formVersion = formController.getModel().getForm().getInstance().formVersion;
         Question question = new Question();
         question.setQuestionType(Question.QuestionType.STRING);
         question.setFormID(formID);
         question.setFormVersion(formVersion);
-        question.setXPath(xpath);
+        question.setXPath(xpathStr);
         
         return question;
     }
