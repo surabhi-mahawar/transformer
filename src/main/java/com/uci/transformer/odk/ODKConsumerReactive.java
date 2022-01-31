@@ -552,11 +552,16 @@ public class ODKConsumerReactive extends TransformerProvider {
                                 }
                             });
                         } else {
-                            saveQuestion(question).subscribe(new Consumer<Question>() {
+                        	Question saveQuestion;
+                        	if(prevQuestion == null) {
+                        		saveQuestion = question;
+                        	} else {
+                        		saveQuestion = prevQuestion;
+                        	}
+                            saveQuestion(saveQuestion).subscribe(new Consumer<Question>() {
                                 @Override
                                 public void accept(Question question) {
-                                	log.info("Question Saved Successfully");
-//                                	log.info("Previous Question Saved Successfully, id: "+pQuestion.getId()+", xPath: "+pQuestion.getXPath());
+                                	log.info("Question Saved Successfully, id: "+question.getId()+", xPath: "+question.getXPath());
                                 	saveAssessmentData(
                                             existingQuestionStatus, formID, previousMeta, campaign, xMessage, question, prevQuestionPayload, prevQuestion).subscribe(new Consumer<Assessment>() {
                                         @Override
@@ -644,8 +649,6 @@ public class ODKConsumerReactive extends TransformerProvider {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        assessment.setUserID(UUID.fromString("44a9df72-3d7a-4ece-94c5-98cf26307324"));
-        
         log.info("question xpath:"+question.getXPath()+",answer: "+assessment.getAnswer());
         
         return assessmentRepo.save(assessment)

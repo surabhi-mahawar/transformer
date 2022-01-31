@@ -56,7 +56,7 @@ public class AssessmentTelemetryBuilder {
 		rollup.put("l1", conversationOwnerID.toString()); //ConversationOwner value
 		rollup.put("l2", assessment.getBotID().toString()); //Conversation value
 		
-		String channelName = (botOrg.equalsIgnoreCase("Anonymous")) ? DIKSHA_ORG : botOrg;
+		String channelName = (botOrg.equalsIgnoreCase("Anonymous")) || botOrg.isEmpty() ? DIKSHA_ORG : botOrg;
 		String userID = "";
 		try {
 			userID = assessment.getUserID().toString();
