@@ -277,6 +277,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                     campaign.findValue("id").asText(),
                                                     xMessage.getTo().getUserID()
                                             );
+                                            log.info("Federated User by phone : "+user);
                                             try {
                                                 camp = new JSONObject(mapper.writeValueAsString(campaign));
                                             } catch (JsonProcessingException e) {
@@ -284,10 +285,11 @@ public class ODKConsumerReactive extends TransformerProvider {
                                             }
                                             JsonNode firstTransformer = campaign.findValues("transformers").get(0).get(0);
                                             ArrayNode hiddenFields = (ArrayNode) firstTransformer.findValue("hiddenFields");
-                                            
                                             if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
 //                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
                                             	previousMeta.currentAnswer = assesGoToStartChar;
+
+
                                                 ServiceResponse serviceResponse = new MenuManager(null,
                                                         null, null, formPath, formID, false,
                                                         questionRepo).start();
@@ -301,14 +303,37 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 response[0] = mm.start();
                                             } else {
                                                 String instanceXMlPrevious = "";
+                                                FormInstanceUpdation ss = FormInstanceUpdation.builder().build();
                                                 if(previousMeta.previousPath.equals("question./data/group_matched_vacancies[1]/initial_interest[1]")){
-                                                	instanceXMlPrevious = getInstanceXMLWithHiddenFields(previousMeta, xMessage, user, hiddenFields);
-                                                } else{
-                                                	instanceXMlPrevious = previousMeta.instanceXMlPrevious;
+                                                    ss.parse(previousMeta.instanceXMlPrevious);
+                                                    ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
+
+                                                    JSONObject vacancyDetails = null;
+                                                    for(int j=0; j<user.getJSONArray("matched").length(); j++){
+                                                        String vacancyID = String.valueOf(user.getJSONArray("matched").getJSONObject(j).getJSONObject("vacancy_detail").getInt("id"));
+                                                        if(previousMeta.currentAnswer.equals(vacancyID)){
+                                                            vacancyDetails = user.getJSONArray("matched").getJSONObject(j).getJSONObject("vacancy_detail");
+                                                        }
+                                                    }
+                                                    ss.updateHiddenFields(hiddenFields, user);
+                                                    int idToBeDeleted = -1;
+                                                    for (int i=0; i< hiddenFields.size(); i++){
+                                                        JsonNode object = hiddenFields.get(i);
+                                                        String userField = object.findValue("name").asText();
+                                                        if(userField.equals("candidate_id")){
+                                                            idToBeDeleted = i;
+                                                        }
+                                                    }
+                                                    if(idToBeDeleted > -1) hiddenFields.remove(idToBeDeleted);
+                                                    instanceXMlPrevious = instanceXMlPrevious + ss.updateHiddenFields(hiddenFields, (JSONObject) vacancyDetails).getXML();
+                                                    mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
+                                                            instanceXMlPrevious, formPath, formID,
+                                                            false, questionRepo, user, true, camp);
+                                                }else{
+                                                    mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
+                                                            previousMeta.instanceXMlPrevious, formPath, formID,
+                                                            false, questionRepo, user, true, camp);
                                                 }
-                                                mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
-                                                        instanceXMlPrevious, formPath, formID,
-                                                        false, questionRepo, user, true, camp);
                                                 response[0] = mm.start();
                                             }
                                             
@@ -387,70 +412,6 @@ public class ODKConsumerReactive extends TransformerProvider {
                         });
                     }
                 });
-    }
-    
-    private String getInstanceXMLWithHiddenFields(FormManagerParams previousMeta, XMessage xMessage, JSONObject user, ArrayNode hiddenFields) {
-    	String instanceXMlPrevious = "";
-    	FormInstanceUpdation ss = FormInstanceUpdation.builder().build();
-    	ss.parse(previousMeta.instanceXMlPrevious);
-        ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
-
-        JSONObject vacancyDetails = null;
-        for(int j=0; j<user.getJSONArray("matched").length(); j++){
-            String vacancyID = String.valueOf(user.getJSONArray("matched").getJSONObject(j).getJSONObject("vacancy_detail").getInt("id"));
-            if(previousMeta.currentAnswer.equals(vacancyID)){
-                vacancyDetails = user.getJSONArray("matched").getJSONObject(j).getJSONObject("vacancy_detail");
-            }
-        }
-        ss.updateHiddenFields(hiddenFields, user);
-        int idToBeDeleted = -1;
-        for (int i=0; i< hiddenFields.size(); i++){
-            JsonNode object = hiddenFields.get(i);
-            String userField = object.findValue("name").asText();
-            if(userField.equals("candidate_id")){
-                idToBeDeleted = i;
-            }
-        }
-        if(idToBeDeleted > -1) hiddenFields.remove(idToBeDeleted);
-        instanceXMlPrevious = instanceXMlPrevious + ss.updateHiddenFields(hiddenFields, (JSONObject) vacancyDetails).getXML();
-        return instanceXMlPrevious;
-    }
-    
-    private void getTransformerTriggers(ArrayNode transformer) {
-    	ObjectMapper mapper = new ObjectMapper();
-    	Map<String, List<Object>> triggersMap = new HashMap();
-    	
-    	ArrayNode triggers = (ArrayNode) transformer.findValue("triggers");
-        try {
-        	log.info("triggers: "+triggers);
-        	List<Object> updateHiddenFieldsTriggersList = new ArrayList();
-        	
-        	triggers.forEach(triggerItem -> {
-        		ArrayNode trigger = (ArrayNode) triggerItem.findValue("onTrigger");
-        		if(trigger != null && trigger.get(0) != null) {
-        			ArrayNode tData = (ArrayNode) trigger.get(0).findValue("data");
-        			String tDo = trigger.get(0).findValue("do").asText();
-        			ArrayNode tWhen = (ArrayNode) trigger.get(0).findValue("when");
-        			log.info("tData: "+tData+", tDo: "+tDo+", tWhen: "+tWhen);
-        			
-        			Map<Object, Object> triggerDataMap = new HashMap();
-        			triggerDataMap.put("when", tWhen);
-        			triggerDataMap.put("data", tData);
-        			Map<Object, Object> triggerMap = new HashMap();
-        			triggerMap.put(tWhen.findValue("rhs"), triggerDataMap);
-        			
-        			if(tWhen.findValue("do").equals("updateHiddenFields")) {
-        				updateHiddenFieldsTriggersList.add(triggerMap);
-        			}
-        		}
-        	});
-        	
-			triggersMap.put("updateHiddenFieldsTriggers", xPathTriggersList);
-			
-			log.info("triggersMap:"+triggersMap);
-        } catch (Exception e) {
-        	log.info("Exception message: "+e.getMessage());
-        }
     }
     
     /**
