@@ -277,6 +277,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                     campaign.findValue("id").asText(),
                                                     xMessage.getTo().getUserID()
                                             );
+                                            log.info("Federated User by phone : "+user);
                                             try {
                                                 camp = new JSONObject(mapper.writeValueAsString(campaign));
                                             } catch (JsonProcessingException e) {
