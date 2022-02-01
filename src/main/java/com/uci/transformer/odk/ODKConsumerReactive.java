@@ -351,8 +351,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                     );
 
 
-                                            if (mm.isGlobal() && response[0].currentIndex.contains("eof__")) {
+                                            if (response[0].currentIndex.contains("eof__")) {
                                                 String nextBotID = mm.getNextBotID(response[0].currentIndex);
+                                                log.info("Next bot id: "+nextBotID);
 
                                                 return Mono.zip(
                                                         campaignService.getBotNameByBotID(nextBotID),
@@ -371,8 +372,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                         FormInstanceUpdation ss = FormInstanceUpdation.builder().build();
                                                         ss.parse(serviceResponse.currentResponseState);
                                                         ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
-                                                        String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-                                                                ss.getXML();
+//                                                        String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+//                                                                ss.getXML();
+                                                        String instanceXMlPrevious = ss.getXML();
                                                         log.debug("Instance value >> " + instanceXMlPrevious);
                                                         MenuManager mm2 = new MenuManager(null, null,
                                                                 instanceXMlPrevious, getFormPath(nextFormID), nextFormID, true,
