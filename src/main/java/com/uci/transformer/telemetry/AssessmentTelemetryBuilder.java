@@ -38,7 +38,8 @@ public class AssessmentTelemetryBuilder {
 
 	public String build(String botOrg, String channel, String provider, String producerID, String conversationOwnerID,
 			Question question, Assessment assessment, XMessagePayload questionPayload, long duration) {
-		String questionType = getQuestionType(questionPayload.getButtonChoices());
+		ArrayList<ButtonChoice> buttonChoices = getQuestionChoices(questionPayload.getButtonChoices());
+		String questionType = getQuestionType(buttonChoices);
 		
 		//Context Cdata
 		List<Map<String, Object>> cdata = new ArrayList<>();
@@ -101,7 +102,7 @@ public class AssessmentTelemetryBuilder {
 		itemDetails.put("title", questionPayload.getText());
 		itemDetails.put("uri", "");
 		itemDetails.put("desc", "");
-		itemDetails.put("params", getItemParams(questionType, questionPayload.getButtonChoices()));
+		itemDetails.put("params", getItemParams(questionType, buttonChoices));
 		
 		/* Set Meta */
 //		ObjectMapper mapper = new ObjectMapper();
@@ -118,7 +119,7 @@ public class AssessmentTelemetryBuilder {
 		Map<String, Object> edata = new HashMap<>();
 		edata.put("duration", 0.0);
 		edata.put("item", itemDetails);
-		edata.put("resvalues", getEdataResValues(questionPayload.getButtonChoices(), assessment.getAnswer()));
+		edata.put("resvalues", getEdataResValues(buttonChoices, assessment.getAnswer()));
 		edata.put("score", 1.0);
 		edata.put("pass", "Yes");
 		edata.put("index", 1.0);
@@ -197,6 +198,39 @@ public class AssessmentTelemetryBuilder {
 			}
 		}
 		return params;
+	}
+	
+	/**
+	 * Get Question Choices with correct key
+	 * @param questionChoices
+	 * @return
+	 */
+	private ArrayList<ButtonChoice> getQuestionChoices(ArrayList<ButtonChoice> questionChoices) {
+		questionChoices.forEach(choice -> {
+			String[] a = choice.getText().split(" ");
+			try {
+				if(a[0] != null && !a[0].isEmpty()) {
+					Integer.parseInt(a[0]);
+			        choice.setKey(a[0].toString());
+	    		}
+			} catch (NumberFormatException ex) {
+				String[] b = choice.getText().split(".");
+	    		try {
+	    			if(b[0] != null && !b[0].isEmpty()) {
+		    		    Integer.parseInt(b[0]);
+		    		    choice.setKey(b[0].toString());
+	    			}
+	    		} catch (NumberFormatException exc) {
+	    			// do nothing
+	    		} catch (ArrayIndexOutOfBoundsException exc) {
+	    		    // do nothing
+	    		}
+			} catch (ArrayIndexOutOfBoundsException ex) {
+				// do nothing
+			}
+			
+		});
+		return questionChoices;
 	}
 	
 	/**
