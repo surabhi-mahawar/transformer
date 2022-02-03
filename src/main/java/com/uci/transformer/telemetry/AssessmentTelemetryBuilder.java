@@ -91,8 +91,8 @@ public class AssessmentTelemetryBuilder {
 		
 		//Item
 		Map<String, Object> itemDetails = new HashMap<>();
-		itemDetails.put("botID", assessment.getBotID().toString());
-		itemDetails.put("userID", userID.toString());
+//		itemDetails.put("botID", assessment.getBotID().toString());
+//		itemDetails.put("userID", userID.toString());
 		itemDetails.put("id", (question.getId() != null ? question.getId().toString() : ""));
 		itemDetails.put("type", questionType);
 		itemDetails.put("mmc", new ArrayList());
