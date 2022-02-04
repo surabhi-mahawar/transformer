@@ -38,7 +38,8 @@ public class AssessmentTelemetryBuilder {
 
 	public String build(String botOrg, String channel, String provider, String producerID, String conversationOwnerID,
 			Question question, Assessment assessment, XMessagePayload questionPayload, long duration) {
-		ArrayList<ButtonChoice> buttonChoices = getQuestionChoices(questionPayload.getButtonChoices());
+//		ArrayList<ButtonChoice> buttonChoices = getQuestionChoices(questionPayload.getButtonChoices());
+		ArrayList<ButtonChoice> buttonChoices = questionPayload.getButtonChoices();
 		String questionType = getQuestionType(buttonChoices);
 		
 		//Context Cdata
@@ -200,39 +201,40 @@ public class AssessmentTelemetryBuilder {
 		return params;
 	}
 	
+	/* Not in use */
 	/**
 	 * Get Question Choices with correct key
 	 * @param questionChoices
 	 * @return
 	 */
-	private ArrayList<ButtonChoice> getQuestionChoices(ArrayList<ButtonChoice> questionChoices) {
-		questionChoices.forEach(choice -> {
-			String[] a = choice.getText().split(" ");
-			try {
-				if(a[0] != null && !a[0].isEmpty()) {
-					Integer.parseInt(a[0]);
-			        choice.setKey(a[0].toString());
-	    		}
-			} catch (NumberFormatException ex) {
-				String[] b = choice.getText().split(".");
-	    		try {
-	    			if(b[0] != null && !b[0].isEmpty()) {
-		    		    Integer.parseInt(b[0]);
-		    		    choice.setKey(b[0].toString());
-	    			}
-	    		} catch (NumberFormatException exc) {
-	    			// do nothing
-	    		} catch (ArrayIndexOutOfBoundsException exc) {
-	    		    // do nothing
-	    		}
-			} catch (ArrayIndexOutOfBoundsException ex) {
-				// do nothing
-			}
-			
-		});
-		return questionChoices;
-	}
-	
+//	private ArrayList<ButtonChoice> getQuestionChoices(ArrayList<ButtonChoice> questionChoices) {
+//		questionChoices.forEach(choice -> {
+//			String[] a = choice.getText().split(" ");
+//			try {
+//				if(a[0] != null && !a[0].isEmpty()) {
+//					Integer.parseInt(a[0]);
+//			        choice.setKey(a[0].toString());
+//	    		}
+//			} catch (NumberFormatException ex) {
+//				String[] b = choice.getText().split(".");
+//	    		try {
+//	    			if(b[0] != null && !b[0].isEmpty()) {
+//		    		    Integer.parseInt(b[0]);
+//		    		    choice.setKey(b[0].toString());
+//	    			}
+//	    		} catch (NumberFormatException exc) {
+//	    			// do nothing
+//	    		} catch (ArrayIndexOutOfBoundsException exc) {
+//	    		    // do nothing
+//	    		}
+//			} catch (ArrayIndexOutOfBoundsException ex) {
+//				// do nothing
+//			}
+//			
+//		});
+//		return questionChoices;
+//	}
+//	
 	/**
 	 * Get edata res values for mcq/string type questions
 	 * @param questionChoices

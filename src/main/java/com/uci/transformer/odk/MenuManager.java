@@ -23,6 +23,7 @@ import org.javarosa.core.model.instance.utils.DefaultAnswerResolver;
 import org.javarosa.core.services.transport.payload.ByteArrayPayload;
 import org.javarosa.form.api.FormEntryController;
 import org.javarosa.form.api.FormEntryModel;
+import org.javarosa.form.api.FormEntryPrompt;
 import org.javarosa.model.xform.XFormSerializingVisitor;
 import org.javarosa.model.xform.XFormsModule;
 import org.javarosa.xform.parse.XFormParser;
@@ -70,6 +71,7 @@ public class MenuManager {
     String assesGoToStartChar;
     String assesOneLevelUpChar;
     Integer formDepth;
+    String stylingTag;
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
@@ -696,11 +698,18 @@ public class MenuManager {
                         previousPrompt = renderQuestion(formController);
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
-
-//                    log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
+                    
+                	log.info("bind: "+formController.getModel().getQuestionPrompt().getBindAttributes());
+                	formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
+                		if(attribute.getName().equals("stylingTags")) {
+                			stylingTag = attribute.getAttributeValue().toString();
+                		}
+                	});
+                	
                     choices = getChoices(choices);
+                    
                     //Check this
-                    return XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).build();
+                    return XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).stylingTag(stylingTag).build();
                 } catch (Exception e) {
                     log.info("Non Question data type");
                     formController.stepToNextEvent();
@@ -743,8 +752,41 @@ public class MenuManager {
             }
         } catch (Exception e) {
         }
-        return buttonChoices;
+        return getQuestionsChoiceWithKey(buttonChoices);
     }
+    
+    /**
+	 * Get Question Choices with correct key
+	 * @param questionChoices
+	 * @return
+	 */
+	private ArrayList<ButtonChoice> getQuestionsChoiceWithKey(ArrayList<ButtonChoice> questionChoices) {
+		questionChoices.forEach(choice -> {
+			String[] a = choice.getText().split(" ");
+			try {
+				if(a[0] != null && !a[0].isEmpty()) {
+					Integer.parseInt(a[0]);
+			        choice.setKey(a[0].toString());
+	    		}
+			} catch (NumberFormatException ex) {
+				String[] b = choice.getText().split(".");
+	    		try {
+	    			if(b[0] != null && !b[0].isEmpty()) {
+		    		    Integer.parseInt(b[0]);
+		    		    choice.setKey(b[0].toString());
+	    			}
+	    		} catch (NumberFormatException exc) {
+	    			// do nothing
+	    		} catch (ArrayIndexOutOfBoundsException exc) {
+	    		    // do nothing
+	    		}
+			} catch (ArrayIndexOutOfBoundsException ex) {
+				// do nothing
+			}
+			
+		});
+		return questionChoices;
+	}
 
     private XMessagePayload createViewForFormEnd(FormEntryController formController) {
 
