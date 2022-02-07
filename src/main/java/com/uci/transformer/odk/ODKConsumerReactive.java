@@ -635,11 +635,11 @@ public class ODKConsumerReactive extends TransformerProvider {
         		
         		XMessagePayload questionPayload = menuManager.getQuestionPayloadFromXPath(question.getXPath());
         		String telemetryEvent = new AssessmentTelemetryBuilder()
-                        .build("",
+                        .build(campaign.findValue("ownerOrgID").asText(),
                                 xMessage.getChannel(),
                                 xMessage.getProvider(),
                                 producerID,
-                                "",
+                                campaign.findValue("ownerOrgID").asText(),
                                 assessment.getQuestion(),
                                 assessment,
                                 questionPayload,
