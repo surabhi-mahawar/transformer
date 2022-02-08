@@ -31,7 +31,7 @@ public class AssessmentTelemetryBuilder {
 	private static final String ASSESS_EVENT_MID = "fb3db9abceb578d8acbc812cdbd9c931";
 	
 	private static final String QUESTION_TYPE_MCQ = "mcq";
-	private static final String QUESTION_TYPE_STRING = "string";
+	private static final String QUESTION_TYPE_FTP = "ftp";
 	private static final String ASSESS_EVENT_MID_PREFIX = "ASSESS:";
 	// represents the MD5 Hash of "Individual Question-Responses -
 	// Survey/Questionnaire"
@@ -176,7 +176,7 @@ public class AssessmentTelemetryBuilder {
 		if(questionChoices != null && questionChoices.size() > 0) {
 			questionType = QUESTION_TYPE_MCQ;
 		} else {
-			questionType = QUESTION_TYPE_STRING;
+			questionType = QUESTION_TYPE_FTP;
 		}
 		return questionType;
 	}
