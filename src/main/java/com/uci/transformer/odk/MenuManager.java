@@ -187,7 +187,6 @@ public class MenuManager {
         if (answer != null && answer.equals(assesOneLevelUpChar)) {
         	/* for level one up character, if last message xpath contains eof, restart the bot */
             if(xpath.contains("eof")) {
-            	 if (!isPrefilled) instanceXML = null;
                  xpath = null;
                  answer = null;
                  return start();
@@ -327,6 +326,8 @@ public class MenuManager {
 
         question.setMeta(Json.of(new Meta(nextQuestion.getText(), choices).toString()));
 
+        log.info("udpatedInstanceXML: "+udpatedInstanceXML);
+        
         return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question);
     }
 
