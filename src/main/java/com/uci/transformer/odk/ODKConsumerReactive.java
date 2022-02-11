@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Maps;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
+import com.uci.dao.models.XMessageDAO;
+import com.uci.dao.repository.XMessageRepository;
 import com.uci.transformer.TransformerProvider;
 import com.uci.transformer.User.UserService;
 import com.uci.transformer.odk.entity.Assessment;
@@ -31,6 +33,7 @@ import messagerosa.core.model.ButtonChoice;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.Transformer;
 import messagerosa.core.model.XMessage;
+import messagerosa.core.model.XMessage.MessageState;
 import messagerosa.core.model.XMessagePayload;
 import messagerosa.xml.XMessageParser;
 import org.apache.commons.lang3.tuple.Pair;
@@ -61,6 +64,9 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -102,6 +108,9 @@ public class ODKConsumerReactive extends TransformerProvider {
 
     @Autowired
     private MessageRepository msgRepo;
+    
+    @Autowired
+    XMessageRepository xMsgRepo;
 
     @Qualifier("custom")
     @Autowired
@@ -281,8 +290,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                             String formPath = getFormPath(formID);
                             log.info("current form path:"+formPath);
                             
-                            boolean isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
-
+                            isStartingMessage = xMessage.getPayload().getText().equals(campaign.findValue("startingMessage").asText());
 
                             switchFromTo(xMessage);
                             
@@ -309,11 +317,13 @@ public class ODKConsumerReactive extends TransformerProvider {
                                             }
                                             JsonNode firstTransformer = campaign.findValues("transformers").get(0).get(0);
                                             ArrayNode hiddenFields = (ArrayNode) firstTransformer.findValue("hiddenFields");
+                                            
+                                            String instanceXMlPrevious = "";
+                                            Boolean prefilled;
+                                            String answer;
                                             if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
 //                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
                                             	previousMeta.currentAnswer = assesGoToStartChar;
-
-
                                                 ServiceResponse serviceResponse = new MenuManager(null,
                                                         null, null, formPath, formID, false,
                                                         questionRepo).start();
@@ -321,12 +331,13 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 ss.parse(serviceResponse.currentResponseState);
                                                 ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
                                                 ss.updateParams("phone_number", xMessage.getTo().getUserID());
-                                                String instanceXMlPrevious = ss.updateHiddenFields(hiddenFields, (JSONObject) user).getXML();
-                                                mm = new MenuManager(null, null, instanceXMlPrevious,
+                                                instanceXMlPrevious = ss.updateHiddenFields(hiddenFields, (JSONObject) user).getXML();
+                                                prefilled = false;
+                                            	answer = null;
+                                            	mm = new MenuManager(null, null, instanceXMlPrevious,
                                                         formPath, formID);
                                                 response[0] = mm.start();
                                             } else {
-                                                String instanceXMlPrevious = "";
                                                 FormInstanceUpdation ss = FormInstanceUpdation.builder().build();
                                                 if(previousMeta.previousPath.equals("question./data/group_matched_vacancies[1]/initial_interest[1]")){
                                                     ss.parse(previousMeta.instanceXMlPrevious);
@@ -350,21 +361,35 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                     }
                                                     if(idToBeDeleted > -1) hiddenFields.remove(idToBeDeleted);
                                                     instanceXMlPrevious = instanceXMlPrevious + ss.updateHiddenFields(hiddenFields, (JSONObject) vacancyDetails).getXML();
-                                                    mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
+                                                    prefilled = false;
+                                                    answer = previousMeta.currentAnswer;
+                                                    mm = new MenuManager(previousMeta.previousPath, answer,
                                                             instanceXMlPrevious, formPath, formID,
-                                                            false, questionRepo, user, true, camp);
+                                                            prefilled, questionRepo, user, true, camp);
                                                 }else{
-                                                    mm = new MenuManager(previousMeta.previousPath, previousMeta.currentAnswer,
-                                                            previousMeta.instanceXMlPrevious, formPath, formID,
-                                                            false, questionRepo, user, true, camp);
+                                                	prefilled = false;
+                                                	answer = previousMeta.currentAnswer;
+                                                	instanceXMlPrevious = previousMeta.instanceXMlPrevious;
+                                                    mm = new MenuManager(previousMeta.previousPath, answer,
+                                                    		instanceXMlPrevious, formPath, formID,
+                                                    		prefilled, questionRepo, user, true, camp);
                                                 }
                                                 response[0] = mm.start();
+                                            }
+                                            
+                                            /* To use with previous question & question payload methods */
+                                            menuManager = new MenuManager(answer, instanceXMlPrevious, formPath, formID, prefilled, questionRepo);
+                                            
+                                            /* Previous Question Data */
+                                            Question prevQuestion = null;
+                                            if(!isStartingMessage) {
+                                            	prevQuestion = menuManager.getQuestionFromXPath(previousMeta.previousPath);
                                             }
                                             
                                             // Save answerData => PreviousQuestion + CurrentAnswer
                                             Mono<Pair<Boolean, List<Question>>> updateQuestionAndAssessment =
                                                     updateQuestionAndAssessment(
-                                                            previousMeta,
+                                                    		previousMeta,
                                                             getPreviousQuestions(
                                                                     previousMeta.previousPath,
                                                                     formID,
@@ -372,7 +397,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                             formID,
                                                             campaign,
                                                             xMessage,
-                                                            response[0].question
+                                                            response[0].question,
+                                                            prevQuestion
                                                     );
 
 
@@ -641,17 +667,34 @@ public class ODKConsumerReactive extends TransformerProvider {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
         
         UUID userID = !xMessage.getTo().getDeviceID().isEmpty() && xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;      
-        log.info("User uuid:"+userID);                
-//        UUID userID;
-//        if(!xMessage.getTo().getUserID().isEmpty() && xMessage.getTo().getUserID() != null && xMessage.getTo().getUserID() != "") {
-//        	try {
-//        		userID = UUID.fromString(xMessage.getTo().getUserID());
-//        	} catch (IllegalArgumentException e) {
-//        		userID =  UUID.nameUUIDFromBytes(xMessage.getTo().getUserID().getBytes());
-//        	}
-//        } else {
-//        	userID = null;
-//        }
+        log.info("User uuid:"+userID);
+        
+        XMessagePayload questionPayload = menuManager.getQuestionPayloadFromXPath(question.getXPath());
+		
+        /* Get Previous question assessment */
+        xMsgRepo.findFirstByAppAndUserIdAndFromIdAndMessageStateOrderByTimestampDesc(xMessage.getApp(), xMessage.getFrom().getUserID(), "admin", MessageState.SENT.name())
+            .subscribe(new Consumer<XMessageDAO>() {
+                @Override
+                public void accept(XMessageDAO xMsgDao) {
+                    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+                    
+                    /* local date time */
+                    LocalDateTime localNow = LocalDateTime.now();
+                    String current = fmt.format(localNow).toString();
+                    LocalDateTime currentDateTime = LocalDateTime.parse(current, fmt); 
+                    LocalDateTime timestamp = xMsgDao.getTimestamp();
+                    long diff = ChronoUnit.MILLIS.between(timestamp, currentDateTime);
+                    
+                    log.info("currentDateTime: "+currentDateTime+", timestamp: "+timestamp+", diff: "+diff);
+                    
+                    log.info("stylingTag: "+questionPayload.getStylingTag()+", flow: "+questionPayload.getFlow()
+                    	+", index: "+questionPayload.getQuestionIndex());
+                    
+                    // TODO Auto-generated method stub
+                    log.info("Id: "+xMsgDao.getId()+", userId: "+xMsgDao.getUserId()+", Timestamp: "+xMsgDao.getTimestamp());
+                }
+            });
+        
         Assessment assessment = Assessment.builder()
                 .question(question)
                 .deviceID(userID)
@@ -667,8 +710,6 @@ public class ODKConsumerReactive extends TransformerProvider {
             }
         	
         	if(question != null && !isStartingMessage) {
-        		
-        		XMessagePayload questionPayload = menuManager.getQuestionPayloadFromXPath(question.getXPath());
         		String telemetryEvent = new AssessmentTelemetryBuilder()
                         .build(campaign.findValue("ownerOrgID").asText(),
                                 xMessage.getChannel(),

@@ -78,6 +78,8 @@ public class MenuManager {
     boolean shouldUpdateFormXML = false;
     Integer formDepth;
     String stylingTag;
+    String flow;
+    Integer questionIndex;
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
@@ -100,7 +102,7 @@ public class MenuManager {
         this.isPrefilled = false;
         this.formID = formID;
         this.user = user;
-        setAssessmentCharacters();
+        setAssesmentCharacters();
     }
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID,
@@ -132,7 +134,7 @@ public class MenuManager {
         this.shouldUpdateFormXML = shouldUpdateFormXML;
         this.campaign = campaign;
 
-        setAssessmentCharacters();
+        setAssesmentCharacters();
     }
     
     public MenuManager(String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
@@ -148,7 +150,7 @@ public class MenuManager {
         setAssesmentCharacters();
     }
     
-    public void setAssessmentCharacters() {
+    public void setAssesmentCharacters() {
     	String envAssesOneLevelUpChar = System.getenv("ASSESSMENT_ONE_LEVEL_UP_CHAR");
         String envAssesGoToStartChar = System.getenv("ASSESSMENT_GO_TO_START_CHAR");
         
@@ -379,10 +381,25 @@ public class MenuManager {
         ArrayList<ButtonChoice> choices = new ArrayList();
         choices = getChoices(choices);
         String questionText = renderQuestion(formController);
+        stylingTag = flow = null;
+        questionIndex = null;
+        
+        formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
+            if(attribute.getName().equals("stylingTags")) {
+                stylingTag = attribute.getAttributeValue().toString();
+            } else if(attribute.getName().equals("flow")) {
+                flow = attribute.getAttributeValue().toString();
+            } else if(attribute.getName().equals("index")) {
+                questionIndex = Integer.parseInt(attribute.getAttributeValue());
+            }
+        });
         
         XMessagePayload payload = XMessagePayload.builder()
         								.text(questionText)
         								.buttonChoices(choices)
+        								.stylingTag(questionText)
+        								.flow(flow)
+        								.questionIndex(questionIndex)
         								.build();
         return payload;
     }
@@ -761,14 +778,26 @@ public class MenuManager {
                 	formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
                 		if(attribute.getName().equals("stylingTags")) {
                 			stylingTag = attribute.getAttributeValue().toString();
+                		} else if(attribute.getName().equals("flow")) {
+                			flow = attribute.getAttributeValue().toString();
+                		} else if(attribute.getName().equals("index")) {
+                			questionIndex = Integer.parseInt(attribute.getAttributeValue());
                 		}
                 	});
                 	
                     choices = getChoices(choices);
                     
+                    log.info("stylingTag: "+stylingTag+", flow: "+flow+", Q index: "+questionIndex);
+                    
                     //Check this
                     log.info("previousPrompt:"+previousPrompt+", renderQuestion: "+renderQuestion(formController)+", choices: "+choices);
-                    return XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).stylingTag(stylingTag).build();
+                    return XMessagePayload.builder()
+                    			.text(previousPrompt + renderQuestion(formController))
+                    			.buttonChoices(choices)
+                    			.stylingTag(stylingTag)
+                    			.flow(flow)
+                    			.questionIndex(questionIndex)
+                    			.build();
                 } catch (Exception e) {
                 	log.info("event repeat - 5");
                     log.info("Non Question data type");
