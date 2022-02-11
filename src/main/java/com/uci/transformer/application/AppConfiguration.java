@@ -1,5 +1,6 @@
 package com.uci.transformer.application;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.uci.utils.CampaignService;
 import com.uci.utils.kafka.ReactiveProducer;
 import io.fusionauth.client.FusionAuthClient;
@@ -12,6 +13,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -64,6 +66,9 @@ public class AppConfiguration {
 
     @Value("${odk.password}")
     public String ODK_PASSWORD;
+    
+    @Autowired
+    public Cache<Object, Object> cache;
 
     @Bean
     public FusionAuthClient getFAClient() {
@@ -77,7 +82,7 @@ public class AppConfiguration {
                 .baseUrl(CAMPAIGN_URL)
                 .defaultHeader("admin-token", CAMPAIGN_ADMIN_TOKEN)
                 .build();
-        return new CampaignService(webClient, getFAClient());
+        return new CampaignService(webClient, getFAClient(), cache);
     }
 
     @Bean

@@ -8,6 +8,7 @@ import lombok.*;
 import lombok.extern.java.Log;
 import messagerosa.core.model.ButtonChoice;
 import messagerosa.core.model.XMessagePayload;
+
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.javarosa.core.model.*;
 import org.javarosa.core.model.data.IAnswerData;
@@ -22,6 +23,7 @@ import org.javarosa.core.model.instance.utils.DefaultAnswerResolver;
 import org.javarosa.core.services.transport.payload.ByteArrayPayload;
 import org.javarosa.form.api.FormEntryController;
 import org.javarosa.form.api.FormEntryModel;
+import org.javarosa.form.api.FormEntryPrompt;
 import org.javarosa.model.xform.XFormSerializingVisitor;
 import org.javarosa.model.xform.XFormsModule;
 import org.javarosa.xform.parse.XFormParser;
@@ -33,7 +35,9 @@ import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import javax.annotation.PostConstruct;
@@ -66,6 +70,8 @@ public class MenuManager {
     QuestionRepository questionRepo;
     String assesGoToStartChar;
     String assesOneLevelUpChar;
+    Integer formDepth;
+    String stylingTag;
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
         this.xpath = xpath;
@@ -92,12 +98,25 @@ public class MenuManager {
         setAssesmentCharacters();
     }
     
+    public MenuManager(String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
+        this.xpath = null;
+        this.answer = answer;
+        this.instanceXML = instanceXML;
+        this.formPath = formPath;
+        this.isSpecialResponse = false;
+        this.isPrefilled = isPrefilled;
+        this.formID = formID;
+        this.questionRepo = questionRepo;
+        
+        setAssesmentCharacters();
+    }
+    
     public void setAssesmentCharacters() {
     	String envAssesOneLevelUpChar = System.getenv("ASSESSMENT_ONE_LEVEL_UP_CHAR");
         String envAssesGoToStartChar = System.getenv("ASSESSMENT_GO_TO_START_CHAR");
         
-        this.assesOneLevelUpChar = envAssesOneLevelUpChar != null && !envAssesOneLevelUpChar.isEmpty() ? envAssesOneLevelUpChar : "#";
-        this.assesGoToStartChar = envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty() ? envAssesGoToStartChar : "*";
+        this.assesOneLevelUpChar = envAssesOneLevelUpChar == "0" || (envAssesOneLevelUpChar != null && !envAssesOneLevelUpChar.isEmpty()) ? envAssesOneLevelUpChar : "#";
+        this.assesGoToStartChar = envAssesGoToStartChar == "0" || (envAssesGoToStartChar != null && !envAssesGoToStartChar.isEmpty()) ? envAssesGoToStartChar : "*";
     }
 
     public boolean isGlobal() {
@@ -149,7 +168,7 @@ public class MenuManager {
         String udpatedInstanceXML = "";
         XMessagePayload nextQuestion;
         SaveStatus saveStatus = new SaveStatus();
-
+        
         if (answer != null && answer.equals(assesOneLevelUpChar)) {
             this.isSpecialResponse = true;
             // Get to the note of the previous group
@@ -232,7 +251,7 @@ public class MenuManager {
 
                 formController.stepToNextEvent();
                 nextQuestion = createView(formController.getModel().getEvent(), "");
-                log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), nextQuestion.getButtonChoices().size()));
+                log.info(String.format("Current question is %s with %d choices", nextQuestion.getText(), (nextQuestion.getButtonChoices() != null ? nextQuestion.getButtonChoices().size() : 0)));
 
                 if (instanceXML != null) {
                     if (!udpatedInstanceXML.equals(instanceXML) || saveStatus.getSaveStatus() == ANSWER_OK) {
@@ -265,7 +284,7 @@ public class MenuManager {
                 e.printStackTrace();
             }
         }
-
+        
         // check if currentPath is persisted in the DB. If not, insert it with all the things.
         String formVersion = formController.getModel().getForm().getInstance().formVersion;
         Question question = new Question();
@@ -279,12 +298,64 @@ public class MenuManager {
                 choices.add(buttonChoice.getText());
             }
         }
-
+        
         question.setMeta(Json.of(new Meta(nextQuestion.getText(), choices).toString()));
 
-        return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question);
+        FormIndex formIndex = formController.getModel().getFormIndex();
+        ArrayList<Integer> conversationLevel = new ArrayList();
+		
+        Integer previousIndex = formIndex.getLocalIndex();
+		conversationLevel.add(previousIndex);
+		if(formIndex.getNextLevel() != null) {
+			Integer nextIndex = formIndex.getNextLevel().getLocalIndex();
+			conversationLevel.add(nextIndex);
+		}
+        
+		return new ServiceResponse(currentPath, nextQuestion, udpatedInstanceXML, formVersion, formID, question, conversationLevel);
     }
-
+    
+    /**
+     * Get Question XMessage Payload with text & button choices from question xPath
+     * 
+     * @return XMessagePayload
+     */
+    public XMessagePayload getQuestionPayloadFromXPath(String xpathStr) {
+    	new XFormsModule().registerModule();
+        FECWrapper fecWrapper = loadForm(formPath, xpathStr); // If instance load from instance (If form is filled load new)
+        formController = fecWrapper.controller;
+        
+        /* Previous Question */
+        ArrayList<ButtonChoice> choices = new ArrayList();
+        choices = getChoices(choices);
+        String questionText = renderQuestion(formController);
+        
+        XMessagePayload payload = XMessagePayload.builder()
+        								.text(questionText)
+        								.buttonChoices(choices)
+        								.build();
+        return payload;
+    }
+    
+    /**
+     * Get Question Object with xPath
+     * 
+     * @return Question
+     */
+    public Question getQuestionFromXPath(String xpathStr) {
+    	new XFormsModule().registerModule();
+        FECWrapper fecWrapper = loadForm(formPath, xpathStr); // If instance load from instance (If form is filled load new)
+        formController = fecWrapper.controller;
+        
+    	String formVersion = formController.getModel().getForm().getInstance().formVersion;
+        Question question = new Question();
+        question.setQuestionType(Question.QuestionType.STRING);
+        question.setFormID(formID);
+        question.setFormVersion(formVersion);
+        question.setXPath(xpathStr);
+        
+        return question;
+    }
+    
     private boolean isDynamicQuestion() {
         try {
             return formController.getModel().getEvent() == 4 &&
@@ -631,11 +702,18 @@ public class MenuManager {
                         previousPrompt = renderQuestion(formController);
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
-
-//                    log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
+                    
+                	log.info("bind: "+formController.getModel().getQuestionPrompt().getBindAttributes());
+                	formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
+                		if(attribute.getName().equals("stylingTags")) {
+                			stylingTag = attribute.getAttributeValue().toString();
+                		}
+                	});
+                	
                     choices = getChoices(choices);
+                    
                     //Check this
-                    return XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).build();
+                    return XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).stylingTag(stylingTag).build();
                 } catch (Exception e) {
                     log.info("Non Question data type");
                     formController.stepToNextEvent();
@@ -678,8 +756,41 @@ public class MenuManager {
             }
         } catch (Exception e) {
         }
-        return buttonChoices;
+        return getQuestionsChoiceWithKey(buttonChoices);
     }
+    
+    /**
+	 * Get Question Choices with correct key
+	 * @param questionChoices
+	 * @return
+	 */
+	private ArrayList<ButtonChoice> getQuestionsChoiceWithKey(ArrayList<ButtonChoice> questionChoices) {
+		questionChoices.forEach(choice -> {
+			String[] a = choice.getText().split(" ");
+			try {
+				if(a[0] != null && !a[0].isEmpty()) {
+					Integer.parseInt(a[0]);
+			        choice.setKey(a[0].toString());
+	    		}
+			} catch (NumberFormatException ex) {
+				String[] b = choice.getText().split(".");
+	    		try {
+	    			if(b[0] != null && !b[0].isEmpty()) {
+		    		    Integer.parseInt(b[0]);
+		    		    choice.setKey(b[0].toString());
+	    			}
+	    		} catch (NumberFormatException exc) {
+	    			// do nothing
+	    		} catch (ArrayIndexOutOfBoundsException exc) {
+	    		    // do nothing
+	    		}
+			} catch (ArrayIndexOutOfBoundsException ex) {
+				// do nothing
+			}
+			
+		});
+		return questionChoices;
+	}
 
     private XMessagePayload createViewForFormEnd(FormEntryController formController) {
 
