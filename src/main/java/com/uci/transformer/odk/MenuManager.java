@@ -381,23 +381,32 @@ public class MenuManager {
         ArrayList<ButtonChoice> choices = new ArrayList();
         choices = getChoices(choices);
         String questionText = renderQuestion(formController);
-        stylingTag = flow = null;
+        stylingTag = null;
+        flow = null;
         questionIndex = null;
         
-        formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
-            if(attribute.getName().equals("stylingTags")) {
-                stylingTag = attribute.getAttributeValue().toString();
-            } else if(attribute.getName().equals("flow")) {
-                flow = attribute.getAttributeValue().toString();
-            } else if(attribute.getName().equals("index")) {
-                questionIndex = Integer.parseInt(attribute.getAttributeValue());
-            }
-        });
+        try {
+        	if(formController.getModel() != null && formController.getModel().getQuestionPrompt() != null 
+            		&& formController.getModel().getQuestionPrompt().getBindAttributes() != null) {
+    	        log.info("Bind attributes: "+formController.getModel().getQuestionPrompt().getBindAttributes());
+    	        formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
+    	        	if(attribute.getName().equals("stylingTags")) {
+    	                stylingTag = attribute.getAttributeValue().toString();
+    	            } else if(attribute.getName().equals("flow")) {
+    	                flow = attribute.getAttributeValue().toString();
+    	            } else if(attribute.getName().equals("index")) {
+    	                questionIndex = Integer.parseInt(attribute.getAttributeValue());
+    	            }
+    	        });
+            } 
+        } catch (RuntimeException e) {
+        	log.info("RuntimeException in getQuestionPayloadFromXPath for getQuestionPrompt: "+e.getMessage());
+        }
         
         XMessagePayload payload = XMessagePayload.builder()
         								.text(questionText)
         								.buttonChoices(choices)
-        								.stylingTag(questionText)
+        								.stylingTag(stylingTag)
         								.flow(flow)
         								.questionIndex(questionIndex)
         								.build();
@@ -706,7 +715,6 @@ public class MenuManager {
 
     private String renderQuestion(FormEntryController formController) {
         try {
-            System.out.println("test");
             return "" + cleanText(getQuestionText(formController)) + "" + " \n" +
                     "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
             //return "*" + cleanText(getQuestionText(formController)) + "*" + " \n" + "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
@@ -773,7 +781,7 @@ public class MenuManager {
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
                     
-			log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
+//                    log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
                 	log.info("bind: "+formController.getModel().getQuestionPrompt().getBindAttributes());
                 	formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
                 		if(attribute.getName().equals("stylingTags")) {
@@ -787,10 +795,9 @@ public class MenuManager {
                 	
                     choices = getChoices(choices);
                     
-                    log.info("stylingTag: "+stylingTag+", flow: "+flow+", Q index: "+questionIndex);
-                    
                     //Check this
-                    log.info("previousPrompt:"+previousPrompt+", renderQuestion: "+renderQuestion(formController)+", choices: "+choices);
+                    log.info("previousPrompt:"+previousPrompt+", renderQuestion: "+renderQuestion(formController)
+                    		+", choices: "+choices+", stylingTag: "+stylingTag+", flow: "+flow+", Q index: "+questionIndex);
                     return XMessagePayload.builder()
                     			.text(previousPrompt + renderQuestion(formController))
                     			.buttonChoices(choices)

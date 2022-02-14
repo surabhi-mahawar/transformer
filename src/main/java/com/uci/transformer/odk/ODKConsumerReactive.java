@@ -27,6 +27,8 @@ import com.uci.transformer.odk.utilities.FormInstanceUpdation;
 import com.uci.transformer.telemetry.AssessmentTelemetryBuilder;
 import com.uci.utils.CampaignService;
 import com.uci.utils.kafka.SimpleProducer;
+import com.uci.utils.telemetry.service.TelemetryService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.ButtonChoice;
@@ -132,6 +134,9 @@ public class ODKConsumerReactive extends TransformerProvider {
     public MenuManager menuManager;
     
     public Boolean isStartingMessage;
+    
+    @Autowired
+    public TelemetryService telemetryService;
 
     @EventListener(ApplicationStartedEvent.class)
     public void onMessage() {
@@ -378,6 +383,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                             }
                                             
                                             /* To use with previous question & question payload methods */
+                                            log.info("menu manager instanceXMlPrevious: "+instanceXMlPrevious);
                                             menuManager = new MenuManager(answer, instanceXMlPrevious, formPath, formID, prefilled, questionRepo);
                                             
                                             /* Previous Question Data */
@@ -669,32 +675,6 @@ public class ODKConsumerReactive extends TransformerProvider {
         UUID userID = !xMessage.getTo().getDeviceID().isEmpty() && xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;      
         log.info("User uuid:"+userID);
         
-        XMessagePayload questionPayload = menuManager.getQuestionPayloadFromXPath(question.getXPath());
-		
-        /* Get Previous question assessment */
-        xMsgRepo.findFirstByAppAndUserIdAndFromIdAndMessageStateOrderByTimestampDesc(xMessage.getApp(), xMessage.getFrom().getUserID(), "admin", MessageState.SENT.name())
-            .subscribe(new Consumer<XMessageDAO>() {
-                @Override
-                public void accept(XMessageDAO xMsgDao) {
-                    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-                    
-                    /* local date time */
-                    LocalDateTime localNow = LocalDateTime.now();
-                    String current = fmt.format(localNow).toString();
-                    LocalDateTime currentDateTime = LocalDateTime.parse(current, fmt); 
-                    LocalDateTime timestamp = xMsgDao.getTimestamp();
-                    long diff = ChronoUnit.MILLIS.between(timestamp, currentDateTime);
-                    
-                    log.info("currentDateTime: "+currentDateTime+", timestamp: "+timestamp+", diff: "+diff);
-                    
-                    log.info("stylingTag: "+questionPayload.getStylingTag()+", flow: "+questionPayload.getFlow()
-                    	+", index: "+questionPayload.getQuestionIndex());
-                    
-                    // TODO Auto-generated method stub
-                    log.info("Id: "+xMsgDao.getId()+", userId: "+xMsgDao.getUserId()+", Timestamp: "+xMsgDao.getTimestamp());
-                }
-            });
-        
         Assessment assessment = Assessment.builder()
                 .question(question)
                 .deviceID(userID)
@@ -710,6 +690,49 @@ public class ODKConsumerReactive extends TransformerProvider {
             }
         	
         	if(question != null && !isStartingMessage) {
+        		XMessagePayload questionPayload = menuManager.getQuestionPayloadFromXPath(question.getXPath());
+        		
+                log.info("find xmessage by app: "+xMessage.getApp()+", userId: "+xMessage.getTo().getUserID()+", fromId: admin, status: "+MessageState.SENT.name());
+                
+                /* Get Previous question assessment */
+                xMsgRepo.findFirstByAppAndUserIdAndFromIdAndMessageStateOrderByTimestampDesc(xMessage.getApp(), xMessage.getTo().getUserID(), "admin", MessageState.SENT.name())
+                    .subscribe(new Consumer<XMessageDAO>() {
+                        @Override
+                        public void accept(XMessageDAO xMsgDao) {
+                        	log.info("found xMsgDao");
+                        	
+                            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+                            
+                            /* local date time */
+                            LocalDateTime localNow = LocalDateTime.now();
+                            String current = fmt.format(localNow).toString();
+                            LocalDateTime currentDateTime = LocalDateTime.parse(current, fmt); 
+                            LocalDateTime timestamp = xMsgDao.getTimestamp();
+                            long diff_milis = ChronoUnit.MILLIS.between(timestamp, currentDateTime);
+                            long diff_secs = ChronoUnit.SECONDS.between(timestamp, currentDateTime);
+                            
+                            log.info(
+                            		"xMsgDao Id: "+xMsgDao.getId()+", userId: "+xMsgDao.getUserId()+", Timestamp: "+xMsgDao.getTimestamp()
+                            		+", XMessage stylingTag: "+questionPayload.getStylingTag()+", flow: "+questionPayload.getFlow()+", index: "+questionPayload.getQuestionIndex()
+                            		+", currentDateTime: "+currentDateTime+", timestamp: "+timestamp+", diff seconds: "+diff_secs+", diff millis: "+diff_milis);
+                            
+                            if(questionPayload.getFlow() != null 
+                            	&& !questionPayload.getFlow().isEmpty()
+                        		&& questionPayload.getQuestionIndex() != null) {
+                            	telemetryService.sendDropOffEvent(
+                            			xMsgDao.getUserId(), questionPayload.getFlow().toString(), 
+                            			questionPayload.getQuestionIndex(), diff_milis)
+                            	.subscribe(new Consumer<String>() {
+									@Override
+									public void accept(String t) {
+										// TODO Auto-generated method stub
+										log.info("telemetry response: "+t);
+									}
+                            	});
+                            }
+                        }
+                    });
+                
         		String telemetryEvent = new AssessmentTelemetryBuilder()
                         .build(campaign.findValue("ownerOrgID").asText(),
                                 xMessage.getChannel(),
