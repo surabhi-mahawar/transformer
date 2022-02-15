@@ -50,6 +50,8 @@ import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.client.RestTemplate;
@@ -137,6 +139,11 @@ public class ODKConsumerReactive extends TransformerProvider {
     
     @Autowired
     public TelemetryService telemetryService;
+    
+    @Autowired
+    public RedisTemplate<String, Object> redisTemplate;
+    
+    public HashOperations hashOperations;
 
     @EventListener(ApplicationStartedEvent.class)
     public void onMessage() {
@@ -339,6 +346,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 instanceXMlPrevious = ss.updateHiddenFields(hiddenFields, (JSONObject) user).getXML();
                                                 prefilled = false;
                                             	answer = null;
+                                            	log.info("Condition 1 - xpath: null, answer: null, instanceXMlPrevious: "
+                                            			+instanceXMlPrevious+", formPath: "+formPath+", formID: "+formID);
                                             	mm = new MenuManager(null, null, instanceXMlPrevious,
                                                         formPath, formID);
                                                 response[0] = mm.start();
@@ -368,6 +377,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                     instanceXMlPrevious = instanceXMlPrevious + ss.updateHiddenFields(hiddenFields, (JSONObject) vacancyDetails).getXML();
                                                     prefilled = false;
                                                     answer = previousMeta.currentAnswer;
+                                                    log.info("Condition 1 - xpath: "+previousMeta.previousPath+", answer: "+answer+", instanceXMlPrevious: "
+                                                			+instanceXMlPrevious+", formPath: "+formPath+", formID: "+formID+", prefilled: "+prefilled
+                                                			+", questionRepo: "+questionRepo+", user: "+user+", shouldUpdateFormXML: true, campaign: "+camp);
                                                     mm = new MenuManager(previousMeta.previousPath, answer,
                                                             instanceXMlPrevious, formPath, formID,
                                                             prefilled, questionRepo, user, true, camp);
@@ -375,6 +387,9 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 	prefilled = false;
                                                 	answer = previousMeta.currentAnswer;
                                                 	instanceXMlPrevious = previousMeta.instanceXMlPrevious;
+                                                	log.info("Condition 1 - xpath: "+previousMeta.previousPath+", answer: "+answer+", instanceXMlPrevious: "
+                                                			+instanceXMlPrevious+", formPath: "+formPath+", formID: "+formID+", prefilled: "+prefilled
+                                                			+", questionRepo: "+questionRepo+", user: "+user+", shouldUpdateFormXML: true, campaign: "+camp);
                                                     mm = new MenuManager(previousMeta.previousPath, answer,
                                                     		instanceXMlPrevious, formPath, formID,
                                                     		prefilled, questionRepo, user, true, camp);
@@ -694,8 +709,8 @@ public class ODKConsumerReactive extends TransformerProvider {
         		
                 log.info("find xmessage by app: "+xMessage.getApp()+", userId: "+xMessage.getTo().getUserID()+", fromId: admin, status: "+MessageState.SENT.name());
                 
-                /* Get Previous question assessment */
-                xMsgRepo.findFirstByAppAndUserIdAndFromIdAndMessageStateOrderByTimestampDesc(xMessage.getApp(), xMessage.getTo().getUserID(), "admin", MessageState.SENT.name())
+                /* Get Previous question XMessage */
+                getLatestXMessage(xMessage.getApp(), xMessage.getTo().getUserID())
                     .subscribe(new Consumer<XMessageDAO>() {
                         @Override
                         public void accept(XMessageDAO xMsgDao) {
@@ -729,6 +744,8 @@ public class ODKConsumerReactive extends TransformerProvider {
 										log.info("telemetry response: "+t);
 									}
                             	});
+                            } else {
+                            	log.info("Posthog telemetry event not being sent for flow: "+questionPayload.getFlow()+", index: "+questionPayload.getQuestionIndex());
                             }
                         }
                     });
@@ -764,6 +781,23 @@ public class ODKConsumerReactive extends TransformerProvider {
                         log.info("Assessment Saved by id: "+assessment.getId());
                     }
                 });
+    }
+    
+    private Flux<XMessageDAO> getLatestXMessage(String appName, String userID) {
+    	hashOperations = redisTemplate.opsForHash();
+        XMessageDAO xMessageDAO = (XMessageDAO)hashOperations.get(redisKeyWithPrefix("XMessageDAO"), redisKeyWithPrefix(userID));
+	  	if(xMessageDAO != null) {
+	  		log.info("redis key: "+redisKeyWithPrefix("XMessageDAO")+", "+redisKeyWithPrefix(userID));
+	  		log.info("Redis xMsgDao id: "+xMessageDAO.getId()+", dao app: "+xMessageDAO.getApp()
+			+", From id: "+xMessageDAO.getFromId()+", user id: "+xMessageDAO.getUserId()
+			+", xMessage: "+xMessageDAO.getXMessage()+", status: "+xMessageDAO.getMessageState()+
+			", timestamp: "+xMessageDAO.getTimestamp());
+	  		return Flux.just(xMessageDAO);
+	  	} else {
+	  		log.info("not found in redis for key: "+redisKeyWithPrefix("XMessageDAO")+", "+redisKeyWithPrefix(userID));
+	  	}
+	  	
+    	return xMsgRepo.findFirstByAppAndUserIdAndFromIdAndMessageStateOrderByTimestampDesc(appName, userID, "admin", MessageState.SENT.name());
     }
 
     private Mono<XMessage> decodeXMessage(XMessage xMessage, ServiceResponse response, String formID, Mono<Pair<Boolean, List<Question>>> updateQuestionAndAssessment) {
@@ -874,5 +908,9 @@ public class ODKConsumerReactive extends TransformerProvider {
         long endTime = System.nanoTime();
         long duration = (endTime - startTime) / 1000000;
         log.info(String.format("CP-%d: %d ms", checkpointID, duration));
+    }
+    
+    private String redisKeyWithPrefix(String key) {
+    	return System.getenv("ENV")+"-"+key;
     }
 }

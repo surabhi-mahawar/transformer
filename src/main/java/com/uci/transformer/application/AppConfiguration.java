@@ -20,6 +20,10 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -48,6 +52,15 @@ public class AppConfiguration {
     
     @Value("${campaign.admin.token}")
 	public String CAMPAIGN_ADMIN_TOKEN;
+    
+    @Value("${spring.redis.database}")
+	private String redisDb;
+	
+	@Value("${spring.redis.host}")
+	private String redisHost;
+	
+	@Value("${spring.redis.port}")
+	private String redisPort;
 
     @Bean
     @Qualifier("rest")
@@ -166,6 +179,30 @@ public class AppConfiguration {
     	KafkaTemplate<String, String> kafkaTemplate = new KafkaTemplate<>(producerFactory());
     	return (KafkaTemplate<String, String>) kafkaTemplate;
     }
+    
+    @Bean
+	JedisConnectionFactory jedisConnectionFactory() {
+		JedisConnectionFactory jedisConFactory
+	      = new JedisConnectionFactory();
+	    jedisConFactory.setHostName(redisHost);
+	    Integer port = Integer.parseInt(redisPort);
+	    jedisConFactory.setPort(port);
+	    Integer dbIndex = Integer.parseInt(redisDb);
+	    jedisConFactory.setDatabase(dbIndex);
+//		jedisConFactory.getPoolConfig().setMaxIdle(30);
+//		jedisConFactory.getPoolConfig().setMinIdle(10);
+	    return jedisConFactory;
+	}
+
+	@Bean
+	public RedisTemplate<String, Object> redisTemplate() {
+	    RedisTemplate<String, Object> template = new RedisTemplate<>();
+	    template.setConnectionFactory(jedisConnectionFactory());
+	    template.setKeySerializer(new StringRedisSerializer());
+	    template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+//	    template.setEnableTransactionSupport(true);
+	    return template;
+	}
 
 //    @Bean
 //    ReactiveProducer kafkaReactiveProducer() {

@@ -389,8 +389,8 @@ public class MenuManager {
         try {
         	if(formController.getModel() != null && formController.getModel().getQuestionPrompt() != null 
             		&& formController.getModel().getQuestionPrompt().getBindAttributes() != null) {
-    	        log.info("Bind attributes: "+formController.getModel().getQuestionPrompt().getBindAttributes());
-    	        formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
+        		log.info("GetQuestionPayloadFromXPath bind attributes : "+formController.getModel().getQuestionPrompt().getBindAttributes());
+        		formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
     	        	if(attribute.getName().equals("stylingTags")) {
     	                stylingTag = attribute.getAttributeValue().toString();
     	            } else if(attribute.getName().equals("flow")) {
@@ -407,6 +407,9 @@ public class MenuManager {
         XMessagePayload payload = XMessagePayload.builder()
         								.text(questionText)
         								.buttonChoices(choices)
+        								.stylingTag(stylingTag)
+        								.flow(flow)
+        								.questionIndex(questionIndex)
         								.build();
         return payload;
     }
@@ -780,7 +783,7 @@ public class MenuManager {
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
                     
-                	log.info("bind: "+formController.getModel().getQuestionPrompt().getBindAttributes());
+                	log.info("CreateView bind attributes : "+formController.getModel().getQuestionPrompt().getBindAttributes());
                 	formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
                 		if(attribute.getName().equals("stylingTags")) {
                 			stylingTag = attribute.getAttributeValue().toString();
