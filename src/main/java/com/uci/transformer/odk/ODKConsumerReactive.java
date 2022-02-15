@@ -27,7 +27,7 @@ import com.uci.transformer.odk.utilities.FormInstanceUpdation;
 import com.uci.transformer.telemetry.AssessmentTelemetryBuilder;
 import com.uci.utils.CampaignService;
 import com.uci.utils.kafka.SimpleProducer;
-import com.uci.utils.telemetry.service.TelemetryService;
+import com.uci.utils.telemetry.service.PosthogService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -138,7 +138,7 @@ public class ODKConsumerReactive extends TransformerProvider {
     public Boolean isStartingMessage;
     
     @Autowired
-    public TelemetryService telemetryService;
+    public PosthogService posthogService;
     
     @Autowired
     public RedisTemplate<String, Object> redisTemplate;
@@ -734,7 +734,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                             if(questionPayload.getFlow() != null 
                             	&& !questionPayload.getFlow().isEmpty()
                         		&& questionPayload.getQuestionIndex() != null) {
-                            	telemetryService.sendDropOffEvent(
+                            	posthogService.sendDropOffEvent(
                             			xMsgDao.getUserId(), questionPayload.getFlow().toString(), 
                             			questionPayload.getQuestionIndex(), diff_milis)
                             	.subscribe(new Consumer<String>() {
