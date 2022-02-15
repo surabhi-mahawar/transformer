@@ -33,6 +33,7 @@ import org.javarosa.xform.util.XFormUtils;
 import org.javarosa.xpath.XPathTypeMismatchException;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.*;
 import java.nio.file.FileSystems;
@@ -406,9 +407,6 @@ public class MenuManager {
         XMessagePayload payload = XMessagePayload.builder()
         								.text(questionText)
         								.buttonChoices(choices)
-        								.stylingTag(stylingTag)
-        								.flow(flow)
-        								.questionIndex(questionIndex)
         								.build();
         return payload;
     }
@@ -715,8 +713,13 @@ public class MenuManager {
 
     private String renderQuestion(FormEntryController formController) {
         try {
-            return "" + cleanText(getQuestionText(formController)) + "" + " \n" +
-                    "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
+            System.out.println("test");
+            if(cleanText(getHelpText(formController)).equals("")){
+                return "" + cleanText(getQuestionText(formController)) + "" + " \n\n";
+            }else{
+                return "" + cleanText(getQuestionText(formController)) + "" + " \n" +
+                        "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
+            }
             //return "*" + cleanText(getQuestionText(formController)) + "*" + " \n" + "_" + cleanText(getHelpText(formController)) + "_" + " \n\n";
         } catch (Exception e) {
             return "";
@@ -760,28 +763,23 @@ public class MenuManager {
             case FormEntryController.EVENT_QUESTION:
             case FormEntryController.EVENT_GROUP:
             case FormEntryController.EVENT_REPEAT:
-            	log.info("event repeat - 1");
                 // Check for rendered Types
                 ArrayList<ButtonChoice> choices = new ArrayList<>();
                 try {
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_REPEAT) {
-                    	log.info("event repeat - 2");
                     	// formController.stepToNextEvent();
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_GROUP) {
-                    	log.info("event repeat - 3");
-                    	formController.stepToNextEvent();
+                        formController.stepToNextEvent();
                     }
                     // Check for note and add
                     if (isIntro() && !isQuestionChoiceType(formController)) {
-                    	log.info("event repeat - 4");
                         previousPrompt = renderQuestion(formController);
                         log.info("found previousPrompt: "+previousPrompt);
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
                     
-//                    log.info("Data type: " + formController.getModel().getQuestionPrompt().getDataType());
                 	log.info("bind: "+formController.getModel().getQuestionPrompt().getBindAttributes());
                 	formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
                 		if(attribute.getName().equals("stylingTags")) {
@@ -806,7 +804,6 @@ public class MenuManager {
                     			.questionIndex(questionIndex)
                     			.build();
                 } catch (Exception e) {
-                	log.info("event repeat - 5");
                     log.info("Non Question data type");
                     formController.stepToNextEvent();
                     String currentQuestionString = renderQuestion(formController);
