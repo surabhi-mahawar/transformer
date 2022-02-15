@@ -257,6 +257,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                     @Override
                     public Mono<Mono<Mono<XMessage>>> apply(JsonNode campaign) {
                         if (campaign != null) {
+                        	log.info("1 From User ID:"+xMessage.getFrom().getUserID());
 //                        	Map<String, String> data = getCampaignAndFormIdFromXMessage(xMessage);
 //                        	
 //                            String formID = data.get("formID");
@@ -605,7 +606,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 JsonNode campaign, XMessage xMessage, Question question) {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
         
-        UUID userID = !xMessage.getTo().getDeviceID().isEmpty() && xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;      
+        UUID userID = !xMessage.getTo().getDeviceID().isEmpty() && xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;
         log.info("User uuid:"+userID);                
 //        UUID userID;
 //        if(!xMessage.getTo().getUserID().isEmpty() && xMessage.getTo().getUserID() != null && xMessage.getTo().getUserID() != "") {
@@ -643,7 +644,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                                 assessment.getQuestion(),
                                 assessment,
                                 questionPayload,
-                                0);
+                                0,
+                                xMessage.getTo().getEncryptedDeviceID());
                 System.out.println(telemetryEvent);
                 kafkaProducer.send(telemetryTopic, telemetryEvent);
             }
