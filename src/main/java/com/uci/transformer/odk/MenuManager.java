@@ -1,5 +1,6 @@
 package com.uci.transformer.odk;
 
+import java.util.Arrays;
 import com.uci.transformer.odk.entity.Meta;
 import com.uci.transformer.odk.entity.Question;
 import com.uci.transformer.odk.repository.QuestionRepository;
@@ -7,6 +8,7 @@ import io.r2dbc.postgresql.codec.Json;
 import lombok.*;
 import lombok.extern.java.Log;
 import messagerosa.core.model.ButtonChoice;
+import messagerosa.core.model.StylingTag;
 import messagerosa.core.model.XMessagePayload;
 
 import org.apache.tomcat.util.http.fileupload.IOUtils;
@@ -87,19 +89,6 @@ public class MenuManager {
 
     public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
         this.xpath = xpath;
-        this.answer = answer;
-        this.instanceXML = instanceXML;
-        this.formPath = formPath;
-        this.isSpecialResponse = false;
-        this.isPrefilled = isPrefilled;
-        this.formID = formID;
-        this.questionRepo = questionRepo;
-        
-        setAssesmentCharacters();
-    }
-    
-    public MenuManager(String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
-        this.xpath = null;
         this.answer = answer;
         this.instanceXML = instanceXML;
         this.formPath = formPath;
@@ -333,6 +322,15 @@ public class MenuManager {
         								.text(questionText)
         								.buttonChoices(choices)
         								.build();
+        
+        try {
+        	if(formController.getModel().getQuestionPrompt().getBindAttributes() != null) {
+        		payload = getPayloadWithBindTags(payload, formController.getModel().getQuestionPrompt().getBindAttributes());
+            }
+        } catch (Exception e) {
+        	log.info("Exception in getQuestionPayloadFromXPath for bind attributes: "+e.getMessage());
+        }
+        
         return payload;
     }
     
@@ -703,17 +701,12 @@ public class MenuManager {
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
                     
-                	log.info("bind: "+formController.getModel().getQuestionPrompt().getBindAttributes());
-                	formController.getModel().getQuestionPrompt().getBindAttributes().forEach(attribute -> {
-                		if(attribute.getName().equals("stylingTags")) {
-                			stylingTag = attribute.getAttributeValue().toString();
-                		}
-                	});
-                	
-                    choices = getChoices(choices);
+                	choices = getChoices(choices);
                     
                     //Check this
-                    return XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).stylingTag(stylingTag).build();
+                    return getPayloadWithBindTags(
+                    		XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).build(), 
+                    		formController.getModel().getQuestionPrompt().getBindAttributes());
                 } catch (Exception e) {
                     log.info("Non Question data type");
                     formController.stepToNextEvent();
@@ -919,5 +912,41 @@ public class MenuManager {
             }
         }
         return new FECWrapper(fec, usedSavepoint);
+    }
+    
+    /**
+     * Get XMessage payload with bind attributes added to it
+     * 
+     * @param payload
+     * @param bindAttributes
+     * @return XMessagePayload
+     */
+    private XMessagePayload getPayloadWithBindTags(XMessagePayload payload, List<TreeElement> bindAttributes) {
+    	log.info("Bind Attributes: "+bindAttributes);
+    	try {
+    		bindAttributes.forEach(attribute -> {
+        		if(attribute.getName().equals("stylingTags")) {
+        			String tagText = attribute.getAttributeValue().toString();
+        			StylingTag tag = StylingTag.getEnumByText(tagText);
+        			if(tag != null) {
+        				payload.setStylingTag(tag);
+        			}
+        		} else if(attribute.getName().equals("flow")) {
+        			payload.setFlow(attribute.getAttributeValue().toString());
+        		} else if(attribute.getName().equals("index")) {
+        			try {
+        				payload.setIndex(Integer.parseInt(attribute.getAttributeValue()));
+        			} catch (IllegalArgumentException e) {
+        				log.info("Exception in getPayloadWithBindTags for parse int: "+e.getMessage());
+        			}
+        		} else if(attribute.getName().equals("caption")) {
+        			payload.setMediaCaption(attribute.getAttributeValue().toString());
+        		} 
+        	});
+    	} catch (Exception e) {
+    		log.info("Exception in getPayloadWithBindTags: "+e.getMessage());
+    	}
+    	
+    	return payload;
     }
 }

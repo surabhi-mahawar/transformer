@@ -318,7 +318,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                             }
                                             
                                             /* To use with previous question & question payload methods */
-                                            menuManager = new MenuManager(answer, instanceXMlPrevious, formPath, formID, prefilled, questionRepo);
+                                            menuManager = mm;
                                             
                                             /* Previous Question Data */
                                             Question prevQuestion = null;
@@ -607,17 +607,8 @@ public class ODKConsumerReactive extends TransformerProvider {
         if (question == null) question = existingQuestionStatus.getRight().get(0);
         
         UUID userID = !xMessage.getTo().getDeviceID().isEmpty() && xMessage.getTo().getDeviceID() != null && xMessage.getTo().getDeviceID() != "" ? UUID.fromString(xMessage.getTo().getDeviceID()) : null;
-        log.info("User uuid:"+userID);                
-//        UUID userID;
-//        if(!xMessage.getTo().getUserID().isEmpty() && xMessage.getTo().getUserID() != null && xMessage.getTo().getUserID() != "") {
-//        	try {
-//        		userID = UUID.fromString(xMessage.getTo().getUserID());
-//        	} catch (IllegalArgumentException e) {
-//        		userID =  UUID.nameUUIDFromBytes(xMessage.getTo().getUserID().getBytes());
-//        	}
-//        } else {
-//        	userID = null;
-//        }
+        log.info("User uuid:"+userID);      
+
         Assessment assessment = Assessment.builder()
                 .question(question)
                 .deviceID(userID)
