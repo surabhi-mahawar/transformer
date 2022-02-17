@@ -935,7 +935,7 @@ public class MenuManager {
         			payload.setFlow(attribute.getAttributeValue().toString());
         		} else if(attribute.getName().equals("index")) {
         			try {
-        				payload.setIndex(Integer.parseInt(attribute.getAttributeValue()));
+        				payload.setQuestionIndex(Integer.parseInt(attribute.getAttributeValue()));
         			} catch (IllegalArgumentException e) {
         				log.info("Exception in getPayloadWithBindTags for parse int: "+e.getMessage());
         			}
