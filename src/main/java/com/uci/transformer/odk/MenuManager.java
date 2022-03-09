@@ -689,7 +689,7 @@ public class MenuManager {
                 ArrayList<ButtonChoice> choices = new ArrayList<>();
                 try {
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_REPEAT) {
-                        formController.stepToNextEvent();
+//                        formController.stepToNextEvent();
                         return createView(formController.stepToNextEvent(), previousPrompt);
                     }
                     if (formController.getModel().getEvent() == FormEntryController.EVENT_GROUP) {
@@ -708,6 +708,7 @@ public class MenuManager {
                     		XMessagePayload.builder().text(previousPrompt + renderQuestion(formController)).buttonChoices(choices).build(), 
                     		formController.getModel().getQuestionPrompt().getBindAttributes());
                 } catch (Exception e) {
+                	e.printStackTrace();
                     log.info("Non Question data type");
                     formController.stepToNextEvent();
                     String currentQuestionString = renderQuestion(formController);
@@ -758,30 +759,38 @@ public class MenuManager {
 	 * @return
 	 */
 	private ArrayList<ButtonChoice> getQuestionsChoiceWithKey(ArrayList<ButtonChoice> questionChoices) {
-		questionChoices.forEach(choice -> {
-			String[] a = choice.getText().split(" ");
+		if(questionChoices != null) {
 			try {
-				if(a[0] != null && !a[0].isEmpty()) {
-					Integer.parseInt(a[0]);
-			        choice.setKey(a[0].toString());
-	    		}
-			} catch (NumberFormatException ex) {
-				String[] b = choice.getText().split(".");
-	    		try {
-	    			if(b[0] != null && !b[0].isEmpty()) {
-		    		    Integer.parseInt(b[0]);
-		    		    choice.setKey(b[0].toString());
-	    			}
-	    		} catch (NumberFormatException exc) {
-	    			// do nothing
-	    		} catch (ArrayIndexOutOfBoundsException exc) {
-	    		    // do nothing
-	    		}
-			} catch (ArrayIndexOutOfBoundsException ex) {
-				// do nothing
+				questionChoices.forEach(choice -> {
+					try {
+						String[] a = choice.getText().split(" ");
+						if(a[0] != null && !a[0].isEmpty()) {
+							Integer.parseInt(a[0]);
+					        choice.setKey(a[0].toString());
+			    		}
+					} catch (NumberFormatException ex) {
+						String[] b = choice.getText().split(".");
+			    		try {
+			    			if(b[0] != null && !b[0].isEmpty()) {
+				    		    Integer.parseInt(b[0]);
+				    		    choice.setKey(b[0].toString());
+			    			}
+			    		} catch (NumberFormatException exc) {
+			    			// do nothing
+			    		} catch (ArrayIndexOutOfBoundsException exc) {
+			    			// do nothing
+			    		}
+					} catch (ArrayIndexOutOfBoundsException ex) {
+						// do nothing
+					} catch (Exception ex) {
+						log.info("Exception in getQuestionsChoiceWithKey-2: "+ex.getMessage());
+					}
+				});
+			} catch (Exception e) {
+				log.info("Exception in getQuestionsChoiceWithKey: "+e.getMessage());
 			}
 			
-		});
+		}
 		return questionChoices;
 	}
 
