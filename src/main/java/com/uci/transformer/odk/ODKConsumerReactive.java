@@ -24,6 +24,7 @@ import com.uci.utils.kafka.SimpleProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import messagerosa.core.model.ButtonChoice;
+import messagerosa.core.model.LocationParams;
 import messagerosa.core.model.SenderReceiverInfo;
 import messagerosa.core.model.Transformer;
 import messagerosa.core.model.XMessage;
@@ -198,12 +199,12 @@ public class ODKConsumerReactive extends TransformerProvider {
 
                 for (int i = 34; i < users.length(); i++) {
                     String userPhone = ((JSONObject) users.get(i)).getString("whatsapp_mobile_number");
-                    ServiceResponse response = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
+                    ServiceResponse response = new MenuManager(null, null, null, formPath, formID, false, questionRepo, null).start();
                     FormUpdation ss = FormUpdation.builder().applicationID(campaignID).phone(userPhone).build();
                     ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
                     ss.parse(response.currentResponseState);
                     String instanceXMlPrevious = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ss.updateHiddenFields(hiddenFields, (JSONObject) users.get(i)).getXML();
-                    MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo);
+                    MenuManager mm = new MenuManager(null, null, instanceXMlPrevious, formPath, formID, true, questionRepo, null);
                     response = mm.start();
 
                     // Create new xMessage from response
@@ -296,7 +297,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                             if (previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
 //                                            if (!lastFormID.equals(formID) || previousMeta.instanceXMlPrevious == null || previousMeta.currentAnswer.equals(assesGoToStartChar) || isStartingMessage) {
                                             	previousMeta.currentAnswer = assesGoToStartChar;
-                                                ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID, false, questionRepo).start();
+                                                ServiceResponse serviceResponse = new MenuManager(null, null, null, formPath, formID, false, questionRepo, null).start();
                                                 FormUpdation ss = FormUpdation.builder().build();
                                                 ss.parse(serviceResponse.currentResponseState);
                                                 ss.updateAdapterProperties(xMessage.getChannel(), xMessage.getProvider());
@@ -306,14 +307,14 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                 instanceXMlPrevious = ss.getXML();
                                                 answer = null;
                                                 log.debug("Instance value >> " + instanceXMlPrevious);
-                                                mm = new MenuManager(null, answer, instanceXMlPrevious, formPath, formID, prefilled, questionRepo);
+                                                mm = new MenuManager(null, answer, instanceXMlPrevious, formPath, formID, prefilled, questionRepo, xMessage.getPayload());
                                                 response[0] = mm.start();
                                             } else {
                                             	prefilled = false;
                                             	answer = previousMeta.currentAnswer;
                                             	instanceXMlPrevious = previousMeta.instanceXMlPrevious;
                                                 mm = new MenuManager(previousMeta.previousPath, answer,
-                                                		instanceXMlPrevious, formPath, formID, prefilled, questionRepo);
+                                                		instanceXMlPrevious, formPath, formID, prefilled, questionRepo, xMessage.getPayload());
                                                 response[0] = mm.start();
                                             }
                                             
@@ -358,7 +359,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                         ServiceResponse serviceResponse = new MenuManager(
                                                                 null, null, null,
                                                                 getFormPath(nextFormID), nextFormID,
-                                                                false, questionRepo)
+                                                                false, questionRepo, null)
                                                                 .start();
                                                         FormUpdation ss = FormUpdation.builder().build();
                                                         ss.parse(serviceResponse.currentResponseState);
@@ -369,7 +370,7 @@ public class ODKConsumerReactive extends TransformerProvider {
                                                         log.debug("Instance value >> " + instanceXMlPrevious);
                                                         MenuManager mm2 = new MenuManager(null, null,
                                                                 instanceXMlPrevious, getFormPath(nextFormID), nextFormID, true,
-                                                                questionRepo);
+                                                                questionRepo, null);
                                                         ServiceResponse response = mm2.start();
                                                         xMessage.setApp(nextAppName);
                                                         return decodeXMessage(xMessage, response, nextFormID, updateQuestionAndAssessment);
@@ -519,9 +520,13 @@ public class ODKConsumerReactive extends TransformerProvider {
 
                             // Handle image responses to a question
                             if (message.getPayload() != null) {
-                                if (message.getPayload().getText() == null) {
-                                    formManagerParams.setCurrentAnswer(message.getPayload().getMedia().getUrl());
-                                } else formManagerParams.setCurrentAnswer(message.getPayload().getText());
+                            	if(message.getPayload().getMedia() != null) {
+                                	formManagerParams.setCurrentAnswer(message.getPayload().getMedia().getUrl());
+                                } else if(message.getPayload().getLocation() != null) {
+                                	formManagerParams.setCurrentAnswer(getLocationContentText(message.getPayload().getLocation()));
+                                } else  {
+                                	formManagerParams.setCurrentAnswer(message.getPayload().getText());
+                                }
                             } else {
                                 formManagerParams.setCurrentAnswer("");
                             }
@@ -539,6 +544,26 @@ public class ODKConsumerReactive extends TransformerProvider {
         }
     }
 
+    /**
+     * Get location content text
+     * @param location
+     * @return
+     */
+    private String getLocationContentText(LocationParams location) {
+    	String text = "";
+    	text = location.getLatitude()+" "+location.getLongitude();
+    	if(location.getAddress() != null && !location.getAddress().isEmpty()) {
+    		text += location.getAddress();
+    	}
+    	if(location.getName() != null && !location.getName().isEmpty()) {
+    		text += location.getName();
+    	}
+    	if(location.getUrl() != null && !location.getUrl().isEmpty()) {
+    		text += location.getUrl();
+    	}
+    	return text.trim();
+    }
+    
     @NotNull
     private Mono<Pair<Boolean, List<Question>>> updateQuestionAndAssessment(FormManagerParams previousMeta,
                                                                             Mono<Pair<Boolean, List<Question>>> previousQuestions, String formID,

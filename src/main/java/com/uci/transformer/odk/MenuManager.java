@@ -8,6 +8,7 @@ import io.r2dbc.postgresql.codec.Json;
 import lombok.*;
 import lombok.extern.java.Log;
 import messagerosa.core.model.ButtonChoice;
+import messagerosa.core.model.MediaCategory;
 import messagerosa.core.model.StylingTag;
 import messagerosa.core.model.XMessagePayload;
 
@@ -74,8 +75,9 @@ public class MenuManager {
     String assesOneLevelUpChar;
     Integer formDepth;
     String stylingTag;
+    XMessagePayload payload;
 
-    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID) {
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, XMessagePayload payload) {
         this.xpath = xpath;
         this.answer = answer;
         this.instanceXML = instanceXML;
@@ -83,11 +85,12 @@ public class MenuManager {
         this.isSpecialResponse = false;
         this.isPrefilled = false;
         this.formID = formID;
+        this.payload = payload;
         
         setAssesmentCharacters();
     }
 
-    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo) {
+    public MenuManager(String xpath, String answer, String instanceXML, String formPath, String formID, Boolean isPrefilled, QuestionRepository questionRepo, XMessagePayload payload) {
         this.xpath = xpath;
         this.answer = answer;
         this.instanceXML = instanceXML;
@@ -96,6 +99,7 @@ public class MenuManager {
         this.isPrefilled = isPrefilled;
         this.formID = formID;
         this.questionRepo = questionRepo;
+        this.payload = payload;
         
         setAssesmentCharacters();
     }
@@ -390,7 +394,10 @@ public class MenuManager {
         if (value != null) {
             // Works with name but you get Label
             try {
-                if (formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_SELECT_ONE) {
+            	log.info("Question control type: "+formController.getModel().getQuestionPrompt().getControlType()
+            			+", control datatype: "+formController.getModel().getQuestionPrompt().getDataType()
+            			+", for xpath: "+this.xpath);
+            	if (formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_SELECT_ONE) {
                     List<SelectChoice> items = formController.getModel().getQuestionPrompt().getSelectChoices();
                     boolean found = false;
                     if (items != null) {
@@ -422,6 +429,51 @@ public class MenuManager {
                                 }
                             }
                         }
+                    }
+                } else if(formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_IMAGE_CHOOSE) { 
+                	 TreeElement t = formController.getModel().getForm().getMainInstance().resolveReference(formIndex.getReference());
+                     try {
+                    	 if(this.payload != null && this.payload.getMedia() != null && this.payload.getMedia().getCategory().equals(MediaCategory.IMAGE)) {
+                    		 IAnswerData answerData = new StringData(value);
+                             saveStatus = formController.answerQuestion(formIndex, answerData, true);
+                    	 }
+                     } catch (Exception e) {
+                        log.severe("Exception in addResponseToForm for image type.");
+                        e.printStackTrace();
+                     }
+                } else if(formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_AUDIO_CAPTURE) { 
+                	TreeElement t = formController.getModel().getForm().getMainInstance().resolveReference(formIndex.getReference());
+                    try {
+                    	if(this.payload != null && this.payload.getMedia() != null && this.payload.getMedia().getCategory().equals(MediaCategory.AUDIO)) {
+                   		 	IAnswerData answerData = new StringData(value);
+                   		 	saveStatus = formController.answerQuestion(formIndex, answerData, true);
+                    	}
+                    } catch (Exception e) {
+                       log.severe("Exception in addResponseToForm for audio type.");
+                       e.printStackTrace();
+                    }
+                } else if(formController.getModel().getQuestionPrompt().getControlType() == Constants.CONTROL_VIDEO_CAPTURE) { 
+                	TreeElement t = formController.getModel().getForm().getMainInstance().resolveReference(formIndex.getReference());
+                    try {
+                    	if(this.payload != null && this.payload.getMedia() != null && this.payload.getMedia().getCategory().equals(MediaCategory.VIDEO)) {
+                   		 	IAnswerData answerData = new StringData(value);
+                   		 	saveStatus = formController.answerQuestion(formIndex, answerData, true);
+                    	}
+                    } catch (Exception e) {
+                       log.severe("Exception in addResponseToForm for video type.");
+                       e.printStackTrace();
+                    }
+                } else if(formController.getModel().getQuestionPrompt().getDataType() == Constants.DATATYPE_GEOPOINT) { 
+                	TreeElement t = formController.getModel().getForm().getMainInstance().resolveReference(formIndex.getReference());
+                    try {
+                    	if(this.payload != null && this.payload.getLocation() != null) {
+                    		log.info("location found with value: "+value);
+                   		 	IAnswerData answerData = new StringData(value);
+                   		 	saveStatus = formController.answerQuestion(formIndex, answerData, true);
+                    	}
+                    } catch (Exception e) {
+                       log.severe("Exception in addResponseToForm for video type.");
+                       e.printStackTrace();
                     }
                 } else {
                     try {
