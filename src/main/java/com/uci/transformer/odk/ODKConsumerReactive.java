@@ -661,7 +661,8 @@ public class ODKConsumerReactive extends TransformerProvider {
                                 assessment,
                                 questionPayload,
                                 0,
-                                xMessage.getTo().getEncryptedDeviceID());
+                                xMessage.getTo().getEncryptedDeviceID(),
+                                xMessage.getMessageId().getChannelMessageId());
                 System.out.println(telemetryEvent);
                 kafkaProducer.send(telemetryTopic, telemetryEvent);
             }
