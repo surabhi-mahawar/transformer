@@ -553,13 +553,13 @@ public class ODKConsumerReactive extends TransformerProvider {
     	String text = "";
     	text = location.getLatitude()+" "+location.getLongitude();
     	if(location.getAddress() != null && !location.getAddress().isEmpty()) {
-    		text += location.getAddress();
+    		text += " "+location.getAddress();
     	}
     	if(location.getName() != null && !location.getName().isEmpty()) {
-    		text += location.getName();
+    		text += " "+location.getName();
     	}
     	if(location.getUrl() != null && !location.getUrl().isEmpty()) {
-    		text += location.getUrl();
+    		text += " "+location.getUrl();
     	}
     	return text.trim();
     }
