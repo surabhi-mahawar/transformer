@@ -132,12 +132,13 @@ public class AssessmentTelemetryBuilder {
         String timestamp = fmt.format(localNow).toString();
         
         String mid = ASSESS_EVENT_MID_PREFIX;
-		if(msgid != null && !msgid.isEmpty()) {
-			mid += msgid;
-		} else {
-			mid += UUID.nameUUIDFromBytes(timestamp.getBytes()).toString().replace("-", "");
-		}
-        
+//		if(msgid != null && !msgid.isEmpty()) {
+//			mid += msgid;
+//		} else {
+//			mid += UUID.nameUUIDFromBytes(timestamp.getBytes()).toString().replace("-", "");
+//		}
+		mid += UUID.nameUUIDFromBytes(timestamp.getBytes()).toString().replace("-", "");
+		
 		//Telemetry
 		Telemetry telemetry = Telemetry.builder()
 										.eid(TelemetryEvents.ASSESS.getName())
