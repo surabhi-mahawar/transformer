@@ -50,7 +50,7 @@ public class AssessmentTelemetryBuilder {
 		cdata.add(setCdataItemMap("ConversationOwner", conversationOwnerID));
 		cdata.add(setCdataItemMap("Conversation", assessment.getBotID().toString()));
 		cdata.add(setCdataItemMap("XPath", xPath));
-		cdata.add(setCdataItemMap("FormEnd", formEnd));
+		cdata.add(setCdataItemMap("FormEnd", formEnd.toString()));
 		
 		
 		//Context Rollup
@@ -58,7 +58,7 @@ public class AssessmentTelemetryBuilder {
 		rollup.put("l1", conversationOwnerID.toString()); //ConversationOwner value
 		rollup.put("l2", assessment.getBotID().toString()); //Conversation value
 		rollup.put("l3", xPath);
-		rollup.put("l4", formEnd);
+		rollup.put("l4", formEnd.toString());
 		
 		String channelName = (botOrg.equalsIgnoreCase("Anonymous")) || botOrg.isEmpty() ? DIKSHA_ORG : botOrg;
 		String userID = "";
